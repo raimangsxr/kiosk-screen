@@ -11,9 +11,9 @@
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
+  IMPORTANT: User stories MUST be PRIORITIZED as user journeys ordered by importance.
   Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
+  you MUST still have a viable MVP (Minimum Viable Product) that delivers value.
 
   Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
   Think of each story as a standalone slice of functionality that can be:
@@ -97,6 +97,19 @@
 
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+
+### Traceability & Quality Requirements *(mandatory)*
+
+- **TQ-001**: Each functional requirement MUST map to at least one user story and
+  one measurable success criterion.
+- **TQ-002**: Changed behavior MUST have a testable validation method described
+  in this specification or deferred to the implementation plan.
+- **TQ-003**: Public, integration, data, and user-interface boundaries MUST list
+  expected contracts or explicitly state that no boundary is introduced.
+- **TQ-004**: Security, observability, and accessibility considerations MUST be
+  captured as requirements, assumptions, or out-of-scope decisions.
+- **TQ-005**: Speculative or future-scope behavior MUST be listed as out of scope
+  rather than implemented implicitly.
 
 ### Key Entities *(include if feature involves data)*
 

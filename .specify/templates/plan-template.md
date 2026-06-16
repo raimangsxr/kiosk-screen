@@ -40,7 +40,25 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Spec traceability**: Plan references the approved specification, user stories,
+  requirements, and measurable success criteria that drive this work.
+- **Requirement clarity**: Open ambiguities are resolved or explicitly marked as
+  blockers before implementation tasks are generated.
+- **Plan alignment**: Technical approach, dependencies, architecture, and task
+  boundaries stay within the approved specification scope.
+- **Simplicity**: Architecture is modular and maintainable, with new dependencies
+  or abstractions justified by current requirements.
+- **Contracts**: Public, integration, data, and UI boundaries have documented
+  contracts or expectations.
+- **Testing**: Changed behavior has a planned validation path, including unit
+  tests for business logic and integration, contract, or end-to-end tests for
+  external boundaries.
+- **Security, observability, accessibility**: Risks and required work are
+  considered from the start and reflected in research, design, or tasks.
+- **No speculative scope**: Deferred or unapproved features are excluded from the
+  implementation plan.
+- **Conflict handling**: If implementation reality conflicts with this plan, work
+  stops until the conflict is documented and the spec or plan is updated.
 
 ## Project Structure
 
