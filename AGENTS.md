@@ -1,5 +1,9 @@
 # AGENTS.md
 
+<!-- SPECKIT START -->
+For current feature context, read `specs/002-kiosk-screen/plan.md`.
+<!-- SPECKIT END -->
+
 ## Project operating model
 
 This project follows Spec-Driven Development using GitHub Spec Kit and Codex CLI.
@@ -52,40 +56,3 @@ Do not jump directly from idea to code.
 - Report changed files after implementation.
 - Report tests and validation commands executed.
 - Stop if the implementation requires changing the approved spec or plan.
-
-## Technology stack
-
-This is a greenfield full-stack application.
-
-### Frontend
-- Use Angular for the frontend.
-- Use TypeScript.
-- Prefer standalone components unless the project structure requires modules.
-- Keep UI logic separate from domain/application logic.
-- Use Angular services for API communication.
-- Do not introduce a different frontend framework.
-
-### Backend
-- Use Python with FastAPI.
-- Use SQLAlchemy as the ORM/data access layer.
-- Use Alembic for database migrations.
-- Use PostgreSQL as the relational database.
-- Do not use another backend framework unless explicitly approved.
-- Do not access the database outside SQLAlchemy-managed patterns.
-- Every schema change must include an Alembic migration.
-
-### API
-- Backend APIs must be exposed through FastAPI.
-- API contracts must be documented through OpenAPI.
-- Frontend/backend integration must respect the API contract.
-- Validation must happen at API boundaries.
-
-### Database
-- PostgreSQL is the source of truth for persisted application data.
-- Use migrations for all structural database changes.
-- Do not rely on automatic schema creation in production-like flows.
-
-### Testing
-- Backend behavior must be covered with pytest or an explicitly approved Python test framework.
-- Frontend behavior must be covered with Angular-compatible tests.
-- API behavior should have contract or integration tests where relevant.

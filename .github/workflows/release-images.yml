@@ -1,0 +1,36 @@
+name: Release Images
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  validate:
+    name: Validate release build inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate backend metadata
+        run: python -c "import pathlib, tomllib; tomllib.loads(pathlib.Path('backend/pyproject.toml').read_text())"
+
+      - name: Validate frontend metadata
+        run: npm --prefix frontend pkg get name
+
+      - name: Image publishing placeholder
+        run: echo "Docker Hub image build and upload steps will be added with deployment tasks."
