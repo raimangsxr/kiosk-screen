@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.service import hash_password
+from app.config import Settings
 from app.domain.roles import Role
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.client import Client
@@ -97,3 +99,16 @@ def bootstrap_mvp_data(
 
     return BootstrapResult(organization, administrator, operator, configuration, top_content, client, ad)
 
+
+def ensure_mvp_bootstrap_data(session: Session, settings: Settings) -> bool:
+    existing_admin = session.scalar(select(User).where(User.email == settings.bootstrap_admin_email))
+    if existing_admin is not None:
+        return False
+
+    bootstrap_mvp_data(
+        session,
+        admin_email=settings.bootstrap_admin_email,
+        admin_password=settings.bootstrap_admin_password,
+        admin_display_name=settings.bootstrap_admin_display_name
+    )
+    return True

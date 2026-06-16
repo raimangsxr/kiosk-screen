@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kiosk-backend-migrations
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: docker.io/your-org/kiosk-backend:latest
+          command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://kiosk:kiosk@kiosk-postgres:5432/kiosk_screen

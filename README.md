@@ -35,29 +35,149 @@ Current work is organized around the MVP plan:
 - Admin and readiness workflows
 - Deployment and release validation
 
-## Local Development
+## Local Lab Environment
 
-Expected local services:
+Prerequisites:
 
 - Python 3.12
 - Node.js compatible with the selected Angular CLI
-- PostgreSQL
-- Docker for local database and image builds
+- Docker or OrbStack
+- PostgreSQL client tools are optional, but useful for debugging
 
-Start the development database with:
+The local lab PostgreSQL container is exposed on host port `15432`. This avoids
+conflicts with a native PostgreSQL server that may already be listening on
+`localhost:5432`.
+
+Use three terminals from the repository root.
+
+### 1. Database
 
 ```sh
 docker compose up -d postgres
+docker compose ps
 ```
 
-Expected environment variables for the backend:
+If PostgreSQL was already running from an older checkout that exposed host port
+`5432`, recreate the container so the `15432` mapping is applied:
 
-- `DATABASE_URL`
-- `SESSION_SECRET`
-- `FRONTEND_ORIGIN`
-- `BOOTSTRAP_ADMIN_EMAIL`
-- `BOOTSTRAP_ADMIN_PASSWORD`
-- `BOOTSTRAP_ADMIN_DISPLAY_NAME`
+```sh
+docker compose down
+docker compose up -d postgres
+```
+
+Expected database settings:
+
+- Host: `localhost`
+- Port: `15432`
+- Database: `kiosk_screen`
+- User: `kiosk`
+- Password: `kiosk`
+
+Optional connectivity check:
+
+```sh
+docker compose exec postgres psql -U kiosk -d kiosk_screen -c "select current_user, current_database();"
+```
+
+### 2. Backend
+
+```sh
+cd backend
+pip install -e ".[dev]"
+cd ..
+alembic -c backend/alembic.ini upgrade head
+uvicorn app.main:app --reload --app-dir backend
+```
+
+The backend listens on `http://localhost:8000`. Development defaults are already
+configured for:
+
+- `DATABASE_URL=postgresql+psycopg://kiosk:kiosk@localhost:15432/kiosk_screen`
+- `SESSION_SECRET=development-only-session-secret`
+- `FRONTEND_ORIGIN=http://localhost:4200`
+- `BOOTSTRAP_ADMIN_EMAIL=admin@example.com`
+- `BOOTSTRAP_ADMIN_PASSWORD=admin`
+- `BOOTSTRAP_ADMIN_DISPLAY_NAME=Administrator`
+
+If your shell exports `DATABASE_URL`, make sure it uses port `15432`, or unset it
+before starting the backend:
+
+```sh
+unset DATABASE_URL
+```
+
+### 3. Frontend
+
+```sh
+cd frontend
+npm install
+npm start
+```
+
+The frontend listens on `http://localhost:4200`. The development server proxies
+`/api` requests to `http://localhost:8000`, so keep the backend running while
+using the UI.
+
+Default MVP login:
+
+- Email: `admin@example.com`
+- Password: `admin`
+
+Open the app at `http://localhost:4200`.
+
+Useful local checks:
+
+```sh
+pytest backend/tests
+npm --prefix frontend run test -- --watch=false
+npm --prefix frontend run build
+docker build -f backend/Dockerfile backend
+docker build -f frontend/Dockerfile frontend
+```
+
+### PostgreSQL Role Troubleshooting
+
+If Alembic fails with:
+
+```text
+FATAL:  no existe el rol "kiosk"
+```
+
+the Docker volume was probably initialized before this project defined the
+`kiosk` database role. PostgreSQL only applies `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, and `POSTGRES_DB` when the data directory is first created.
+This can also happen when another local PostgreSQL server is already listening
+on `localhost:5432`. The lab compose file exposes PostgreSQL on
+`localhost:15432` to avoid that conflict.
+
+For a disposable local lab database, recreate the database volume and port
+binding:
+
+```sh
+docker compose down -v
+docker compose up -d postgres
+alembic -c backend/alembic.ini upgrade head
+```
+
+This deletes local PostgreSQL data for this compose project.
+
+To keep the existing volume, create the expected role and database manually from
+an existing PostgreSQL superuser. Replace `<existing-superuser>` with a role that
+already exists in that volume. A fresh database created by this compose file uses
+`kiosk`; older reused volumes may use a different role and may not have a
+`postgres` role.
+
+```sh
+docker compose exec postgres psql -U <existing-superuser> -d postgres -c "CREATE ROLE kiosk WITH LOGIN PASSWORD 'kiosk';"
+docker compose exec postgres psql -U <existing-superuser> -d postgres -c "CREATE DATABASE kiosk_screen OWNER kiosk;"
+alembic -c backend/alembic.ini upgrade head
+```
+
+If `kiosk_screen` already exists, change its owner instead of creating it:
+
+```sh
+docker compose exec postgres psql -U <existing-superuser> -d postgres -c "ALTER DATABASE kiosk_screen OWNER TO kiosk;"
+```
 
 ## Validation
 

@@ -16,7 +16,7 @@ def get_settings() -> Settings:
     return Settings(
         database_url=os.getenv(
             "DATABASE_URL",
-            "postgresql+psycopg://kiosk:kiosk@localhost:5432/kiosk_screen"
+            "postgresql+psycopg://kiosk:kiosk@localhost:15432/kiosk_screen"
         ),
         session_secret=os.getenv("SESSION_SECRET", "development-only-session-secret"),
         frontend_origin=os.getenv("FRONTEND_ORIGIN", "http://localhost:4200"),
@@ -24,4 +24,3 @@ def get_settings() -> Settings:
         bootstrap_admin_password=os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "admin"),
         bootstrap_admin_display_name=os.getenv("BOOTSTRAP_ADMIN_DISPLAY_NAME", "Administrator")
     )
-

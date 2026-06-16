@@ -23,6 +23,9 @@ dev = [
   "pyyaml>=6.0"
 ]
 
+[project.scripts]
+kiosk-openapi = "app.api.openapi:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
