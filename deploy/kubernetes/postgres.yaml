@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kiosk-postgres
+type: Opaque
+stringData:
+  POSTGRES_DB: kiosk_screen
+  POSTGRES_USER: kiosk
+  POSTGRES_PASSWORD: kiosk
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kiosk-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kiosk-postgres
+  template:
+    metadata:
+      labels:
+        app: kiosk-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: kiosk-postgres
+          ports:
+            - containerPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiosk-postgres
+spec:
+  selector:
+    app: kiosk-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

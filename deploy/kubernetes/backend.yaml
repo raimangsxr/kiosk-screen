@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kiosk-backend
+type: Opaque
+stringData:
+  SESSION_SECRET: change-me
+  BOOTSTRAP_ADMIN_EMAIL: admin@example.com
+  BOOTSTRAP_ADMIN_PASSWORD: admin
+  BOOTSTRAP_ADMIN_DISPLAY_NAME: Administrator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kiosk-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kiosk-backend
+  template:
+    metadata:
+      labels:
+        app: kiosk-backend
+    spec:
+      containers:
+        - name: backend
+          image: docker.io/your-org/kiosk-backend:latest
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://kiosk:kiosk@kiosk-postgres:5432/kiosk_screen
+            - name: FRONTEND_ORIGIN
+              value: http://kiosk-frontend
+          envFrom:
+            - secretRef:
+                name: kiosk-backend
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kiosk-backend
+spec:
+  selector:
+    app: kiosk-backend
+  ports:
+    - port: 8000
+      targetPort: 8000

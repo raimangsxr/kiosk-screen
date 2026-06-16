@@ -34,9 +34,11 @@ def client() -> Iterator[TestClient]:
 
     app.dependency_overrides[get_session] = override_session
     app.state.auth_sessions = {}
+    app.state.skip_bootstrap = True
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+    app.state.skip_bootstrap = False
 
 
 def test_auth_and_display_flow(client: TestClient):

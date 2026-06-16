@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
 html,
@@ -14,3 +14,37 @@ body {
   color: #1f2933;
 }
 
+.page-panel {
+  max-width: 1040px;
+  margin: 24px auto;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+}
+
+input,
+select,
+button {
+  min-height: 40px;
+  font: inherit;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 10px;
+  border-bottom: 1px solid #d8dee6;
+  text-align: left;
+}

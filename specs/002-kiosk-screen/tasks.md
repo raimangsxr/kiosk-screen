@@ -106,20 +106,20 @@
 
 ### Tests for User Story 2
 
-- [ ] T047 [P] [US2] Add backend API tests for `/content` and `/content/{contentId}` in `backend/tests/integration/test_content_api.py` (Req: FR-003-FR-005, FR-007, FR-009, FR-022; Validate: `pytest backend/tests/integration/test_content_api.py`)
-- [ ] T048 [P] [US2] Add backend service tests for content validation, approved domains, ordering, durations, availability, and activation in `backend/tests/unit/test_content_service.py` (Req: FR-009, FR-022, FR-024, NFR-009, SC-003, SC-006A; Validate: `pytest backend/tests/unit/test_content_service.py`)
-- [ ] T049 [P] [US2] Add frontend content management tests in `frontend/src/app/content/content-list.component.spec.ts` and `frontend/src/app/content/content-form.component.spec.ts` for accessible, non-technical workflows (Req: FR-007, FR-018, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T050 [P] [US2] Add contract tests for top content schemas and paths in `backend/tests/contract/test_content_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_content_openapi.py`)
+- [X] T047 [P] [US2] Add backend API tests for `/content` and `/content/{contentId}` in `backend/tests/integration/test_content_api.py` (Req: FR-003-FR-005, FR-007, FR-009, FR-022; Validate: `pytest backend/tests/integration/test_content_api.py`)
+- [X] T048 [P] [US2] Add backend service tests for content validation, approved domains, ordering, durations, availability, and activation in `backend/tests/unit/test_content_service.py` (Req: FR-009, FR-022, FR-024, NFR-009, SC-003, SC-006A; Validate: `pytest backend/tests/unit/test_content_service.py`)
+- [X] T049 [P] [US2] Add frontend content management tests in `frontend/src/app/content/content-list.component.spec.ts` and `frontend/src/app/content/content-form.component.spec.ts` for accessible, non-technical workflows (Req: FR-007, FR-018, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T050 [P] [US2] Add contract tests for top content schemas and paths in `backend/tests/contract/test_content_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_content_openapi.py`)
 
 ### Implementation for User Story 2
 
-- [ ] T051 [US2] Implement content repository in `backend/app/repositories/content.py` for top content CRUD and eligibility queries (Req: FR-003-FR-005, FR-007, FR-009; Validate: `pytest backend/tests/integration/test_content_api.py`)
-- [ ] T052 [US2] Implement content service in `backend/app/services/content_service.py` for validation, activation, ordering, duration, availability, and approved-domain checks (Req: FR-007, FR-009, FR-022, FR-024, NFR-009; Validate: `pytest backend/tests/unit/test_content_service.py`)
-- [ ] T053 [US2] Implement top content API routes in `backend/app/api/content.py` and register them in `backend/app/api/router.py` (Req: FR-007, TQ-003; Validate: `pytest backend/tests/integration/test_content_api.py`)
-- [ ] T054 [US2] Implement frontend content API service in `frontend/src/app/content/content-api.service.ts` (Req: TQ-003; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T055 [US2] Implement content list component in `frontend/src/app/content/content-list.component.ts` with active/inactive and order visibility (Req: FR-007, FR-016; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T056 [US2] Implement content form component in `frontend/src/app/content/content-form.component.ts` for photo, video, and embedded web content fields (Req: FR-003-FR-005, FR-009, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T057 [US2] Add content change DisplayEvent recording in `backend/app/services/content_service.py` (Req: FR-017; Validate: `pytest backend/tests/unit/test_content_service.py`)
+- [X] T051 [US2] Implement content repository in `backend/app/repositories/content.py` for top content CRUD and eligibility queries (Req: FR-003-FR-005, FR-007, FR-009; Validate: `pytest backend/tests/integration/test_content_api.py`)
+- [X] T052 [US2] Implement content service in `backend/app/services/content_service.py` for validation, activation, ordering, duration, availability, and approved-domain checks (Req: FR-007, FR-009, FR-022, FR-024, NFR-009; Validate: `pytest backend/tests/unit/test_content_service.py`)
+- [X] T053 [US2] Implement top content API routes in `backend/app/api/content.py` and register them in `backend/app/api/router.py` (Req: FR-007, TQ-003; Validate: `pytest backend/tests/integration/test_content_api.py`)
+- [X] T054 [US2] Implement frontend content API service in `frontend/src/app/content/content-api.service.ts` (Req: TQ-003; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T055 [US2] Implement content list component in `frontend/src/app/content/content-list.component.ts` with active/inactive and order visibility (Req: FR-007, FR-016; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T056 [US2] Implement content form component in `frontend/src/app/content/content-form.component.ts` for photo, video, and embedded web content fields (Req: FR-003-FR-005, FR-009, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T057 [US2] Add content change DisplayEvent recording in `backend/app/services/content_service.py` (Req: FR-017; Validate: `pytest backend/tests/unit/test_content_service.py`)
 
 **Checkpoint**: US2 is independently testable by managing top content and verifying eligibility.
 
@@ -131,20 +131,20 @@
 
 ### Tests for User Story 3
 
-- [ ] T058 [P] [US3] Add backend API tests for `/clients`, `/ads`, and `/ads/{adId}` in `backend/tests/integration/test_ads_api.py` (Req: FR-006, FR-008, FR-010, FR-025; Validate: `pytest backend/tests/integration/test_ads_api.py`)
-- [ ] T059 [P] [US3] Add backend service tests for client/ad validation, ordering, duration, availability, and active-client checks in `backend/tests/unit/test_ads_service.py` (Req: FR-008, FR-010, FR-025, SC-004; Validate: `pytest backend/tests/unit/test_ads_service.py`)
-- [ ] T060 [P] [US3] Add frontend ads and clients tests in `frontend/src/app/ads/client-list.component.spec.ts` and `frontend/src/app/ads/ad-form.component.spec.ts` for accessible, non-technical workflows (Req: FR-008, FR-018, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T061 [P] [US3] Add contract tests for client and ad schemas and paths in `backend/tests/contract/test_ads_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_ads_openapi.py`)
+- [X] T058 [P] [US3] Add backend API tests for `/clients`, `/ads`, and `/ads/{adId}` in `backend/tests/integration/test_ads_api.py` (Req: FR-006, FR-008, FR-010, FR-025; Validate: `pytest backend/tests/integration/test_ads_api.py`)
+- [X] T059 [P] [US3] Add backend service tests for client/ad validation, ordering, duration, availability, and active-client checks in `backend/tests/unit/test_ads_service.py` (Req: FR-008, FR-010, FR-025, SC-004; Validate: `pytest backend/tests/unit/test_ads_service.py`)
+- [X] T060 [P] [US3] Add frontend ads and clients tests in `frontend/src/app/ads/client-list.component.spec.ts` and `frontend/src/app/ads/ad-form.component.spec.ts` for accessible, non-technical workflows (Req: FR-008, FR-018, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T061 [P] [US3] Add contract tests for client and ad schemas and paths in `backend/tests/contract/test_ads_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_ads_openapi.py`)
 
 ### Implementation for User Story 3
 
-- [ ] T062 [US3] Implement client and ad repositories in `backend/app/repositories/clients.py` and `backend/app/repositories/ads.py` (Req: FR-006, FR-008, FR-010; Validate: `pytest backend/tests/integration/test_ads_api.py`)
-- [ ] T063 [US3] Implement ads service in `backend/app/services/ads_service.py` for client/ad validation, activation, ordering, duration, and availability (Req: FR-008, FR-010, FR-025; Validate: `pytest backend/tests/unit/test_ads_service.py`)
-- [ ] T064 [US3] Implement clients and ads API routes in `backend/app/api/clients.py` and `backend/app/api/ads.py` (Req: FR-008, TQ-003; Validate: `pytest backend/tests/integration/test_ads_api.py`)
-- [ ] T065 [US3] Implement frontend ads API service in `frontend/src/app/ads/ads-api.service.ts` (Req: TQ-003; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T066 [US3] Implement client list/form UI in `frontend/src/app/ads/client-list.component.ts` and `frontend/src/app/ads/client-form.component.ts` (Req: FR-008, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T067 [US3] Implement ad list/form UI in `frontend/src/app/ads/ad-list.component.ts` and `frontend/src/app/ads/ad-form.component.ts` (Req: FR-006, FR-008, FR-010, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T068 [US3] Add ad and client DisplayEvent recording in `backend/app/services/ads_service.py` (Req: FR-017; Validate: `pytest backend/tests/unit/test_ads_service.py`)
+- [X] T062 [US3] Implement client and ad repositories in `backend/app/repositories/clients.py` and `backend/app/repositories/ads.py` (Req: FR-006, FR-008, FR-010; Validate: `pytest backend/tests/integration/test_ads_api.py`)
+- [X] T063 [US3] Implement ads service in `backend/app/services/ads_service.py` for client/ad validation, activation, ordering, duration, and availability (Req: FR-008, FR-010, FR-025; Validate: `pytest backend/tests/unit/test_ads_service.py`)
+- [X] T064 [US3] Implement clients and ads API routes in `backend/app/api/clients.py` and `backend/app/api/ads.py` (Req: FR-008, TQ-003; Validate: `pytest backend/tests/integration/test_ads_api.py`)
+- [X] T065 [US3] Implement frontend ads API service in `frontend/src/app/ads/ads-api.service.ts` (Req: TQ-003; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T066 [US3] Implement client list/form UI in `frontend/src/app/ads/client-list.component.ts` and `frontend/src/app/ads/client-form.component.ts` (Req: FR-008, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T067 [US3] Implement ad list/form UI in `frontend/src/app/ads/ad-list.component.ts` and `frontend/src/app/ads/ad-form.component.ts` (Req: FR-006, FR-008, FR-010, FR-018; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T068 [US3] Add ad and client DisplayEvent recording in `backend/app/services/ads_service.py` (Req: FR-017; Validate: `pytest backend/tests/unit/test_ads_service.py`)
 
 **Checkpoint**: US3 is independently testable by managing clients and ads and verifying bottom-region eligibility.
 
@@ -156,20 +156,20 @@
 
 ### Tests for User Story 4
 
-- [ ] T069 [P] [US4] Add backend API tests for `/readiness`, `/display/configuration`, `/approved-domains`, `/events`, and admin user/role routes in `backend/tests/integration/test_admin_readiness_api.py` (Req: FR-013, FR-014, FR-016, FR-017, FR-023, FR-028; Validate: `pytest backend/tests/integration/test_admin_readiness_api.py`)
-- [ ] T070 [P] [US4] Add backend service tests for readiness blockers, approved domains, configuration, role assignment, and single-organization ownership in `backend/tests/unit/test_admin_readiness_services.py` (Req: FR-013, FR-023, FR-026, FR-028, SC-007, SC-011; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
-- [ ] T071 [P] [US4] Add frontend readiness and admin tests in `frontend/src/app/readiness/readiness.component.spec.ts` and `frontend/src/app/admin/admin-shell.component.spec.ts` for accessibility and clear non-technical diagnostics (Req: FR-016, FR-018, FR-020, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T072 [P] [US4] Add contract tests for readiness, configuration, domains, events, and admin paths in `backend/tests/contract/test_admin_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_admin_openapi.py`)
+- [X] T069 [P] [US4] Add backend API tests for `/readiness`, `/display/configuration`, `/approved-domains`, `/events`, and admin user/role routes in `backend/tests/integration/test_admin_readiness_api.py` (Req: FR-013, FR-014, FR-016, FR-017, FR-023, FR-028; Validate: `pytest backend/tests/integration/test_admin_readiness_api.py`)
+- [X] T070 [P] [US4] Add backend service tests for readiness blockers, approved domains, configuration, role assignment, and single-organization ownership in `backend/tests/unit/test_admin_readiness_services.py` (Req: FR-013, FR-023, FR-026, FR-028, SC-007, SC-011; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
+- [X] T071 [P] [US4] Add frontend readiness and admin tests in `frontend/src/app/readiness/readiness.component.spec.ts` and `frontend/src/app/admin/admin-shell.component.spec.ts` for accessibility and clear non-technical diagnostics (Req: FR-016, FR-018, FR-020, NFR-003, NFR-007; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T072 [P] [US4] Add contract tests for readiness, configuration, domains, events, and admin paths in `backend/tests/contract/test_admin_openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract/test_admin_openapi.py`)
 
 ### Implementation for User Story 4
 
-- [ ] T073 [US4] Implement readiness service in `backend/app/services/readiness_service.py` using content, ad, domain, order, source, and duration checks (Req: FR-013, FR-016, SC-007; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
-- [ ] T074 [US4] Implement admin services for configuration, approved domains, users, roles, and ownership in `backend/app/services/admin_service.py` (Req: FR-014, FR-023, FR-026, FR-028; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
-- [ ] T075 [US4] Implement readiness, configuration, approved-domain, event, and user/role API routes in `backend/app/api/readiness.py`, `backend/app/api/configuration.py`, `backend/app/api/approved_domains.py`, `backend/app/api/events.py`, and `backend/app/api/users.py` (Req: FR-013, FR-014, FR-016, FR-017, FR-023; Validate: `pytest backend/tests/integration/test_admin_readiness_api.py`)
-- [ ] T076 [US4] Implement frontend readiness API service and component in `frontend/src/app/readiness/readiness-api.service.ts` and `frontend/src/app/readiness/readiness.component.ts` (Req: FR-016, FR-020, SC-007; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T077 [US4] Implement frontend admin API services and shell in `frontend/src/app/admin/admin-api.service.ts` and `frontend/src/app/admin/admin-shell.component.ts` (Req: FR-014, FR-023, FR-028; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T078 [US4] Implement approved-domain management UI in `frontend/src/app/admin/approved-domains.component.ts` (Req: FR-022, FR-023, SC-006A; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T079 [US4] Implement display configuration and role management UI in `frontend/src/app/admin/display-configuration.component.ts` and `frontend/src/app/admin/users-roles.component.ts` (Req: FR-014, FR-026, FR-028; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T073 [US4] Implement readiness service in `backend/app/services/readiness_service.py` using content, ad, domain, order, source, and duration checks (Req: FR-013, FR-016, SC-007; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
+- [X] T074 [US4] Implement admin services for configuration, approved domains, users, roles, and ownership in `backend/app/services/admin_service.py` (Req: FR-014, FR-023, FR-026, FR-028; Validate: `pytest backend/tests/unit/test_admin_readiness_services.py`)
+- [X] T075 [US4] Implement readiness, configuration, approved-domain, event, and user/role API routes in `backend/app/api/readiness.py`, `backend/app/api/configuration.py`, `backend/app/api/approved_domains.py`, `backend/app/api/events.py`, and `backend/app/api/users.py` (Req: FR-013, FR-014, FR-016, FR-017, FR-023; Validate: `pytest backend/tests/integration/test_admin_readiness_api.py`)
+- [X] T076 [US4] Implement frontend readiness API service and component in `frontend/src/app/readiness/readiness-api.service.ts` and `frontend/src/app/readiness/readiness.component.ts` (Req: FR-016, FR-020, SC-007; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T077 [US4] Implement frontend admin API services and shell in `frontend/src/app/admin/admin-api.service.ts` and `frontend/src/app/admin/admin-shell.component.ts` (Req: FR-014, FR-023, FR-028; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T078 [US4] Implement approved-domain management UI in `frontend/src/app/admin/approved-domains.component.ts` (Req: FR-022, FR-023, SC-006A; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T079 [US4] Implement display configuration and role management UI in `frontend/src/app/admin/display-configuration.component.ts` and `frontend/src/app/admin/users-roles.component.ts` (Req: FR-014, FR-026, FR-028; Validate: `npm --prefix frontend run test -- --watch=false`)
 
 **Checkpoint**: US4 is independently testable by reviewing readiness and managing admin data.
 
@@ -177,15 +177,15 @@
 
 **Purpose**: Validate the integrated MVP and prepare local/deployment workflows.
 
-- [ ] T080 [P] Add backend OpenAPI export/validation command in `backend/pyproject.toml` and `backend/app/api/openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract`)
-- [ ] T081 [P] Add Dockerfiles for frontend and backend in `frontend/Dockerfile` and `backend/Dockerfile` (Req: plan CI/CD Considerations; Validate: `docker build -f backend/Dockerfile backend && docker build -f frontend/Dockerfile frontend`)
-- [ ] T082 [P] Add Kubernetes manifests for backend, frontend, PostgreSQL connection settings, secrets references, and migration job in `deploy/kubernetes/` (Req: plan CI/CD Considerations; Validate: `kubectl kustomize deploy/kubernetes`)
-- [ ] T083 [P] Complete GitHub Actions release workflow in `.github/workflows/release-images.yml` for tests, migration validation, image builds, and Docker Hub upload (Req: plan CI/CD Considerations; Validate: `git diff --check .github/workflows/release-images.yml`)
-- [ ] T084 [P] Add local development documentation in `README.md`, `backend/README.md`, and `frontend/README.md` for PostgreSQL, Alembic, FastAPI, Angular, and tests (Req: quickstart.md; Validate: follow documented quickstart commands)
-- [ ] T085 Add end-to-end smoke validation script or checklist in `scripts/smoke/kiosk_mvp.md` covering login, setup, readiness, display open, rotation, unauthorized access, and OpenAPI validation (Req: quickstart Smoke Validation; Validate: execute documented smoke checklist)
-- [ ] T086 Run full backend validation and record results in `specs/002-kiosk-screen/validation/backend.md` (Req: all backend requirements; Validate: `pytest backend/tests`)
-- [ ] T087 Run full frontend validation and record results in `specs/002-kiosk-screen/validation/frontend.md` (Req: all frontend requirements; Validate: `npm --prefix frontend run test -- --watch=false`)
-- [ ] T088 Run full contract and quickstart validation and record results in `specs/002-kiosk-screen/validation/integration.md` (Req: TQ-003, quickstart.md; Validate: OpenAPI contract validation plus smoke checklist)
+- [X] T080 [P] Add backend OpenAPI export/validation command in `backend/pyproject.toml` and `backend/app/api/openapi.py` (Req: TQ-003; Validate: `pytest backend/tests/contract`)
+- [X] T081 [P] Add Dockerfiles for frontend and backend in `frontend/Dockerfile` and `backend/Dockerfile` (Req: plan CI/CD Considerations; Validate: `docker build -f backend/Dockerfile backend && docker build -f frontend/Dockerfile frontend`)
+- [X] T082 [P] Add Kubernetes manifests for backend, frontend, PostgreSQL connection settings, secrets references, and migration job in `deploy/kubernetes/` (Req: plan CI/CD Considerations; Validate: `kubectl kustomize deploy/kubernetes`)
+- [X] T083 [P] Complete GitHub Actions release workflow in `.github/workflows/release-images.yml` for tests, migration validation, image builds, and Docker Hub upload (Req: plan CI/CD Considerations; Validate: `git diff --check .github/workflows/release-images.yml`)
+- [X] T084 [P] Add local development documentation in `README.md`, `backend/README.md`, and `frontend/README.md` for PostgreSQL, Alembic, FastAPI, Angular, and tests (Req: quickstart.md; Validate: follow documented quickstart commands)
+- [X] T085 Add end-to-end smoke validation script or checklist in `scripts/smoke/kiosk_mvp.md` covering login, setup, readiness, display open, rotation, unauthorized access, and OpenAPI validation (Req: quickstart Smoke Validation; Validate: execute documented smoke checklist)
+- [X] T086 Run full backend validation and record results in `specs/002-kiosk-screen/validation/backend.md` (Req: all backend requirements; Validate: `pytest backend/tests`)
+- [X] T087 Run full frontend validation and record results in `specs/002-kiosk-screen/validation/frontend.md` (Req: all frontend requirements; Validate: `npm --prefix frontend run test -- --watch=false`)
+- [X] T088 Run full contract and quickstart validation and record results in `specs/002-kiosk-screen/validation/integration.md` (Req: TQ-003, quickstart.md; Validate: OpenAPI contract validation plus smoke checklist)
 
 ## Dependencies & Execution Order
 

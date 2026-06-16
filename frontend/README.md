@@ -9,9 +9,10 @@ npm install
 npm start
 ```
 
+The Angular app expects the backend API under `/api`.
+
 ## Tests
 
 ```sh
 npm test -- --watch=false
 ```
-
