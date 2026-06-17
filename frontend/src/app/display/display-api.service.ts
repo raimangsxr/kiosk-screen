@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { MediaFileReference, RotationAnimation } from '../shared/media-upload.models';
 
 export interface KioskConfiguration {
   id: string;
@@ -9,6 +10,11 @@ export interface KioskConfiguration {
   bottomRegionRatio: 1;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
+  defaultTopRotationAnimation?: RotationAnimation;
+  defaultAdRotationAnimation?: RotationAnimation;
+  defaultTopAnimationDurationMilliseconds?: number;
+  defaultAdAnimationDurationMilliseconds?: number;
+  inlineAdCount?: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -18,9 +24,15 @@ export interface ContentItem {
   title: string;
   contentType: 'photo' | 'video' | 'embedded_web';
   sourceReference: string;
+  mediaFile?: MediaFileReference | null;
   isActive: boolean;
   displayOrder: number;
   durationSeconds?: number | null;
+  rotationAnimation?: RotationAnimation | null;
+  animationDurationMilliseconds?: number | null;
+  effectiveDurationSeconds?: number | null;
+  effectiveRotationAnimation?: RotationAnimation | null;
+  effectiveAnimationDurationMilliseconds?: number | null;
 }
 
 export interface AdItem {
@@ -28,9 +40,15 @@ export interface AdItem {
   clientId: string;
   label: string;
   sourceReference: string;
+  mediaFile?: MediaFileReference | null;
   isActive: boolean;
   displayOrder: number;
   durationSeconds?: number | null;
+  rotationAnimation?: RotationAnimation | null;
+  animationDurationMilliseconds?: number | null;
+  effectiveDurationSeconds?: number | null;
+  effectiveRotationAnimation?: RotationAnimation | null;
+  effectiveAnimationDurationMilliseconds?: number | null;
 }
 
 export interface DisplayState {

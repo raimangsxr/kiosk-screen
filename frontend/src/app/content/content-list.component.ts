@@ -15,13 +15,15 @@ import { ContentApiService, ContentItem } from './content-api.service';
       </header>
       <table aria-label="Top content items">
         <thead>
-          <tr><th>Order</th><th>Title</th><th>Type</th><th>Status</th></tr>
+          <tr><th>Order</th><th>Title</th><th>Type</th><th>Media</th><th>Rotation</th><th>Status</th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let item of items">
             <td>{{ item.displayOrder }}</td>
             <td>{{ item.title }}</td>
             <td>{{ item.contentType }}</td>
+            <td>{{ item.mediaFile ? item.mediaFile.originalFilename : item.contentType === 'embedded_web' ? 'Iframe' : 'External source' }}</td>
+            <td>{{ rotationSummary(item) }}</td>
             <td>{{ item.isActive ? 'Active' : 'Inactive' }}</td>
           </tr>
         </tbody>
@@ -37,5 +39,11 @@ export class ContentListComponent implements OnInit {
     this.api.list().subscribe((items) => {
       this.items = items;
     });
+  }
+
+  rotationSummary(item: ContentItem): string {
+    const duration = item.durationSeconds ? `${item.durationSeconds}s` : 'default';
+    const animation = item.rotationAnimation ?? 'default';
+    return `${duration}, ${animation}`;
   }
 }

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_ad_schema
@@ -24,6 +27,39 @@ def create_ad(
 ) -> AdItemSchema:
     try:
         return to_ad_schema(AdsService(session).create_ad(user.organization_id, user.id, payload))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/upload", response_model=AdItemSchema, status_code=status.HTTP_201_CREATED)
+def upload_ad(
+    file: UploadFile = File(...),
+    client_id: UUID = Form(..., alias="clientId"),
+    label: str = Form(...),
+    is_active: bool = Form(..., alias="isActive"),
+    display_order: int = Form(..., alias="displayOrder"),
+    duration_seconds: int | None = Form(default=None, alias="durationSeconds"),
+    rotation_animation: str | None = Form(default=None, alias="rotationAnimation"),
+    animation_duration_milliseconds: int | None = Form(default=None, alias="animationDurationMilliseconds"),
+    available_from: datetime | None = Form(default=None, alias="availableFrom"),
+    available_until: datetime | None = Form(default=None, alias="availableUntil"),
+    user: CurrentUser = Depends(require_roles(AD_MANAGEMENT_ROLES)),
+    session: Session = Depends(get_session)
+) -> AdItemSchema:
+    payload = AdItemRequest(
+        clientId=client_id,
+        label=label,
+        sourceReference="",
+        isActive=is_active,
+        displayOrder=display_order,
+        durationSeconds=duration_seconds,
+        rotationAnimation=rotation_animation,
+        animationDurationMilliseconds=animation_duration_milliseconds,
+        availableFrom=available_from,
+        availableUntil=available_until
+    )
+    try:
+        return to_ad_schema(AdsService(session).create_uploaded_ad(user.organization_id, user.id, file, payload))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

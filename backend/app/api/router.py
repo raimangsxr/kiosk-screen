@@ -9,6 +9,7 @@ from app.api.content import router as content_router
 from app.api.display import router as display_router
 from app.api.events import router as events_router
 from app.api.health import router as health_router
+from app.api.media import router as media_router
 from app.api.readiness import router as readiness_router
 from app.api.users import router as users_router
 
@@ -19,6 +20,7 @@ api_router.include_router(configuration_router)
 api_router.include_router(content_router)
 api_router.include_router(clients_router)
 api_router.include_router(ads_router)
+api_router.include_router(media_router)
 api_router.include_router(approved_domains_router)
 api_router.include_router(events_router)
 api_router.include_router(readiness_router)

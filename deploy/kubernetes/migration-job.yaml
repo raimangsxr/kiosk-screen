@@ -13,3 +13,5 @@ spec:
           env:
             - name: DATABASE_URL
               value: postgresql+psycopg://kiosk:kiosk@kiosk-postgres:5432/kiosk_screen
+            - name: MEDIA_STORAGE_PATH
+              value: /app/var/media

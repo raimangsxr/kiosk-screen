@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 export interface OrderedDisplayItem {
   displayOrder: number;
   durationSeconds?: number | null;
+  effectiveDurationSeconds?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +21,6 @@ export class DisplayRotationService {
   }
 
   duration(item: OrderedDisplayItem | null, defaultDurationSeconds: number): number {
-    return item?.durationSeconds ?? defaultDurationSeconds;
+    return item?.effectiveDurationSeconds ?? item?.durationSeconds ?? defaultDurationSeconds;
   }
 }

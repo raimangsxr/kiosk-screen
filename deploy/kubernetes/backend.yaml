@@ -31,6 +31,8 @@ spec:
               value: postgresql+psycopg://kiosk:kiosk@kiosk-postgres:5432/kiosk_screen
             - name: FRONTEND_ORIGIN
               value: http://kiosk-frontend
+            - name: MEDIA_STORAGE_PATH
+              value: /app/var/media
           envFrom:
             - secretRef:
                 name: kiosk-backend
@@ -44,6 +46,24 @@ spec:
             httpGet:
               path: /api/health
               port: 8000
+          volumeMounts:
+            - name: media-storage
+              mountPath: /app/var/media
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: kiosk-media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kiosk-media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
 ---
 apiVersion: v1
 kind: Service

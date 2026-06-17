@@ -11,6 +11,9 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
         CheckConstraint("bottom_region_ratio = 1", name="ck_kiosk_bottom_region_ratio"),
         CheckConstraint("default_top_duration_seconds > 0", name="ck_kiosk_top_duration_positive"),
         CheckConstraint("default_ad_duration_seconds > 0", name="ck_kiosk_ad_duration_positive"),
+        CheckConstraint("default_top_animation_duration_milliseconds > 0", name="ck_kiosk_top_animation_duration_positive"),
+        CheckConstraint("default_ad_animation_duration_milliseconds > 0", name="ck_kiosk_ad_animation_duration_positive"),
+        CheckConstraint("inline_ad_count > 0", name="ck_kiosk_inline_ad_count_positive"),
         CheckConstraint("configured_event_duration_minutes > 0", name="ck_kiosk_event_duration_positive"),
     )
 
@@ -21,5 +24,9 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
     bottom_region_ratio: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     default_top_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     default_ad_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    default_top_rotation_animation: Mapped[str] = mapped_column(String(16), nullable=False, default="none")
+    default_ad_rotation_animation: Mapped[str] = mapped_column(String(16), nullable=False, default="none")
+    default_top_animation_duration_milliseconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    default_ad_animation_duration_milliseconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    inline_ad_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     configured_event_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-

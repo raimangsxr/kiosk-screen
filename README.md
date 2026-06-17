@@ -98,12 +98,23 @@ configured for:
 - `BOOTSTRAP_ADMIN_EMAIL=admin@example.com`
 - `BOOTSTRAP_ADMIN_PASSWORD=admin`
 - `BOOTSTRAP_ADMIN_DISPLAY_NAME=Administrator`
+- `MEDIA_STORAGE_PATH=<repo>/var/media`
+- `IMAGE_UPLOAD_MAX_BYTES=26214400`
+- `VIDEO_UPLOAD_MAX_BYTES=524288000`
 
 If your shell exports `DATABASE_URL`, make sure it uses port `15432`, or unset it
 before starting the backend:
 
 ```sh
 unset DATABASE_URL
+```
+
+Uploaded media is stored on disk. For local development, either use the default
+`var/media` directory or set an explicit path before starting the backend:
+
+```sh
+mkdir -p var/media
+export MEDIA_STORAGE_PATH="$(pwd)/var/media"
 ```
 
 ### 3. Frontend

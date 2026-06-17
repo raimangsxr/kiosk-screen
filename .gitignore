@@ -32,4 +32,6 @@ venv/
 # Backend runtime
 htmlcov/
 .coverage
-
+var/media/
+backend/var/media/
+uploads/

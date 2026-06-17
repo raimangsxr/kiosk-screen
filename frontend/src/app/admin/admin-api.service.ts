@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { RotationAnimation } from '../shared/media-upload.models';
 
 export interface ApprovedDomain {
   id: string;
@@ -20,6 +21,11 @@ export interface KioskConfiguration {
   name: string;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
+  defaultTopRotationAnimation: RotationAnimation;
+  defaultAdRotationAnimation: RotationAnimation;
+  defaultTopAnimationDurationMilliseconds: number;
+  defaultAdAnimationDurationMilliseconds: number;
+  inlineAdCount: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }

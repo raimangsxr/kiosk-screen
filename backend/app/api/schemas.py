@@ -14,6 +14,15 @@ class ErrorSchema(CamelModel):
     details: dict[str, object] | None = None
 
 
+class MediaFileReferenceSchema(CamelModel):
+    id: UUID
+    media_type: str = Field(alias="mediaType")
+    content_type: str = Field(alias="contentType")
+    file_size_bytes: int = Field(alias="fileSizeBytes", ge=1)
+    original_filename: str = Field(alias="originalFilename")
+    media_url: str = Field(alias="mediaUrl")
+
+
 class LoginRequest(CamelModel):
     email: str
     password: str = Field(min_length=1)
@@ -40,6 +49,11 @@ class KioskConfigurationSchema(CamelModel):
     bottom_region_ratio: int = Field(alias="bottomRegionRatio")
     default_top_duration_seconds: int = Field(alias="defaultTopDurationSeconds", ge=1)
     default_ad_duration_seconds: int = Field(alias="defaultAdDurationSeconds", ge=1)
+    default_top_rotation_animation: str = Field(default="none", alias="defaultTopRotationAnimation")
+    default_ad_rotation_animation: str = Field(default="none", alias="defaultAdRotationAnimation")
+    default_top_animation_duration_milliseconds: int = Field(default=300, alias="defaultTopAnimationDurationMilliseconds", ge=1)
+    default_ad_animation_duration_milliseconds: int = Field(default=300, alias="defaultAdAnimationDurationMilliseconds", ge=1)
+    inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
     configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
 
@@ -48,6 +62,11 @@ class KioskConfigurationRequest(CamelModel):
     name: str
     default_top_duration_seconds: int = Field(alias="defaultTopDurationSeconds", ge=1)
     default_ad_duration_seconds: int = Field(alias="defaultAdDurationSeconds", ge=1)
+    default_top_rotation_animation: str = Field(default="none", alias="defaultTopRotationAnimation")
+    default_ad_rotation_animation: str = Field(default="none", alias="defaultAdRotationAnimation")
+    default_top_animation_duration_milliseconds: int = Field(default=300, alias="defaultTopAnimationDurationMilliseconds", ge=1)
+    default_ad_animation_duration_milliseconds: int = Field(default=300, alias="defaultAdAnimationDurationMilliseconds", ge=1)
+    inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
     configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
 
@@ -57,10 +76,16 @@ class ContentItemSchema(CamelModel):
     title: str
     content_type: str = Field(alias="contentType")
     source_reference: str = Field(alias="sourceReference")
+    media_file: MediaFileReferenceSchema | None = Field(default=None, alias="mediaFile")
     approved_domain_id: UUID | None = Field(default=None, alias="approvedDomainId")
     is_active: bool = Field(alias="isActive")
     display_order: int = Field(alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
+    rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
+    animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
+    effective_duration_seconds: int | None = Field(default=None, alias="effectiveDurationSeconds", ge=1)
+    effective_rotation_animation: str | None = Field(default=None, alias="effectiveRotationAnimation")
+    effective_animation_duration_milliseconds: int | None = Field(default=None, alias="effectiveAnimationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
 
@@ -73,6 +98,8 @@ class ContentItemRequest(CamelModel):
     is_active: bool = Field(alias="isActive")
     display_order: int = Field(alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
+    rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
+    animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
 
@@ -93,9 +120,15 @@ class AdItemSchema(CamelModel):
     client_id: UUID = Field(alias="clientId")
     label: str
     source_reference: str = Field(alias="sourceReference")
+    media_file: MediaFileReferenceSchema | None = Field(default=None, alias="mediaFile")
     is_active: bool = Field(alias="isActive")
     display_order: int = Field(alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
+    rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
+    animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
+    effective_duration_seconds: int | None = Field(default=None, alias="effectiveDurationSeconds", ge=1)
+    effective_rotation_animation: str | None = Field(default=None, alias="effectiveRotationAnimation")
+    effective_animation_duration_milliseconds: int | None = Field(default=None, alias="effectiveAnimationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
 
@@ -107,6 +140,8 @@ class AdItemRequest(CamelModel):
     is_active: bool = Field(alias="isActive")
     display_order: int = Field(alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
+    rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
+    animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
 
