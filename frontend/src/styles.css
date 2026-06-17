@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 html,
@@ -37,6 +37,19 @@ button {
   font: inherit;
 }
 
+button,
+a {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -47,4 +60,129 @@ td {
   padding: 10px;
   border-bottom: 1px solid #d8dee6;
   text-align: left;
+}
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 20px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.admin-sidebar {
+  align-self: start;
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+  position: sticky;
+  top: 16px;
+}
+
+.admin-sidebar nav,
+.quick-actions,
+.summary-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-sidebar a,
+.quick-actions a,
+.summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  color: #1f2933;
+  text-decoration: none;
+  border: 1px solid #d8dee6;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.admin-sidebar a.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.admin-main {
+  min-width: 0;
+}
+
+.admin-dashboard,
+.readiness-summary,
+.quick-actions {
+  max-width: 1040px;
+  margin: 24px auto;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  border-radius: 8px;
+}
+
+.summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.status-pill {
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dcfce7;
+}
+
+.status-pill.blocked {
+  background: #fee2e2;
+}
+
+.status-pill.warning {
+  background: #fef3c7;
+}
+
+.admin-state {
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+}
+
+.admin-state.error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.admin-state.success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.inline-form,
+form.page-panel {
+  display: grid;
+  gap: 14px;
+}
+
+td > a,
+td > button {
+  margin-right: 8px;
+}
+
+@media (max-width: 1024px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  .admin-sidebar {
+    position: static;
+  }
+
+  .admin-sidebar nav {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
 }

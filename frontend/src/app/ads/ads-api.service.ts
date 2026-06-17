@@ -37,12 +37,32 @@ export class AdsApiService {
     return this.http.post<Client>('/api/clients', payload, { withCredentials: true });
   }
 
+  updateClient(id: string, payload: Omit<Client, 'id'>): Observable<Client> {
+    return this.http.put<Client>(`/api/clients/${id}`, payload, { withCredentials: true });
+  }
+
+  deleteClient(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/clients/${id}`, { withCredentials: true });
+  }
+
   listAds(): Observable<AdItem[]> {
     return this.http.get<AdItem[]>('/api/ads', { withCredentials: true });
   }
 
   createAd(payload: Omit<AdItem, 'id'>): Observable<AdItem> {
     return this.http.post<AdItem>('/api/ads', payload, { withCredentials: true });
+  }
+
+  getAd(id: string): Observable<AdItem> {
+    return this.http.get<AdItem>(`/api/ads/${id}`, { withCredentials: true });
+  }
+
+  updateAd(id: string, payload: Omit<AdItem, 'id'>): Observable<AdItem> {
+    return this.http.put<AdItem>(`/api/ads/${id}`, payload, { withCredentials: true });
+  }
+
+  deleteAd(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/ads/${id}`, { withCredentials: true });
   }
 
   uploadAd(payload: Omit<AdItem, 'id'>, file: File): Observable<AdItem> {

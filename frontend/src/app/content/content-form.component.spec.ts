@@ -1,5 +1,6 @@
 import { of } from 'rxjs';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { ContentApiService } from './content-api.service';
 import { ContentFormComponent } from './content-form.component';
@@ -8,7 +9,8 @@ describe('ContentFormComponent', () => {
   it('submits non-technical content fields', () => {
     const api = jasmine.createSpyObj<ContentApiService>('ContentApiService', ['create']);
     api.create.and.returnValue(of({ id: '1', title: 'Agenda', contentType: 'photo', sourceReference: 'x', isActive: true, displayOrder: 1 }));
-    TestBed.configureTestingModule({ imports: [ContentFormComponent], providers: [{ provide: ContentApiService, useValue: api }] });
+    api.get = jasmine.createSpy().and.returnValue(of({ id: '1', title: 'Agenda', contentType: 'photo', sourceReference: 'x', isActive: true, displayOrder: 1 }));
+    TestBed.configureTestingModule({ imports: [ContentFormComponent], providers: [{ provide: ContentApiService, useValue: api }, provideRouter([])] });
     const fixture: ComponentFixture<ContentFormComponent> = TestBed.createComponent(ContentFormComponent);
     const component = fixture.componentInstance;
     component.title = 'Agenda';

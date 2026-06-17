@@ -4,7 +4,7 @@ from app.api.schemas import KioskConfigurationSchema, UserSchema
 
 
 def test_schemas_emit_openapi_camel_case_contract_fields():
-    user = UserSchema(id=uuid4(), email="admin@example.com", displayName="Admin", roles=["administrator"])
+    user = UserSchema(id=uuid4(), email="admin@example.com", displayName="Admin", isActive=True, roles=["administrator"])
     configuration = KioskConfigurationSchema(
         id=uuid4(),
         name="Main",
@@ -17,5 +17,5 @@ def test_schemas_emit_openapi_camel_case_contract_fields():
     )
 
     assert user.model_dump(by_alias=True)["displayName"] == "Admin"
+    assert user.model_dump(by_alias=True)["isActive"] is True
     assert configuration.model_dump(by_alias=True)["topRegionRatio"] == 4
-

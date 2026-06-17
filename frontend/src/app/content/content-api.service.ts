@@ -37,6 +37,18 @@ export class ContentApiService {
     return this.http.post<ContentItem>('/api/content/iframe', payload, { withCredentials: true });
   }
 
+  get(id: string): Observable<ContentItem> {
+    return this.http.get<ContentItem>(`/api/content/${id}`, { withCredentials: true });
+  }
+
+  update(id: string, payload: ContentItemRequest): Observable<ContentItem> {
+    return this.http.put<ContentItem>(`/api/content/${id}`, payload, { withCredentials: true });
+  }
+
+  delete(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/content/${id}`, { withCredentials: true });
+  }
+
   upload(payload: ContentItemRequest, file: File): Observable<ContentItem> {
     const body = new FormData();
     body.append('file', file);

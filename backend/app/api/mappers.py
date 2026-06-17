@@ -121,4 +121,4 @@ def to_event_schema(event: DisplayEvent) -> DisplayEventSchema:
 
 
 def to_user_schema(user: User, roles: list[str]) -> UserSchema:
-    return UserSchema(id=user.id, email=user.email, displayName=user.display_name, roles=roles)
+    return UserSchema(id=user.id, email=user.email, displayName=user.display_name, isActive=user.is_active, roles=roles)

@@ -7,6 +7,7 @@ from app.domain.media import validate_rotation_animation
 from app.domain.roles import Role
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
+from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.role_assignment import RoleAssignment
 from app.repositories.models.user import User
@@ -75,6 +76,32 @@ class AdminService:
         self._record(organization_id, user_id, "domain_changed", "Approved domain changed")
         self.session.commit()
         return domain
+
+    def update_domain(self, organization_id: str, user_id: str, domain_id: str, payload: ApprovedEmbeddedDomainRequest) -> ApprovedEmbeddedDomain:
+        domain = self.session.query(ApprovedEmbeddedDomain).filter_by(organization_id=organization_id, id=domain_id).one_or_none()
+        if domain is None:
+            raise LookupError("Approved domain not found.")
+        domain.domain = payload.domain.lower()
+        domain.is_active = payload.is_active
+        domain.approved_by_user_id = user_id
+        self._record(organization_id, user_id, "domain_changed", "Approved domain changed")
+        self.session.commit()
+        return domain
+
+    def delete_domain(self, organization_id: str, user_id: str, domain_id: str) -> None:
+        domain = self.session.query(ApprovedEmbeddedDomain).filter_by(organization_id=organization_id, id=domain_id).one_or_none()
+        if domain is None:
+            raise LookupError("Approved domain not found.")
+        active_count = self.session.query(TopContentItem).filter_by(
+            organization_id=organization_id,
+            approved_domain_id=domain_id,
+            is_active=True
+        ).count()
+        if active_count:
+            raise ValueError("Approved domain has active iframe content. Deactivate the domain instead of deleting it.")
+        self.session.delete(domain)
+        self._record(organization_id, user_id, "domain_changed", "Approved domain removed")
+        self.session.commit()
 
     def list_users(self, organization_id: str) -> list[tuple[User, list[str]]]:
         users = self.session.query(User).filter_by(organization_id=organization_id).order_by(User.email).all()

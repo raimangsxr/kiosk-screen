@@ -13,8 +13,11 @@ export interface UserRecord {
   id: string;
   email: string;
   displayName: string;
+  isActive: boolean;
   roles: string[];
 }
+
+export type UserRequest = Omit<UserRecord, 'id'>;
 
 export interface KioskConfiguration {
   id: string;
@@ -42,6 +45,14 @@ export class AdminApiService {
     return this.http.post<ApprovedDomain>('/api/approved-domains', payload, { withCredentials: true });
   }
 
+  updateDomain(id: string, payload: Omit<ApprovedDomain, 'id'>): Observable<ApprovedDomain> {
+    return this.http.put<ApprovedDomain>(`/api/approved-domains/${id}`, payload, { withCredentials: true });
+  }
+
+  deleteDomain(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/approved-domains/${id}`, { withCredentials: true });
+  }
+
   getConfiguration(): Observable<KioskConfiguration> {
     return this.http.get<KioskConfiguration>('/api/display/configuration', { withCredentials: true });
   }
@@ -52,5 +63,13 @@ export class AdminApiService {
 
   listUsers(): Observable<UserRecord[]> {
     return this.http.get<UserRecord[]>('/api/users', { withCredentials: true });
+  }
+
+  createUser(payload: UserRequest): Observable<UserRecord> {
+    return this.http.post<UserRecord>('/api/users', payload, { withCredentials: true });
+  }
+
+  updateUser(id: string, payload: UserRequest): Observable<UserRecord> {
+    return this.http.put<UserRecord>(`/api/users/${id}`, payload, { withCredentials: true });
   }
 }

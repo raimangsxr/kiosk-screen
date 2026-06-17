@@ -32,6 +32,7 @@ class UserSchema(CamelModel):
     id: UUID
     email: str
     display_name: str = Field(alias="displayName")
+    is_active: bool = Field(alias="isActive")
     roles: list[str]
 
 

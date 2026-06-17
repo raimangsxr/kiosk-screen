@@ -29,6 +29,26 @@ class AdsService:
         self.session.commit()
         return client
 
+    def update_client(self, organization_id: str, user_id: str, client_id: str, payload: ClientRequest) -> Client:
+        client = self.clients.get(organization_id, client_id)
+        if client is None:
+            raise LookupError("Client not found.")
+        client.name = payload.name
+        client.is_active = payload.is_active
+        self._record(organization_id, user_id, "client", "Client changed", client.id)
+        self.session.commit()
+        return client
+
+    def delete_client(self, organization_id: str, user_id: str, client_id: str) -> None:
+        client = self.clients.get(organization_id, client_id)
+        if client is None:
+            raise LookupError("Client not found.")
+        if self.clients.has_active_ads(organization_id, client_id):
+            raise ValueError("Client has active ads. Deactivate the client instead of deleting it.")
+        self.clients.delete(client)
+        self._record(organization_id, user_id, "client", "Client removed", client_id)
+        self.session.commit()
+
     def list_ads(self, organization_id: str) -> list[ClientAdItem]:
         return self.ads.list(organization_id)
 
