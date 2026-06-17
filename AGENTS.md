@@ -1,7 +1,7 @@
 # AGENTS.md
 
 <!-- SPECKIT START -->
-For current feature context, read `specs/002-kiosk-screen/plan.md`.
+For current feature context, read `specs/004-admin-site-completion/plan.md`.
 <!-- SPECKIT END -->
 
 ## Project operating model

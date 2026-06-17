@@ -17,6 +17,7 @@ def user_schema(user: CurrentUser) -> UserSchema:
         id=user.id,
         email=user.email,
         displayName=user.display_name,
+        isActive=True,
         roles=user.roles
     )
 

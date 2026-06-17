@@ -1,5 +1,5 @@
 import { of } from 'rxjs';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 
 import { DisplayApiService, DisplayState } from './display-api.service';
 import { DisplayScreenComponent } from './display-screen.component';
@@ -70,4 +70,21 @@ describe('DisplayScreenComponent', () => {
     expect(text).toContain('Content unavailable');
     expect(text).toContain('Ads unavailable');
   });
+
+  it('rotates top content using effective duration', fakeAsync(() => {
+    const fixture = createComponent({
+      ...readyState,
+      topContent: [
+        { ...readyState.topContent[0], title: 'First', durationSeconds: 1 },
+        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 1 }
+      ]
+    });
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('First');
+
+    tick(1000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+  }));
 });

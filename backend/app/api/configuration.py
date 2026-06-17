@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_configuration_schema
 from app.api.schemas import KioskConfigurationRequest, KioskConfigurationSchema
 from app.auth.dependencies import CurrentUser, get_current_user, require_roles
-from app.domain.roles import ADMIN_ROLES
+from app.domain.roles import CONFIGURATION_MANAGEMENT_ROLES
 from app.repositories.session import get_session
 from app.services.admin_service import AdminService
 
@@ -19,7 +19,12 @@ def get_configuration(user: CurrentUser = Depends(get_current_user), session: Se
 @router.put("", response_model=KioskConfigurationSchema)
 def update_configuration(
     payload: KioskConfigurationRequest,
-    user: CurrentUser = Depends(require_roles(ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_roles(CONFIGURATION_MANAGEMENT_ROLES)),
     session: Session = Depends(get_session)
 ) -> KioskConfigurationSchema:
-    return to_configuration_schema(AdminService(session).update_configuration(user.organization_id, user.id, payload))
+    try:
+        return to_configuration_schema(AdminService(session).update_configuration(user.organization_id, user.id, payload, user.roles))
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

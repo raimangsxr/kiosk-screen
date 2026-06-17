@@ -21,7 +21,8 @@
 }
 
 .ad-region {
-  grid-template-columns: minmax(120px, 18vw) 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(120px, 1fr);
   gap: 28px;
   padding: 18px 36px;
   background: #f2b84a;
@@ -41,9 +42,44 @@ iframe {
 
 .ad-region img {
   width: 100%;
-  height: 100%;
+  height: 84%;
   max-height: 120px;
   object-fit: contain;
+}
+
+.ad-region figure {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  place-items: center;
+}
+
+.ad-region figcaption {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rotation-fade {
+  animation: kiosk-fade 300ms ease-in;
+}
+
+.rotation-slide {
+  animation: kiosk-slide 300ms ease-out;
+}
+
+@keyframes kiosk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes kiosk-slide {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .content-label {
@@ -66,7 +102,7 @@ iframe {
 
 @media (max-width: 760px) {
   .ad-region {
-    grid-template-columns: 96px 1fr;
+    grid-auto-columns: minmax(96px, 1fr);
     gap: 16px;
     padding: 12px 18px;
     font-size: 22px;

@@ -24,4 +24,7 @@ def test_ads_api_client_and_ad_flow(api_client: TestClient):
     assert api_client.get("/api/ads").status_code == 200
     assert api_client.get(f"/api/ads/{ad_id}").status_code == 200
     assert api_client.put(f"/api/ads/{ad_id}", json={**ad_payload, "label": "Updated"}).json()["label"] == "Updated"
+    assert api_client.put(f"/api/clients/{client_id}", json={"name": "Sponsor Updated", "isActive": False}).json()["name"] == "Sponsor Updated"
+    assert api_client.delete(f"/api/clients/{client_id}").status_code == 409
     assert api_client.delete(f"/api/ads/{ad_id}").status_code == 204
+    assert api_client.delete(f"/api/clients/{client_id}").status_code == 204

@@ -1,5 +1,8 @@
-from app.api.schemas import ApprovedEmbeddedDomainRequest, KioskConfigurationRequest, UserRequest
+import pytest
+
+from app.api.schemas import ApprovedEmbeddedDomainRequest, ContentItemRequest, KioskConfigurationRequest, UserRequest
 from app.services.admin_service import AdminService
+from app.services.content_service import ContentService
 from app.services.bootstrap_service import bootstrap_mvp_data
 from app.services.readiness_service import ReadinessService
 
@@ -40,3 +43,28 @@ def test_admin_service_updates_configuration_domains_and_users(db_session):
     assert domain.domain == "example.org"
     assert user.organization_id == result.organization.id
     assert roles == ["display_viewer"]
+
+
+def test_admin_service_updates_domain_and_blocks_delete_with_active_iframe(db_session):
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    db_session.commit()
+    service = AdminService(db_session)
+    domain = service.create_domain(result.organization.id, result.administrator.id, ApprovedEmbeddedDomainRequest(domain="example.org", isActive=True))
+    ContentService(db_session).create(
+        result.organization.id,
+        result.administrator.id,
+        ContentItemRequest(
+            title="Dashboard",
+            contentType="embedded_web",
+            sourceReference="https://example.org/dashboard",
+            approvedDomainId=domain.id,
+            isActive=True,
+            displayOrder=10
+        )
+    )
+
+    updated = service.update_domain(result.organization.id, result.administrator.id, domain.id, ApprovedEmbeddedDomainRequest(domain="example.org", isActive=False))
+
+    assert updated.is_active is False
+    with pytest.raises(ValueError):
+        service.delete_domain(result.organization.id, result.administrator.id, domain.id)

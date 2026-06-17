@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_client_schema
@@ -23,3 +23,30 @@ def create_client(
     session: Session = Depends(get_session)
 ) -> ClientSchema:
     return to_client_schema(AdsService(session).create_client(user.organization_id, user.id, payload))
+
+
+@router.put("/{client_id}", response_model=ClientSchema)
+def update_client(
+    client_id: str,
+    payload: ClientRequest,
+    user: CurrentUser = Depends(require_roles(AD_MANAGEMENT_ROLES)),
+    session: Session = Depends(get_session)
+) -> ClientSchema:
+    try:
+        return to_client_schema(AdsService(session).update_client(user.organization_id, user.id, client_id, payload))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_client(
+    client_id: str,
+    user: CurrentUser = Depends(require_roles(AD_MANAGEMENT_ROLES)),
+    session: Session = Depends(get_session)
+) -> None:
+    try:
+        AdsService(session).delete_client(user.organization_id, user.id, client_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

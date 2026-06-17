@@ -553,6 +553,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Client'
+  /clients/{clientId}:
+    parameters:
+      - name: clientId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Clients]
+      summary: Update client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRequest'
+      responses:
+        '200':
+          description: Updated client.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Client'
+    delete:
+      tags: [Clients]
+      summary: Remove client when no active ads depend on it.
+      responses:
+        '204':
+          description: Removed.
+        '409':
+          description: Active ads depend on this client.
   /ads:
     get:
       tags: [Ads]
@@ -651,6 +683,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApprovedEmbeddedDomain'
+  /approved-domains/{domainId}:
+    parameters:
+      - name: domainId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      tags: [Approved Domains]
+      summary: Update approved embedded domain.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovedEmbeddedDomainRequest'
+      responses:
+        '200':
+          description: Updated approved domain.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovedEmbeddedDomain'
+    delete:
+      tags: [Approved Domains]
+      summary: Remove approved embedded domain when no active iframe content depends on it.
+      responses:
+        '204':
+          description: Removed.
+        '409':
+          description: Active iframe content depends on this domain.
   /events:
     get:
       tags: [Events]

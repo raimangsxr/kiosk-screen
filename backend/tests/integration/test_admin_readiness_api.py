@@ -20,6 +20,11 @@ def test_admin_readiness_configuration_domains_events_and_users(api_client: Test
 
     domain = api_client.post("/api/approved-domains", json={"domain": "example.org", "isActive": True})
     assert domain.status_code == 201
+    domain_id = domain.json()["id"]
+    domain_updated = api_client.put(f"/api/approved-domains/{domain_id}", json={"domain": "example.org", "isActive": False})
+    assert domain_updated.status_code == 200
+    assert domain_updated.json()["isActive"] is False
+    assert api_client.delete(f"/api/approved-domains/{domain_id}").status_code == 204
     assert api_client.get("/api/approved-domains").status_code == 200
     assert api_client.get("/api/events").status_code == 200
     assert api_client.get("/api/users").status_code == 200

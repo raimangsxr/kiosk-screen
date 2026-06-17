@@ -62,7 +62,7 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
     if configuration is None:
         raise ValueError("Display configuration is required.")
     top_content = eligible_top_content(session, organization_id, now)
-    ads = eligible_ads(session, organization_id, now)
+    ads = eligible_ads(session, organization_id, now)[:configuration.inline_ad_count]
     return DisplayState(configuration, top_content, ads, fallback_active=not top_content or not ads)
 
 

@@ -98,12 +98,23 @@ configured for:
 - `BOOTSTRAP_ADMIN_EMAIL=admin@example.com`
 - `BOOTSTRAP_ADMIN_PASSWORD=admin`
 - `BOOTSTRAP_ADMIN_DISPLAY_NAME=Administrator`
+- `MEDIA_STORAGE_PATH=<repo>/var/media`
+- `IMAGE_UPLOAD_MAX_BYTES=26214400`
+- `VIDEO_UPLOAD_MAX_BYTES=524288000`
 
 If your shell exports `DATABASE_URL`, make sure it uses port `15432`, or unset it
 before starting the backend:
 
 ```sh
 unset DATABASE_URL
+```
+
+Uploaded media is stored on disk. For local development, either use the default
+`var/media` directory or set an explicit path before starting the backend:
+
+```sh
+mkdir -p var/media
+export MEDIA_STORAGE_PATH="$(pwd)/var/media"
 ```
 
 ### 3. Frontend
@@ -125,6 +136,24 @@ Default MVP login:
 
 Open the app at `http://localhost:4200`.
 
+### Admin Workflow
+
+After login, open `/admin`. The administration shell provides persistent
+navigation to:
+
+- `/admin/content` for display content and iframe entries
+- `/admin/ads` for ad image entries
+- `/admin/clients` for client records
+- `/admin/domains` for approved iframe domains
+- `/admin/configuration` for kiosk timing, animation, inline ads, and enabled
+  state
+- `/admin/readiness` for setup blockers and warnings
+- `/admin/users` for users, active status, and existing role assignment
+
+Create and edit forms warn before losing unsaved changes. Save and validation
+messages are intentionally user-facing and should not expose internal paths,
+storage locations, or secrets.
+
 Useful local checks:
 
 ```sh
@@ -134,6 +163,11 @@ npm --prefix frontend run build
 docker build -f backend/Dockerfile backend
 docker build -f frontend/Dockerfile frontend
 ```
+
+If `npm --prefix frontend run build` exits non-zero but writes
+`frontend/dist/kiosk-screen`, inspect the generated files and keep the terminal
+output with the validation record. The application tests and typechecks should
+still be run separately.
 
 ### PostgreSQL Role Troubleshooting
 

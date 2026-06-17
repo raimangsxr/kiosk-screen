@@ -9,7 +9,9 @@ describe('AdminShellComponent', () => {
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Approved domains');
+    expect(fixture.nativeElement.textContent).toContain('Iframe domains');
+    expect(fixture.nativeElement.textContent).toContain('Content');
+    expect(fixture.nativeElement.textContent).toContain('Users and roles');
     expect(fixture.nativeElement.querySelector('nav')?.getAttribute('aria-label')).toBe('Admin sections');
   });
 });
