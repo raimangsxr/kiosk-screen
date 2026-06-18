@@ -2,13 +2,65 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_ad_schema, to_configuration_schema, to_content_schema
-from app.api.schemas import DisplayStateSchema
+from app.api.schemas import (
+    DisplayStateSchema,
+    RemoteControlAdminStateSchema,
+    RemoteControlIframeOptionsSchema,
+    RemoteControlStateRequest,
+    RemoteControlStateSchema,
+)
 from app.auth.dependencies import CurrentUser, get_current_user
+from app.domain.roles import ADMIN_ROLES
+from app.domain.display_events import create_display_event
+from app.repositories.events import DisplayEventRepository
 from app.repositories.session import get_session
 from app.services.display_service import DisplayState, get_display_state, open_display
 from app.domain.rotation import resolve_effective_rotation
+from app.application.display_control.service import DisplayControlService
+from app.repositories.models.display_control_state import DisplayControlState
+from app.repositories.models.content import TopContentItem
 
 router = APIRouter(prefix="/display", tags=["Display"])
+
+
+def ensure_remote_control_admin(user: CurrentUser, session: Session) -> None:
+    if not set(user.roles).intersection({role.value for role in ADMIN_ROLES}):
+        DisplayEventRepository(session).record(
+            create_display_event(
+                organization_id=user.organization_id,
+                event_type="remote_control_access_denied",
+                severity="warning",
+                message="Remote control access denied",
+                created_by_user_id=user.id,
+            )
+        )
+        session.commit()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required.")
+
+
+def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControlStateSchema | None:
+    if state is None:
+        return None
+    return RemoteControlStateSchema(
+        contentMode=state.content_mode,
+        selectedContentId=state.selected_content_id,
+        adsVisible=state.ads_visible,
+        updatedAt=state.updated_at,
+    )
+
+
+def to_remote_control_admin_schema(
+    state: DisplayControlState,
+    selected_iframe: TopContentItem | None = None,
+) -> RemoteControlAdminStateSchema:
+    return RemoteControlAdminStateSchema(
+        contentMode=state.content_mode,
+        selectedContentId=state.selected_content_id,
+        selectedIframe=to_content_schema(selected_iframe) if selected_iframe else None,
+        adsVisible=state.ads_visible,
+        updatedAt=state.updated_at,
+        displaySessionActive=True,
+    )
 
 
 def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
@@ -74,6 +126,8 @@ def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
             )
             for item in state.ads
         ],
+        remoteControl=to_remote_control_schema(state.remote_control),
+        selectedIframe=to_content_schema(state.selected_iframe) if state.selected_iframe else None,
         fallbackActive=state.fallback_active
     )
 
@@ -91,4 +145,64 @@ def open_display_route(user: CurrentUser = Depends(get_current_user), session: S
 
 @router.get("/state", response_model=DisplayStateSchema)
 def display_state_route(user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> DisplayStateSchema:
-    return to_display_state_schema(get_display_state(session, user.organization_id))
+    try:
+        return to_display_state_schema(get_display_state(session, user.organization_id))
+    except ValueError as exc:
+        DisplayEventRepository(session).record(
+            create_display_event(
+                organization_id=user.organization_id,
+                event_type="display_state_calculation_failed",
+                severity="warning",
+                message="Display state could not be calculated for hot configuration polling.",
+                created_by_user_id=user.id,
+            )
+        )
+        session.commit()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.get("/remote-control/state", response_model=RemoteControlAdminStateSchema)
+def remote_control_state_route(
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> RemoteControlAdminStateSchema:
+    ensure_remote_control_admin(user, session)
+    try:
+        service = DisplayControlService(session)
+        state = service.get_state_for_active_session(user.organization_id)
+        return to_remote_control_admin_schema(state, service.selected_iframe(state))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@router.put("/remote-control/state", response_model=RemoteControlAdminStateSchema)
+def update_remote_control_state_route(
+    payload: RemoteControlStateRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> RemoteControlAdminStateSchema:
+    ensure_remote_control_admin(user, session)
+    try:
+        service = DisplayControlService(session)
+        state = service.update_active_state(
+            user.organization_id,
+            user.id,
+            content_mode=payload.content_mode,
+            selected_content_id=str(payload.selected_content_id) if payload.selected_content_id else None,
+            ads_visible=payload.ads_visible,
+        )
+        return to_remote_control_admin_schema(state, service.selected_iframe(state))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.get("/remote-control/iframe-options", response_model=RemoteControlIframeOptionsSchema)
+def remote_control_iframe_options_route(
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> RemoteControlIframeOptionsSchema:
+    ensure_remote_control_admin(user, session)
+    items = DisplayControlService(session).list_iframe_options(user.organization_id)
+    return RemoteControlIframeOptionsSchema(items=[to_content_schema(item) for item in items])

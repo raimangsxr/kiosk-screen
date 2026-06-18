@@ -3,6 +3,7 @@ from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
 from app.repositories.models.client import Client
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
+from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
 from app.repositories.models.operator_session import OperatorSession
@@ -15,6 +16,7 @@ __all__ = [
     "Client",
     "ClientAdItem",
     "DisplayEvent",
+    "DisplayControlState",
     "KioskDisplayConfiguration",
     "MediaFileReference",
     "OperatorSession",

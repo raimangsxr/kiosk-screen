@@ -19,7 +19,7 @@ describe('HallComponent', () => {
     localStorage.clear();
   });
 
-  it('offers kiosk and administration destinations', () => {
+  it('offers kiosk, administration, and administrator remote control destinations', () => {
     const fixture = TestBed.createComponent(HallComponent);
     fixture.detectChanges();
 
@@ -29,7 +29,9 @@ describe('HallComponent', () => {
 
     expect(text).toContain('Enter kiosk mode');
     expect(text).toContain('Open administration');
+    expect(text).toContain('Remote control');
     expect(links).toContain('/display');
     expect(links).toContain('/admin');
+    expect(links).toContain('/remote-control');
   });
 });

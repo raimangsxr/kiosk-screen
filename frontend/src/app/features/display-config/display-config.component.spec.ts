@@ -18,6 +18,7 @@ const configuration: KioskConfiguration = {
   defaultTopAnimationDurationMilliseconds: 300,
   defaultAdAnimationDurationMilliseconds: 300,
   inlineAdCount: 2,
+  remoteControlPollingSeconds: 3,
   configuredEventDurationMinutes: 60,
   isEnabled: true
 };
@@ -94,15 +95,18 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     const form = fixture.componentInstance['form']!;
     expect(form.controls.name.value).toBe('Main kiosk');
     expect(form.controls.defaultTopDurationSeconds.value).toBe(10);
+    expect(form.controls.remoteControlPollingSeconds.value).toBe(3);
+    expect(fixture.nativeElement.textContent).toContain('Remote control polling (seconds)');
   });
 
   it('saves a valid configuration', () => {
     const form = fixture.componentInstance['form']!;
     form.controls.name.setValue('Renamed kiosk');
+    form.controls.remoteControlPollingSeconds.setValue(5);
     fixture.componentInstance.submit();
     const put = httpController.expectOne('/api/display/configuration');
     expect(put.request.method).toBe('PUT');
-    expect(put.request.body).toEqual(jasmine.objectContaining({ name: 'Renamed kiosk' }));
+    expect(put.request.body).toEqual(jasmine.objectContaining({ name: 'Renamed kiosk', remoteControlPollingSeconds: 5 }));
     put.flush(buildConfig({ name: 'Renamed kiosk' }));
   });
 
@@ -118,6 +122,22 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     const form = fixture.componentInstance['form']!;
     form.controls.configuredEventDurationMinutes.setValue(0);
     expect(form.controls.configuredEventDurationMinutes.hasError('positiveInteger')).toBeTrue();
+    fixture.componentInstance.submit();
+    httpController.expectNone((req) => req.method === 'PUT');
+  });
+
+  it('rejects remote control polling interval below one second', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.remoteControlPollingSeconds.setValue(0);
+    expect(form.controls.remoteControlPollingSeconds.hasError('min')).toBeTrue();
+    fixture.componentInstance.submit();
+    httpController.expectNone((req) => req.method === 'PUT');
+  });
+
+  it('rejects remote control polling interval above sixty seconds', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.remoteControlPollingSeconds.setValue(61);
+    expect(form.controls.remoteControlPollingSeconds.hasError('max')).toBeTrue();
     fixture.componentInstance.submit();
     httpController.expectNone((req) => req.method === 'PUT');
   });

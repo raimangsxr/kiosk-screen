@@ -16,12 +16,14 @@ import { DomainListComponent, DomainFormComponent } from './features/domains/dom
 import { DisplayConfigComponent } from './features/display-config/display-config.component';
 import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
+import { RemoteControlComponent } from './features/remote-control/remote-control.component';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'hall', component: HallComponent, canActivate: [sessionGuard] },
   { path: 'display', component: DisplayScreenComponent, canActivate: [sessionGuard] },
+  { path: 'remote-control', component: RemoteControlComponent, canActivate: [sessionGuard] },
   {
     path: 'admin',
     component: AdminShellComponent,

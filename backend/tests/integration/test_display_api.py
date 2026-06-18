@@ -68,3 +68,28 @@ def test_auth_and_display_flow(client: TestClient):
     logout = client.post("/api/auth/logout")
     assert logout.status_code == 204
     assert client.get("/api/auth/me").status_code == 401
+
+
+def test_new_display_session_starts_with_default_remote_control_state(client: TestClient):
+    login = client.post("/api/auth/login", json={"email": "admin@example.com", "password": "admin"})
+    assert login.status_code == 200
+
+    first_open = client.post("/api/display/open")
+    assert first_open.status_code == 200
+
+    hidden = client.put(
+        "/api/display/remote-control/state",
+        json={"contentMode": "loop", "selectedContentId": None, "adsVisible": False},
+    )
+    assert hidden.status_code == 200
+    assert hidden.json()["adsVisible"] is False
+
+    second_open = client.post("/api/display/open")
+    state = client.get("/api/display/state")
+
+    assert second_open.status_code == 200
+    assert second_open.json()["remoteControl"]["contentMode"] == "loop"
+    assert second_open.json()["remoteControl"]["selectedContentId"] is None
+    assert second_open.json()["remoteControl"]["adsVisible"] is True
+    assert state.status_code == 200
+    assert state.json()["remoteControl"]["adsVisible"] is True

@@ -40,12 +40,14 @@ class AdminService:
                 or payload.default_ad_rotation_animation != configuration.default_ad_rotation_animation
                 or payload.default_ad_animation_duration_milliseconds != configuration.default_ad_animation_duration_milliseconds
                 or payload.inline_ad_count != configuration.inline_ad_count
+                or payload.remote_control_polling_seconds != configuration.remote_control_polling_seconds
             ):
                 raise PermissionError("Content managers cannot change ad configuration.")
             if Role.ADVERTISING_MANAGER in roles and (
                 payload.default_top_duration_seconds != configuration.default_top_duration_seconds
                 or payload.default_top_rotation_animation != configuration.default_top_rotation_animation
                 or payload.default_top_animation_duration_milliseconds != configuration.default_top_animation_duration_milliseconds
+                or payload.remote_control_polling_seconds != configuration.remote_control_polling_seconds
             ):
                 raise PermissionError("Advertising managers cannot change main content configuration.")
         configuration.name = payload.name
@@ -56,6 +58,7 @@ class AdminService:
         configuration.default_top_animation_duration_milliseconds = payload.default_top_animation_duration_milliseconds
         configuration.default_ad_animation_duration_milliseconds = payload.default_ad_animation_duration_milliseconds
         configuration.inline_ad_count = payload.inline_ad_count
+        configuration.remote_control_polling_seconds = payload.remote_control_polling_seconds
         configuration.configured_event_duration_minutes = payload.configured_event_duration_minutes
         configuration.is_enabled = payload.is_enabled
         self._record(organization_id, user_id, "configuration_changed", "Display configuration changed")

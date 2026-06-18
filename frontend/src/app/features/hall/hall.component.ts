@@ -73,6 +73,23 @@ import { AuthService } from '../../core/auth/auth.service';
             </button>
           </mat-card-actions>
         </a>
+
+        <a mat-card appearance="outlined" routerLink="/remote-control" class="hall__tile">
+          <mat-card-header>
+            <mat-icon mat-card-avatar aria-hidden="true" class="hall__tile-icon">cast_connected</mat-icon>
+            <mat-card-title>Remote control</mat-card-title>
+            <mat-card-subtitle>Choose loop or iframe content for the running kiosk.</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p>Control the display content region from this administrator device.</p>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <button mat-stroked-button color="primary" type="button">
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              Open remote control
+            </button>
+          </mat-card-actions>
+        </a>
       </section>
     </main>
   `,
@@ -158,7 +175,7 @@ import { AuthService } from '../../core/auth/auth.service';
       }
       @media (min-width: 720px) {
         .hall__grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
       }
     `

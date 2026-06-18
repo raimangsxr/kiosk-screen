@@ -44,6 +44,7 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         defaultTopAnimationDurationMilliseconds=configuration.default_top_animation_duration_milliseconds,
         defaultAdAnimationDurationMilliseconds=configuration.default_ad_animation_duration_milliseconds,
         inlineAdCount=configuration.inline_ad_count,
+        remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         configuredEventDurationMinutes=configuration.configured_event_duration_minutes,
         isEnabled=configuration.is_enabled
     )

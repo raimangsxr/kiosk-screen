@@ -37,6 +37,7 @@ interface DisplayConfigFormValue {
   defaultTopAnimationDurationMilliseconds: number;
   defaultAdAnimationDurationMilliseconds: number;
   inlineAdCount: number;
+  remoteControlPollingSeconds: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -169,6 +170,20 @@ interface DisplayConfigFormValue {
           </mat-form-field>
 
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Remote control polling (seconds)</mat-label>
+            <input matInput type="number" formControlName="remoteControlPollingSeconds" min="1" max="60" required />
+            <mat-error *ngIf="form.controls.remoteControlPollingSeconds.hasError('required')">
+              Polling interval is required.
+            </mat-error>
+            <mat-error *ngIf="form.controls.remoteControlPollingSeconds.hasError('positiveInteger')">
+              Must be a positive integer.
+            </mat-error>
+            <mat-error *ngIf="form.controls.remoteControlPollingSeconds.hasError('min') || form.controls.remoteControlPollingSeconds.hasError('max')">
+              Must be between 1 and 60 seconds.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Event duration (minutes)</mat-label>
             <input
               matInput
@@ -267,6 +282,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     defaultTopAnimationDurationMilliseconds: FormControl<number>;
     defaultAdAnimationDurationMilliseconds: FormControl<number>;
     inlineAdCount: FormControl<number>;
+    remoteControlPollingSeconds: FormControl<number>;
     configuredEventDurationMinutes: FormControl<number>;
     isEnabled: FormControl<boolean>;
   }> | null = null;
@@ -317,6 +333,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       defaultTopAnimationDurationMilliseconds: value.defaultTopAnimationDurationMilliseconds,
       defaultAdAnimationDurationMilliseconds: value.defaultAdAnimationDurationMilliseconds,
       inlineAdCount: value.inlineAdCount,
+      remoteControlPollingSeconds: value.remoteControlPollingSeconds,
       configuredEventDurationMinutes: value.configuredEventDurationMinutes,
       isEnabled: value.isEnabled
     };
@@ -359,6 +376,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       inlineAdCount: this.fb.nonNullable.control(1, {
         validators: [Validators.required, positiveInteger('positiveInteger')]
       }),
+      remoteControlPollingSeconds: this.fb.nonNullable.control(3, {
+        validators: [Validators.required, positiveInteger('positiveInteger'), Validators.min(1), Validators.max(60)]
+      }),
       configuredEventDurationMinutes: this.fb.nonNullable.control(60, {
         validators: [Validators.required, positiveInteger('positiveInteger')]
       }),
@@ -379,6 +399,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       defaultTopAnimationDurationMilliseconds: config.defaultTopAnimationDurationMilliseconds,
       defaultAdAnimationDurationMilliseconds: config.defaultAdAnimationDurationMilliseconds,
       inlineAdCount: config.inlineAdCount,
+      remoteControlPollingSeconds: config.remoteControlPollingSeconds,
       configuredEventDurationMinutes: config.configuredEventDurationMinutes,
       isEnabled: config.isEnabled
     });
