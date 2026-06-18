@@ -1,1 +1,1 @@
-export { ApprovedDomainsComponent } from '../../admin/approved-domains.component';
+export { DomainListComponent } from './domain-list.component';

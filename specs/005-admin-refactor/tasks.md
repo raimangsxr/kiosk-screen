@@ -121,8 +121,8 @@
 - [X] T053 [P] [US2] Add clients Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/clients/clients.component.spec.ts`
 - [X] T054 [P] [US2] Add approved domains Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/domains/domains.component.spec.ts`
 - [X] T055 [P] [US2] Add display configuration Reactive Forms tests for timing, animation, inline ads, event duration, and enabled state for FR-007, FR-011 in `frontend/src/app/features/display-config/display-config.component.spec.ts`
-- [ ] T056 [P] [US2] Add users and roles Reactive Forms tests for list, create, edit, active status, and existing role assignment for FR-007, FR-010 in `frontend/src/app/features/users/users.component.spec.ts`
-- [ ] T057 [P] [US2] Add readiness guidance component tests for blockers and section directions for FR-012 in `frontend/src/app/features/readiness/readiness.component.spec.ts`
+- [X] T056 [P] [US2] Add users and roles Reactive Forms tests for list, create, edit, active status, and existing role assignment for FR-007, FR-010 in `frontend/src/app/features/users/users.component.spec.ts`
+- [X] T057 [P] [US2] Add readiness guidance component tests for blockers and section directions for FR-012 in `frontend/src/app/features/readiness/readiness.component.spec.ts`
 
 ### Backend Implementation for User Story 2
 
@@ -151,9 +151,9 @@
 - [X] T077 [US2] Implement clients API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/clients/`
 - [X] T078 [US2] Implement domains API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/domains/`
 - [X] T079 [US2] Implement display configuration API adapter, facade, and Material Reactive Form for FR-007, FR-011 in `frontend/src/app/features/display-config/`
-- [ ] T080 [US2] Implement readiness API adapter, facade, and Material guidance screen for FR-006, FR-012 in `frontend/src/app/features/readiness/`
-- [ ] T081 [US2] Implement users API adapter, facade, Material list, and Reactive Form editor for FR-007, FR-010 in `frontend/src/app/features/users/`
-- [ ] T082 [US2] Wire all US2 feature routes under the refactored admin shell for FR-001, FR-002, FR-016 in `frontend/src/app/core/routing/app.routes.ts`
+- [X] T080 [US2] Implement readiness API adapter, facade, and Material guidance screen for FR-006, FR-012 in `frontend/src/app/features/readiness/`
+- [X] T081 [US2] Implement users API adapter, facade, Material list, and Reactive Form editor for FR-007, FR-010 in `frontend/src/app/features/users/`
+- [X] T082 [US2] Wire all US2 feature routes under the refactored admin shell for FR-001, FR-002, FR-016 in `frontend/src/app/core/routing/app.routes.ts`
 - [ ] T083 [US2] Record US2 UI contract changes and validation notes for FR-004A, FR-021 in `specs/005-admin-refactor/validation/admin-workflows.md`
 
 **Checkpoint**: User Story 2 is independently testable through complete admin configuration workflows.

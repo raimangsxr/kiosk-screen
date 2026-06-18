@@ -1,1 +1,2 @@
-export { UsersRolesComponent } from '../../admin/users-roles.component';
+export { UsersListComponent } from './users-list.component';
+export { UserFormComponent } from './user-form.component';

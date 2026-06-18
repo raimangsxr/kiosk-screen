@@ -1,1 +1,1 @@
-export { AdminApiService as UsersApiService } from '../../admin/admin-api.service';
+export { UsersFacade, AVAILABLE_ROLES } from './users.facade';

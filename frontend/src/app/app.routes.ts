@@ -12,9 +12,9 @@ import { AdListComponent } from './features/ads/ad-list.component';
 import { AdFormComponent } from './features/ads/ad-form.component';
 import { ReadinessComponent } from './features/readiness/readiness.component';
 import { AdminShellComponent } from './features/admin-shell/admin-shell.component';
-import { ApprovedDomainsComponent } from './features/domains/domains.component';
+import { DomainListComponent, DomainFormComponent } from './features/domains/domains.api';
 import { DisplayConfigComponent } from './features/display-config/display-config.component';
-import { UsersRolesComponent } from './features/users/users.component';
+import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
 
@@ -45,9 +45,13 @@ export const routes: Routes = [
       { path: 'ads/:id/edit', component: AdFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'readiness', component: ReadinessComponent },
       { path: '', component: AdminDashboardComponent, pathMatch: 'full' },
-      { path: 'domains', component: ApprovedDomainsComponent },
+      { path: 'domains', component: DomainListComponent },
+      { path: 'domains/new', component: DomainFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'domains/:id/edit', component: DomainFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'configuration', component: DisplayConfigComponent },
-      { path: 'users', component: UsersRolesComponent },
+      { path: 'users', component: UsersListComponent },
+      { path: 'users/new', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'users/:id/edit', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
     ]
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' }

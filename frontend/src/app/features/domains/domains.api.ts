@@ -1,1 +1,4 @@
-export { AdminApiService as DomainsApiService } from '../../admin/admin-api.service';
+import { DomainListComponent } from './domain-list.component';
+import { DomainFormComponent } from './domain-form.component';
+
+export { DomainListComponent, DomainFormComponent };
