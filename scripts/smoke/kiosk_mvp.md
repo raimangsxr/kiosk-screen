@@ -11,5 +11,5 @@
 - Confirm top content and ads follow configured order.
 - Confirm unauthorized users cannot modify content, ads, domains, users, or configuration.
 - Run `pytest backend/tests`.
-- Run `npm --prefix frontend run test -- --watch=false`.
+- Run `npm --prefix frontend run test` (headless, single run).
 - Run backend OpenAPI contract tests with `pytest backend/tests/contract`.

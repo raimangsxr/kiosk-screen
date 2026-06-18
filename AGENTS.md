@@ -43,6 +43,18 @@ Do not jump directly from idea to code.
 - Add integration or contract tests for external boundaries.
 - Do not mark a task complete until relevant tests pass.
 
+### Frontend test scripts
+
+- `npm --prefix frontend run test`: headless (`ChromeHeadlessNoSandbox`),
+  single run. Use as the default local validation command; does not open a
+  browser window.
+- `npm --prefix frontend run test:watch`: headed `Chrome` with autoWatch for
+  TDD; opens a real browser window.
+- `npm --prefix frontend run test:ci`: headless + code coverage, suitable for
+  pipelines. Reports land in `frontend/coverage/kiosk-screen/`.
+
+All three resolve through `frontend/karma.conf.js`.
+
 ## Security
 
 - Do not hardcode secrets, tokens, passwords or internal URLs.

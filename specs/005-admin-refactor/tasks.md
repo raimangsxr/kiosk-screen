@@ -114,13 +114,13 @@
 
 ### Frontend Tests for User Story 2
 
-- [ ] T049 [P] [US2] Add content list/form facade tests for FR-006, FR-007, FR-008 in `frontend/src/app/features/content/content.facade.spec.ts`
-- [ ] T050 [P] [US2] Add content Material component tests for validation, upload, iframe, dirty state, and errors for FR-007, FR-008, FR-013 in `frontend/src/app/features/content/content-form.component.spec.ts`
-- [ ] T051 [P] [US2] Add ads list/form facade tests for FR-006, FR-007, FR-008 in `frontend/src/app/features/ads/ads.facade.spec.ts`
-- [ ] T052 [P] [US2] Add ads Material component tests for client association, upload, validation, dirty state, and errors for FR-007, FR-008, FR-013 in `frontend/src/app/features/ads/ad-form.component.spec.ts`
-- [ ] T053 [P] [US2] Add clients Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/clients/clients.component.spec.ts`
-- [ ] T054 [P] [US2] Add approved domains Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/domains/domains.component.spec.ts`
-- [ ] T055 [P] [US2] Add display configuration Reactive Forms tests for timing, animation, inline ads, event duration, and enabled state for FR-007, FR-011 in `frontend/src/app/features/display-config/display-config.component.spec.ts`
+- [X] T049 [P] [US2] Add content list/form facade tests for FR-006, FR-007, FR-008 in `frontend/src/app/features/content/content.facade.spec.ts`
+- [X] T050 [P] [US2] Add content Material component tests for validation, upload, iframe, dirty state, and errors for FR-007, FR-008, FR-013 in `frontend/src/app/features/content/content-form.component.spec.ts`
+- [X] T051 [P] [US2] Add ads list/form facade tests for FR-006, FR-007, FR-008 in `frontend/src/app/features/ads/ads.facade.spec.ts`
+- [X] T052 [P] [US2] Add ads Material component tests for client association, upload, validation, dirty state, and errors for FR-007, FR-008, FR-013 in `frontend/src/app/features/ads/ad-form.component.spec.ts`
+- [X] T053 [P] [US2] Add clients Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/clients/clients.component.spec.ts`
+- [X] T054 [P] [US2] Add approved domains Material component tests for create, edit, active state, delete conflict, deactivate, and reactivate for FR-006, FR-009 in `frontend/src/app/features/domains/domains.component.spec.ts`
+- [X] T055 [P] [US2] Add display configuration Reactive Forms tests for timing, animation, inline ads, event duration, and enabled state for FR-007, FR-011 in `frontend/src/app/features/display-config/display-config.component.spec.ts`
 - [ ] T056 [P] [US2] Add users and roles Reactive Forms tests for list, create, edit, active status, and existing role assignment for FR-007, FR-010 in `frontend/src/app/features/users/users.component.spec.ts`
 - [ ] T057 [P] [US2] Add readiness guidance component tests for blockers and section directions for FR-012 in `frontend/src/app/features/readiness/readiness.component.spec.ts`
 
@@ -144,13 +144,13 @@
 
 - [X] T071 [US2] Implement content API adapter and contract models for FR-008, FR-015, FR-016 in `frontend/src/app/features/content/content.api.ts` and `frontend/src/app/features/content/content.models.ts`
 - [X] T072 [US2] Implement content facade with list, get, save, upload, delete, refresh, and safe error states for FR-006, FR-007, FR-008, FR-013 in `frontend/src/app/features/content/content.facade.ts`
-- [ ] T073 [US2] Implement Material content list and Reactive Form content editor for FR-005, FR-007, FR-008, FR-017 in `frontend/src/app/features/content/content-list.component.ts` and `frontend/src/app/features/content/content-form.component.ts`
+- [X] T073 [US2] Implement Material content list and Reactive Form content editor for FR-005, FR-007, FR-008, FR-017 in `frontend/src/app/features/content/content-list.component.ts` and `frontend/src/app/features/content/content-form.component.ts`
 - [X] T074 [US2] Implement ads API adapter and contract models for FR-008, FR-015, FR-016 in `frontend/src/app/features/ads/ads.api.ts` and `frontend/src/app/features/ads/ads.models.ts`
 - [X] T075 [US2] Implement ads facade with list, get, save, upload, delete, refresh, and safe error states for FR-006, FR-007, FR-008, FR-013 in `frontend/src/app/features/ads/ads.facade.ts`
-- [ ] T076 [US2] Implement Material ad list and Reactive Form ad editor for FR-005, FR-007, FR-008, FR-017 in `frontend/src/app/features/ads/ad-list.component.ts` and `frontend/src/app/features/ads/ad-form.component.ts`
-- [ ] T077 [US2] Implement clients API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/clients/`
-- [ ] T078 [US2] Implement domains API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/domains/`
-- [ ] T079 [US2] Implement display configuration API adapter, facade, and Material Reactive Form for FR-007, FR-011 in `frontend/src/app/features/display-config/`
+- [X] T076 [US2] Implement Material ad list and Reactive Form ad editor for FR-005, FR-007, FR-008, FR-017 in `frontend/src/app/features/ads/ad-list.component.ts` and `frontend/src/app/features/ads/ad-form.component.ts`
+- [X] T077 [US2] Implement clients API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/clients/`
+- [X] T078 [US2] Implement domains API adapter, facade, Material list, and Reactive Form editor for FR-006, FR-007, FR-009 in `frontend/src/app/features/domains/`
+- [X] T079 [US2] Implement display configuration API adapter, facade, and Material Reactive Form for FR-007, FR-011 in `frontend/src/app/features/display-config/`
 - [ ] T080 [US2] Implement readiness API adapter, facade, and Material guidance screen for FR-006, FR-012 in `frontend/src/app/features/readiness/`
 - [ ] T081 [US2] Implement users API adapter, facade, Material list, and Reactive Form editor for FR-007, FR-010 in `frontend/src/app/features/users/`
 - [ ] T082 [US2] Wire all US2 feature routes under the refactored admin shell for FR-001, FR-002, FR-016 in `frontend/src/app/core/routing/app.routes.ts`

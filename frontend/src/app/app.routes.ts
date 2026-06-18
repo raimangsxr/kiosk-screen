@@ -13,7 +13,7 @@ import { AdFormComponent } from './features/ads/ad-form.component';
 import { ReadinessComponent } from './features/readiness/readiness.component';
 import { AdminShellComponent } from './features/admin-shell/admin-shell.component';
 import { ApprovedDomainsComponent } from './features/domains/domains.component';
-import { DisplayConfigurationComponent } from './features/display-config/display-config.component';
+import { DisplayConfigComponent } from './features/display-config/display-config.component';
 import { UsersRolesComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
@@ -46,7 +46,7 @@ export const routes: Routes = [
       { path: 'readiness', component: ReadinessComponent },
       { path: '', component: AdminDashboardComponent, pathMatch: 'full' },
       { path: 'domains', component: ApprovedDomainsComponent },
-      { path: 'configuration', component: DisplayConfigurationComponent },
+      { path: 'configuration', component: DisplayConfigComponent },
       { path: 'users', component: UsersRolesComponent },
     ]
   },

@@ -14,5 +14,7 @@ The Angular app expects the backend API under `/api`.
 ## Tests
 
 ```sh
-npm test -- --watch=false
+npm test           # headless, single run
+npm run test:watch # headed Chrome with autoWatch (TDD)
+npm run test:ci    # headless + code coverage
 ```

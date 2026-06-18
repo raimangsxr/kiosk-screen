@@ -5,7 +5,9 @@
   "scripts": {
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
-    "test": "ng test"
+    "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
+    "test:watch": "ng test --browsers=Chrome",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox --code-coverage"
   },
   "dependencies": {
     "@angular/animations": "20.3.25",

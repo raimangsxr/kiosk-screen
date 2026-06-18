@@ -54,11 +54,27 @@ If no persisted data redesign is implemented, record that no structural data mig
 
 ```sh
 pytest backend/tests
-npm --prefix frontend run test -- --watch=false
+npm --prefix frontend run test
 npm --prefix frontend run build -- --progress=false
 docker build -f backend/Dockerfile backend
 docker build -f frontend/Dockerfile frontend
 ```
+
+Frontend test scripts (all run against `frontend/karma.conf.js`):
+
+- `npm --prefix frontend run test`: headless (`ChromeHeadlessNoSandbox`),
+  single run. Default local validation command.
+- `npm --prefix frontend run test:watch`: headed `Chrome` with autoWatch for
+  TDD.
+- `npm --prefix frontend run test:ci`: headless + code coverage, suitable for
+  pipelines. Reports land in `frontend/coverage/kiosk-screen/`.
+
+Note: `pytest backend/tests/integration` must be run from the repository root.
+`backend/tests/integration/test_migrations.py` references `backend/alembic/...`
+with a path literal, so running it from inside `backend/` raises a
+`FileNotFoundError` and reports a false negative. The unit, contract, and
+migration suites do not have this constraint and can be run from `backend/`
+because they are added to `pythonpath` by `pyproject.toml`.
 
 ## Final Acceptance Gate
 
