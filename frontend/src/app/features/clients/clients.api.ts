@@ -1,1 +1,1 @@
-export { AdsApiService as ClientsApiService, Client } from '../../core/api/ads.api';
+export { AdsApiService as ClientsApiService } from '../../ads/ads-api.service';

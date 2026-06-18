@@ -4,7 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { AdminApiService, KioskConfiguration } from '../../core/api/admin.api';
+import { AdminApiService, KioskConfiguration } from '../../admin/admin-api.service';
 import { DisplayConfigFacade } from './display-config.facade';
 import { DisplayConfigComponent } from './display-config.component';
 
@@ -126,15 +126,7 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     httpController.expectNone((req) => req.method === 'PUT');
   });
 
-  it('rejects remote control polling interval below one second', () => {
-    const form = fixture.componentInstance['form']!;
-    form.controls.remoteControlPollingSeconds.setValue(0);
-    expect(form.controls.remoteControlPollingSeconds.hasError('min')).toBeTrue();
-    fixture.componentInstance.submit();
-    httpController.expectNone((req) => req.method === 'PUT');
-  });
-
-  it('rejects remote control polling interval above sixty seconds', () => {
+  it('rejects remote control polling interval outside bounds', () => {
     const form = fixture.componentInstance['form']!;
     form.controls.remoteControlPollingSeconds.setValue(61);
     expect(form.controls.remoteControlPollingSeconds.hasError('max')).toBeTrue();

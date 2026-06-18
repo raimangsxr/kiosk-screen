@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
-import { AdminApiService, UserRecord, UserRequest } from '../../core/api/admin.api';
+import { AdminApiService, UserRecord, UserRequest } from '../../admin/admin-api.service';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 export const AVAILABLE_ROLES = [

@@ -3,7 +3,7 @@ import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { ContentApiService, ContentItem } from '../../core/api/content.api';
+import { ContentApiService, ContentItem } from '../../content/content-api.service';
 import { ContentFacade } from './content.facade';
 import { ContentListComponent } from './content-list.component';
 import { ContentFormComponent } from './content-form.component';

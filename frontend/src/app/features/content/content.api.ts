@@ -1,1 +1,1 @@
-export { ContentApiService, ContentItem, ContentItemRequest } from '../../core/api/content.api';
+export { ContentApiService } from '../../content/content-api.service';

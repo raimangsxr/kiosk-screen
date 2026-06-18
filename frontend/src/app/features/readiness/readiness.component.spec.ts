@@ -4,7 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { ReadinessApiService, ReadinessReport } from '../../core/api/readiness.api';
+import { ReadinessApiService, ReadinessReport } from '../../readiness/readiness-api.service';
 import { ReadinessFacade } from './readiness.facade';
 import { ReadinessComponent } from './readiness.component';
 

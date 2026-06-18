@@ -5,7 +5,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { AdItem, AdsApiService, Client } from '../../core/api/ads.api';
+import { AdItem, AdsApiService, Client } from '../../ads/ads-api.service';
 import { AdsFacade } from './ads.facade';
 import { AdListComponent } from './ad-list.component';
 import { AdFormComponent } from './ad-form.component';

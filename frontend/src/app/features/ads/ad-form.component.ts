@@ -9,24 +9,24 @@ import {
   Validators
 } from '@angular/forms';
 
-import { MatButtonModule } from '@angular/material/button';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { Subject, takeUntil } from 'rxjs';
 
 import { AdsFacade } from './ads.facade';
-import { AdItem } from '../../core/api/ads.api';
+import { AdItem } from '../../ads/ads-api.service';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
-import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger, nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
@@ -54,13 +54,13 @@ interface AdFormValue {
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
+    MatCardModule,
     MatSlideToggleModule,
+    MatProgressBarModule,
     MatDividerModule,
     MatSnackBarModule,
     PageHeaderComponent,
-    AdminStateComponent,
-    FormPageComponent,
-    FileInputComponent
+    AdminStateComponent
   ],
   template: `
     <app-page-header
@@ -77,115 +77,119 @@ interface AdFormValue {
       novalidate
       aria-label="Ad form"
     >
-      <app-form-page [loading]="loading()">
-        <app-admin-state
-          *ngIf="loadError() as error"
-          kind="error"
-          title="Could not load ad"
-          [message]="error.message"
-        />
+      <mat-card appearance="outlined">
+        <mat-card-content>
+          <mat-progress-bar *ngIf="loading()" mode="indeterminate" aria-label="Loading ad" />
+          <app-admin-state
+            *ngIf="loadError() as error"
+            type="error"
+            title="Could not load ad"
+            [message]="error.message"
+          />
 
-        <div class="ad-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Client</mat-label>
-            <mat-select formControlName="clientId" required>
-              <mat-option value="">Select a client</mat-option>
-              <mat-option
-                *ngFor="let client of facade.clients()"
-                [value]="client.id"
-                [disabled]="!client.isActive"
-              >
-                {{ client.name }} ({{ client.isActive ? 'active' : 'inactive' }})
-              </mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.controls.clientId.hasError('required')">Client is required.</mat-error>
-          </mat-form-field>
+          <div class="ad-form__row">
+            <mat-form-field appearance="outline">
+              <mat-label>Client</mat-label>
+              <mat-select formControlName="clientId" required>
+                <mat-option value="">Select a client</mat-option>
+                <mat-option
+                  *ngFor="let client of facade.clients()"
+                  [value]="client.id"
+                  [disabled]="!client.isActive"
+                >
+                  {{ client.name }} ({{ client.isActive ? 'active' : 'inactive' }})
+                </mat-option>
+              </mat-select>
+              <mat-error *ngIf="form.controls.clientId.hasError('required')">Client is required.</mat-error>
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Label</mat-label>
-            <input matInput formControlName="label" required maxlength="120" autocomplete="off" />
-            <mat-error *ngIf="form.controls.label.hasError('required')">Label is required.</mat-error>
-            <mat-error *ngIf="form.controls.label.hasError('nonBlankString')">Label cannot be blank.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="ad-form__row">
-          <div class="ad-form__file">
-            <span class="ad-form__file-label">Upload image</span>
-            <app-file-input
-              accept="image/*"
-              buttonLabel="Choose image"
-              ariaLabel="Choose an image file to upload"
-              [existingFileName]="existingMediaName()"
-              [showPreview]="true"
-              (fileSelected)="onFileSelected($event)"
-            />
+            <mat-form-field appearance="outline">
+              <mat-label>Label</mat-label>
+              <input matInput formControlName="label" required maxlength="120" autocomplete="off" />
+              <mat-error *ngIf="form.controls.label.hasError('required')">Label is required.</mat-error>
+              <mat-error *ngIf="form.controls.label.hasError('nonBlankString')">Label cannot be blank.</mat-error>
+            </mat-form-field>
           </div>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>External source URL (optional)</mat-label>
-            <input
-              matInput
-              formControlName="sourceReference"
-              placeholder="https://example.com/ad.jpg"
-              autocomplete="off"
-            />
-            <mat-hint>Use when you do not upload a file.</mat-hint>
-          </mat-form-field>
-        </div>
+          <div class="ad-form__row">
+            <label class="ad-form__file">
+              <span class="ad-form__file-label">Upload image</span>
+              <input
+                type="file"
+                accept="image/*"
+                (change)="selectFile($event)"
+                aria-label="Choose an image file to upload"
+              />
+              <span class="ad-form__file-name" *ngIf="selectedFileName() as name">{{ name }}</span>
+              <span class="ad-form__file-name" *ngIf="!selectedFileName() && existingMediaName() as name">
+                Current file: {{ name }}
+              </span>
+            </label>
 
-        <div class="ad-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Display order</mat-label>
-            <input matInput type="number" formControlName="displayOrder" min="1" required />
-            <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
-            <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
-              Order must be a positive integer.
-            </mat-error>
-          </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>External source URL (optional)</mat-label>
+              <input
+                matInput
+                formControlName="sourceReference"
+                placeholder="https://example.com/ad.jpg"
+                autocomplete="off"
+              />
+              <mat-hint>Use when you do not upload a file.</mat-hint>
+            </mat-form-field>
+          </div>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Rotation time (seconds)</mat-label>
-            <input matInput type="number" formControlName="durationSeconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
+          <div class="ad-form__row">
+            <mat-form-field appearance="outline">
+              <mat-label>Display order</mat-label>
+              <input matInput type="number" formControlName="displayOrder" min="1" required />
+              <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
+              <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
+                Order must be a positive integer.
+              </mat-error>
+            </mat-form-field>
 
-        <div class="ad-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation</mat-label>
-            <mat-select formControlName="rotationAnimation">
-              <mat-option [value]="null">Default</mat-option>
-              <mat-option *ngFor="let animation of animations" [value]="animation">
-                {{ animation }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Rotation time (seconds)</mat-label>
+              <input matInput type="number" formControlName="durationSeconds" min="1" />
+              <mat-hint>Leave empty to use kiosk default.</mat-hint>
+            </mat-form-field>
+          </div>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation duration (ms)</mat-label>
-            <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
+          <div class="ad-form__row">
+            <mat-form-field appearance="outline">
+              <mat-label>Animation</mat-label>
+              <mat-select formControlName="rotationAnimation">
+                <mat-option [value]="null">Default</mat-option>
+                <mat-option *ngFor="let animation of animations" [value]="animation">
+                  {{ animation }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
 
-        <mat-divider />
+            <mat-form-field appearance="outline">
+              <mat-label>Animation duration (ms)</mat-label>
+              <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
+              <mat-hint>Leave empty to use kiosk default.</mat-hint>
+            </mat-form-field>
+          </div>
 
-        <div class="ad-form__toggle">
-          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-          <span class="ad-form__hint" *ngIf="!form.controls.isActive.value">
-            Inactive ads are skipped during rotation.
-          </span>
-        </div>
+          <mat-divider />
 
-        <app-admin-state
-          *ngIf="saveError() as error"
-          kind="error"
-          title="Could not save ad"
-          [message]="error.message"
-        />
+          <div class="ad-form__row ad-form__row--align-center">
+            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            <span class="ad-form__hint" *ngIf="!form.controls.isActive.value">
+              Inactive ads are skipped during rotation.
+            </span>
+          </div>
 
-        <div formPageActions>
+          <app-admin-state
+            *ngIf="saveError() as error"
+            type="error"
+            title="Could not save ad"
+            [message]="error.message"
+          />
+        </mat-card-content>
+        <mat-card-actions align="end">
           <a mat-button routerLink="/admin/ads">Cancel</a>
           <button
             mat-flat-button
@@ -196,42 +200,44 @@ interface AdFormValue {
             <mat-icon aria-hidden="true">save</mat-icon>
             {{ facade.saving() ? 'Saving…' : 'Save' }}
           </button>
-        </div>
-      </app-form-page>
+        </mat-card-actions>
+      </mat-card>
     </form>
   `,
   styles: [
     `
       .ad-form {
+        margin-top: 16px;
         display: block;
-      }
-      mat-form-field {
-        width: 100%;
       }
       .ad-form__row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 16px;
+        margin-bottom: 16px;
+      }
+      .ad-form__row--align-center {
+        align-items: center;
       }
       .ad-form__file {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         gap: 6px;
+        font-size: 14px;
       }
       .ad-form__file-label {
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--mat-sys-on-surface);
+        font-weight: 600;
       }
-      .ad-form__toggle {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 4px 0;
+      .ad-form__file-name {
+        color: #475569;
+        font-size: 13px;
       }
       .ad-form__hint {
-        color: var(--mat-sys-on-surface-variant);
+        color: #92400e;
         font-size: 13px;
+      }
+      mat-form-field {
+        width: 100%;
       }
     `
   ]
@@ -306,12 +312,17 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     return this.adId() ? 'Edit ad' : 'New ad';
   }
 
+  protected selectedFileName(): string | null {
+    return this.selectedFile()?.name ?? null;
+  }
+
   protected existingMediaName(): string | null {
     return this.existingMedia();
   }
 
-  protected onFileSelected(file: File): void {
-    this.selectedFile.set(file);
+  protected selectFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedFile.set(input.files?.[0] ?? null);
   }
 
   submit(): void {

@@ -1,6 +1,1 @@
-export type {
-  DisplayAdItem,
-  DisplayContentItem,
-  DisplayState,
-  DisplayKioskConfiguration
-} from '../../core/api/display.api';
+export type { AdItem, ContentItem, DisplayState, KioskConfiguration } from '../../display/display-api.service';

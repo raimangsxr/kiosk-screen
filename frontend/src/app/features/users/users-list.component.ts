@@ -1,17 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTableModule } from '@angular/material/table';
 
-import { UsersFacade } from './users.facade';
-import { UserRecord } from '../../core/api/admin.api';
-import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
-import { StatusChipComponent } from '../../shared/ui/status-chip.component';
+import { MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+
+import { UsersFacade, AVAILABLE_ROLES } from './users.facade';
+import { AdminStateComponent } from '../../shared/admin-state.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { SectionActionsComponent } from '../../shared/ui/section-actions/section-actions.component';
+import { UserRecord } from '../../admin/admin-api.service';
 
 @Component({
   selector: 'app-users-list',
@@ -24,28 +28,52 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
     MatButtonModule,
     MatIconModule,
     MatCardModule,
+    MatProgressBarModule,
+    MatSlideToggleModule,
     MatChipsModule,
     MatSnackBarModule,
-    DataListComponent,
-    StatusChipComponent
+    AdminStateComponent,
+    PageHeaderComponent,
+    SectionActionsComponent
   ],
   template: `
-    <app-data-list
-      [title]="pageTitle"
-      [description]="pageDescription"
-      [loading]="facade.loading()"
-      [error]="facade.error()"
-      [empty]="facade.empty()"
-      [primaryAction]="primaryAction"
-      [refreshAction]="refreshAction"
-      emptyTitle="No users yet"
-      emptyMessage="Create an administrator or operator account."
-      emptyActionLabel="Add user"
-      emptyActionRoute="/admin/users/new"
-      emptyIcon="group"
-    >
-      <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.users()" aria-label="Users and roles" class="users-list__table">
+    <app-page-header
+      eyebrow="Administration"
+      title="Users and roles"
+      description="Authorized accounts and their role assignment. Existing role types only."
+    />
+
+    <app-section-actions [actions]="headerActions" />
+
+    <mat-card appearance="outlined" class="users-list__card">
+      <mat-card-header>
+        <mat-card-title>{{ facade.users().length }} user{{ facade.users().length === 1 ? '' : 's' }}</mat-card-title>
+        <mat-card-subtitle>Roles determine which sections each user can access.</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading users" />
+        <app-admin-state
+          *ngIf="facade.error() as error"
+          type="error"
+          title="Users unavailable"
+          [message]="error.message"
+        />
+        <app-admin-state
+          *ngIf="facade.empty()"
+          type="empty"
+          title="No users yet"
+          message="Create an administrator or operator account."
+          actionLabel="Add user"
+          actionRoute="/admin/users/new"
+        />
+
+        <table
+          *ngIf="facade.ready()"
+          mat-table
+          [dataSource]="facade.users()"
+          aria-label="Users and roles"
+          class="users-list__table"
+        >
           <ng-container matColumnDef="email">
             <th mat-header-cell *matHeaderCellDef>Email</th>
             <td mat-cell *matCellDef="let user">{{ user.email }}</td>
@@ -59,10 +87,9 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let user">
-              <app-status-chip
-                [label]="user.isActive ? 'Active' : 'Inactive'"
-                [kind]="user.isActive ? 'success' : 'neutral'"
-              />
+              <span class="status-pill" [class.blocked]="!user.isActive">
+                {{ user.isActive ? 'Active' : 'Inactive' }}
+              </span>
             </td>
           </ng-container>
 
@@ -78,22 +105,10 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef>Actions</th>
             <td mat-cell *matCellDef="let user">
-              <a
-                mat-button
-                color="primary"
-                [routerLink]="['/admin/users', user.id, 'edit']"
-                [attr.aria-label]="'Edit ' + user.email"
-              >
-                <mat-icon aria-hidden="true">edit</mat-icon>
-                Edit
+              <a mat-button color="primary" [routerLink]="['/admin/users', user.id, 'edit']" [attr.aria-label]="'Edit ' + user.email">
+                <mat-icon aria-hidden="true">edit</mat-icon> Edit
               </a>
-              <button
-                mat-button
-                type="button"
-                (click)="toggle(user)"
-                [disabled]="facade.saving()"
-                [attr.aria-label]="(user.isActive ? 'Deactivate ' : 'Reactivate ') + user.email"
-              >
+              <button mat-button type="button" (click)="toggle(user)" [disabled]="facade.saving()" [attr.aria-label]="(user.isActive ? 'Deactivate ' : 'Reactivate ') + user.email">
                 <mat-icon aria-hidden="true">{{ user.isActive ? 'pause' : 'play_arrow' }}</mat-icon>
                 {{ user.isActive ? 'Deactivate' : 'Reactivate' }}
               </button>
@@ -103,87 +118,24 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
-      </ng-template>
-
-      <ng-template #dataListCards>
-        @for (user of facade.users(); track user.id) {
-          <mat-card appearance="outlined" class="users-list__card-item">
-            <mat-card-content>
-              <div class="users-list__card-header">
-                <div class="users-list__card-id">
-                  <h3 class="users-list__card-name">{{ user.displayName || user.email }}</h3>
-                  <p class="users-list__card-email">{{ user.email }}</p>
-                </div>
-                <app-status-chip
-                  [label]="user.isActive ? 'Active' : 'Inactive'"
-                  [kind]="user.isActive ? 'success' : 'neutral'"
-                />
-              </div>
-              <mat-chip-set class="users-list__card-roles">
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
-              </mat-chip-set>
-            </mat-card-content>
-            <mat-card-actions class="users-list__card-actions">
-              <a
-                mat-button
-                color="primary"
-                [routerLink]="['/admin/users', user.id, 'edit']"
-                [attr.aria-label]="'Edit ' + user.email"
-              >
-                <mat-icon aria-hidden="true">edit</mat-icon>
-                Edit
-              </a>
-              <button
-                mat-button
-                type="button"
-                (click)="toggle(user)"
-                [disabled]="facade.saving()"
-                [attr.aria-label]="(user.isActive ? 'Deactivate ' : 'Reactivate ') + user.email"
-              >
-                <mat-icon aria-hidden="true">{{ user.isActive ? 'pause' : 'play_arrow' }}</mat-icon>
-                {{ user.isActive ? 'Deactivate' : 'Reactivate' }}
-              </button>
-            </mat-card-actions>
-          </mat-card>
-        }
-      </ng-template>
-    </app-data-list>
+      </mat-card-content>
+    </mat-card>
   `,
   styles: [
     `
-      .users-list__table {
-        width: 100%;
-        background: transparent;
-      }
-      .users-list__card-item {
-        display: block;
-      }
-      .users-list__card-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .users-list__card-name {
-        margin: 0;
-        font-size: 16px;
+      .users-list__card { margin-top: 16px; }
+      .users-list__table { width: 100%; }
+      .status-pill {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background: #dcfce7;
+        color: #166534;
+        font-size: 12px;
         font-weight: 600;
       }
-      .users-list__card-email {
-        margin: 2px 0 0;
-        color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
-      }
-      .users-list__card-roles {
-        margin-top: 8px;
-      }
-      .users-list__card-actions {
-        display: flex;
-        gap: 8px;
-        padding: 0 16px 12px;
-        flex-wrap: wrap;
-      }
+      .status-pill.blocked { background: #fee2e2; color: #991b1b; }
+      mat-progress-bar { margin-bottom: 12px; }
     `
   ]
 })
@@ -191,16 +143,13 @@ export class UsersListComponent implements OnInit {
   protected readonly facade = inject(UsersFacade);
   private readonly snackBar = inject(MatSnackBar);
 
-  protected readonly pageTitle = 'Users and roles';
-  protected readonly pageDescription =
-    'Authorized accounts and their role assignment. Existing role types only.';
-  protected readonly primaryAction = {
-    label: 'Add user',
-    route: '/admin/users/new',
-    icon: 'person_add'
-  };
-  protected readonly refreshAction = { route: '/admin/users', label: 'Refresh' };
   protected readonly displayedColumns = ['email', 'name', 'status', 'roles', 'actions'] as const;
+  protected readonly availableRoles = AVAILABLE_ROLES;
+
+  protected readonly headerActions = [
+    { label: 'Refresh', route: '/admin/users', kind: 'secondary' as const },
+    { label: 'Add user', route: '/admin/users/new', kind: 'primary' as const }
+  ];
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -210,11 +159,7 @@ export class UsersListComponent implements OnInit {
     this.facade.toggleActive(user).subscribe(() => {
       if (this.facade.error() === null) {
         const next = !user.isActive;
-        this.snackBar.open(
-          `${user.email} ${next ? 'reactivated' : 'deactivated'}.`,
-          'Dismiss',
-          { duration: 3000 }
-        );
+        this.snackBar.open(`${user.email} ${next ? 'reactivated' : 'deactivated'}.`, 'Dismiss', { duration: 3000 });
       }
     });
   }

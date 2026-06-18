@@ -5,7 +5,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { of } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { AdminApiService, UserRecord } from '../../core/api/admin.api';
+import { AdminApiService, UserRecord } from '../../admin/admin-api.service';
 import { UsersFacade } from './users.facade';
 import { UsersListComponent } from './users-list.component';
 import { UserFormComponent } from './user-form.component';

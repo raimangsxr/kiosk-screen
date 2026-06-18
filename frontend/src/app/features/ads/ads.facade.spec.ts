@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 
-import { AdItem, AdsApiService, Client } from '../../core/api/ads.api';
+import { AdItem, AdsApiService, Client } from '../../ads/ads-api.service';
 import { AdsFacade } from './ads.facade';
 import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
