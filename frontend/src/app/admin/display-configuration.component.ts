@@ -31,6 +31,7 @@ import { mapAdminError } from '../shared/admin-error-mapper';
       </label>
       <label>Ad animation duration <input name="adAnimationDuration" type="number" min="1" [(ngModel)]="configuration.defaultAdAnimationDurationMilliseconds"></label>
       <label>Inline ads <input name="inlineAdCount" type="number" min="1" [(ngModel)]="configuration.inlineAdCount"></label>
+      <label>Remote control polling <input name="remoteControlPolling" type="number" min="1" max="60" [(ngModel)]="configuration.remoteControlPollingSeconds"></label>
       <label>Event duration <input name="eventDuration" type="number" min="1" [(ngModel)]="configuration.configuredEventDurationMinutes"></label>
       <label><input name="enabled" type="checkbox" [(ngModel)]="configuration.isEnabled"> Enabled</label>
       <button type="submit">Save</button>
@@ -83,7 +84,8 @@ export class DisplayConfigurationComponent implements OnInit {
       configuration.defaultTopAnimationDurationMilliseconds,
       configuration.defaultAdAnimationDurationMilliseconds,
       configuration.inlineAdCount,
+      configuration.remoteControlPollingSeconds,
       configuration.configuredEventDurationMinutes
-    ].every((value) => Number(value) > 0);
+    ].every((value) => Number(value) > 0) && Number(configuration.remoteControlPollingSeconds) <= 60;
   }
 }

@@ -1,123 +1,240 @@
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+
+import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
+import { AuthService } from '../core/auth/auth.service';
+
+interface LoginFormValue {
+  email: string;
+  password: string;
+}
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule
+  ],
   template: `
-    <main class="login-page">
-      <form class="login-panel" (ngSubmit)="submit()">
-        <p class="eyebrow">Kiosk Screen</p>
-        <h1>Operator access</h1>
-        <label>
-          Email
-          <input name="email" type="email" [(ngModel)]="email" autocomplete="username" required>
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required>
-        </label>
-        <p class="error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</p>
-        <button type="submit" [disabled]="isSubmitting">Sign in</button>
-      </form>
+    <main class="login-page" aria-label="Operator sign in">
+      <mat-card appearance="outlined" class="login-card">
+        <mat-card-header>
+          <div class="login-card__brand" mat-card-avatar>
+            <mat-icon aria-hidden="true">tv</mat-icon>
+          </div>
+          <mat-card-title>Operator access</mat-card-title>
+          <mat-card-subtitle>Kiosk Screen administration</mat-card-subtitle>
+        </mat-card-header>
+        <form
+          *ngIf="form"
+          [formGroup]="form"
+          (ngSubmit)="submit()"
+          class="login-form"
+          novalidate
+          aria-label="Sign in form"
+        >
+          <mat-card-content class="login-form__content">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Email</mat-label>
+              <input
+                matInput
+                type="email"
+                formControlName="email"
+                required
+                autocomplete="username"
+                inputmode="email"
+              />
+              <mat-icon matIconPrefix aria-hidden="true">mail</mat-icon>
+              <mat-error *ngIf="form.controls.email.hasError('required')">Email is required.</mat-error>
+              <mat-error *ngIf="form.controls.email.hasError('email')">Enter a valid email address.</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Password</mat-label>
+              <input
+                matInput
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                required
+                autocomplete="current-password"
+              />
+              <mat-icon matIconPrefix aria-hidden="true">lock</mat-icon>
+              <button
+                matSuffix
+                mat-icon-button
+                type="button"
+                (click)="togglePassword()"
+                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+              >
+                <mat-icon aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+              <mat-error *ngIf="form.controls.password.hasError('required')">Password is required.</mat-error>
+            </mat-form-field>
+
+            <p
+              *ngIf="errorMessage() as message"
+              class="login-form__error"
+              role="alert"
+            >
+              <mat-icon aria-hidden="true">error</mat-icon>
+              <span>{{ message }}</span>
+            </p>
+          </mat-card-content>
+
+          <mat-card-actions align="end" class="login-form__actions">
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || submitting()"
+            >
+              @if (submitting()) {
+                <ng-container>
+                  <mat-progress-spinner
+                    diameter="18"
+                    mode="indeterminate"
+                    aria-label="Signing in"
+                  />
+                  <span>Signing in…</span>
+                </ng-container>
+              } @else {
+                <ng-container>
+                  <mat-icon aria-hidden="true">login</mat-icon>
+                  <span>Sign in</span>
+                </ng-container>
+              }
+            </button>
+          </mat-card-actions>
+        </form>
+        <p class="login-card__hint">
+          Default credentials: <code>admin&#64;example.com</code> / <code>admin</code>.
+        </p>
+      </mat-card>
     </main>
   `,
-  styles: [`
-    .login-page {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background:
-        linear-gradient(135deg, rgba(15, 43, 58, 0.88), rgba(24, 88, 89, 0.82)),
-        radial-gradient(circle at 22% 18%, rgba(242, 184, 74, 0.42), transparent 32%),
-        #102832;
-      color: #f8faf6;
-      padding: 24px;
-    }
-
-    .login-panel {
-      width: min(100%, 420px);
-      display: grid;
-      gap: 16px;
-      padding: 28px;
-      border-radius: 8px;
-      background: rgba(9, 24, 31, 0.84);
-      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
-    }
-
-    .eyebrow {
-      margin: 0;
-      color: #f2b84a;
-      font-size: 13px;
-      text-transform: uppercase;
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-    }
-
-    label {
-      display: grid;
-      gap: 8px;
-      font-weight: 700;
-    }
-
-    input {
-      min-height: 44px;
-      border: 1px solid #8fb6b2;
-      border-radius: 6px;
-      padding: 0 12px;
-      font: inherit;
-    }
-
-    button {
-      min-height: 46px;
-      border: 0;
-      border-radius: 6px;
-      background: #f2b84a;
-      color: #102832;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.7;
-      cursor: wait;
-    }
-
-    .error {
-      margin: 0;
-      color: #ffd1d1;
-    }
-  `]
+  styles: [
+    `
+      :host {
+        display: block;
+        min-height: 100vh;
+      }
+      .login-page {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--mat-sys-surface);
+      }
+      .login-card {
+        width: min(100%, 420px);
+      }
+      .login-card__brand {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+      }
+      .login-form {
+        display: block;
+      }
+      .login-form__content {
+        display: grid;
+        gap: 12px;
+        padding-top: 12px;
+      }
+      .login-form__error {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 8px 12px;
+        background: var(--mat-sys-error-container);
+        color: var(--mat-sys-on-error-container);
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      .login-form__actions {
+        padding: 8px 16px 16px;
+        gap: 8px;
+      }
+      .login-form__actions button {
+        min-width: 132px;
+        min-height: var(--app-touch-target);
+      }
+      .login-card__hint {
+        margin: 0;
+        padding: 0 16px 16px;
+        font-size: 12px;
+        color: var(--mat-sys-on-surface-variant);
+      }
+      .login-card__hint code {
+        background: var(--mat-sys-surface-container);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+    `
+  ]
 })
 export class LoginComponent {
-  private readonly http = inject(HttpClient);
+  private readonly fb = inject(FormBuilder);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  email = '';
-  password = '';
-  isSubmitting = false;
-  errorMessage = '';
+  protected readonly submitting = signal(false);
+  protected readonly showPassword = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
 
-  submit(): void {
-    this.isSubmitting = true;
-    this.errorMessage = '';
-    this.http.post('/api/auth/login', { email: this.email, password: this.password }, { withCredentials: true })
-      .subscribe({
-        next: () => {
-          globalThis.localStorage?.setItem('kiosk_authenticated', 'true');
-          void this.router.navigateByUrl('/hall');
-        },
-        error: () => {
-          this.errorMessage = 'Invalid credentials';
-          this.isSubmitting = false;
-        }
-      });
+  protected readonly form: FormGroup<{
+    email: FormControl<string>;
+    password: FormControl<string>;
+  }> = this.fb.nonNullable.group({
+    email: this.fb.nonNullable.control('', {
+      validators: [Validators.required, Validators.email]
+    }),
+    password: this.fb.nonNullable.control('', {
+      validators: [Validators.required]
+    })
+  });
+
+  protected togglePassword(): void {
+    this.showPassword.update((value) => !value);
+  }
+
+  protected submit(): void {
+    if (this.form.invalid || this.submitting()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.errorMessage.set(null);
+    this.submitting.set(true);
+    const value = this.form.value as LoginFormValue;
+
+    this.auth.login({ email: value.email.trim(), password: value.password }).subscribe({
+      next: () => {
+        this.submitting.set(false);
+        void this.router.navigateByUrl('/hall');
+      },
+      error: () => {
+        this.submitting.set(false);
+        this.errorMessage.set('Invalid email or password.');
+      }
+    });
   }
 }

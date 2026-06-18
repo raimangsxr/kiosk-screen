@@ -14,6 +14,7 @@ import { RouterLink } from '@angular/router';
         <div class="hall-actions">
           <a class="primary-action" routerLink="/display">Enter kiosk mode</a>
           <a class="secondary-action" routerLink="/admin">Open administration panel</a>
+          <a class="secondary-action" routerLink="/remote-control">Remote control - Open remote control</a>
         </div>
       </section>
     </main>

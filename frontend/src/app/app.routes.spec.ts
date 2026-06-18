@@ -5,10 +5,12 @@ describe('routes', () => {
   it('wires login and guarded display routes', () => {
     const displayRoute = routes.find((route) => route.path === 'display');
     const hallRoute = routes.find((route) => route.path === 'hall');
+    const remoteControlRoute = routes.find((route) => route.path === 'remote-control');
 
     expect(routes.some((route) => route.path === 'login')).toBeTrue();
     expect(hallRoute?.canActivate?.length).toBe(1);
     expect(displayRoute?.canActivate?.length).toBe(1);
+    expect(remoteControlRoute?.canActivate?.length).toBe(1);
   });
 
   it('wires admin dashboard, destinations, and dirty form guarded editors', () => {

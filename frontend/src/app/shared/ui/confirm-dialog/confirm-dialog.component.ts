@@ -1,10 +1,12 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 
 export interface ConfirmDialogData {
   readonly title: string;
   readonly message: string;
   readonly confirmLabel: string;
   readonly cancelLabel: string;
+  readonly destructive?: boolean;
 }
 
 @Component({
@@ -24,14 +26,16 @@ export interface ConfirmDialogData {
 })
 export class ConfirmDialogComponent {
   readonly titleId = 'confirm-dialog-title';
-  readonly data: ConfirmDialogData = {
+  readonly data = inject<ConfirmDialogData>(MAT_DIALOG_DATA, { optional: true }) ?? {
     title: 'Confirm action',
     message: 'Do you want to continue?',
     confirmLabel: 'Continue',
-    cancelLabel: 'Cancel'
+    cancelLabel: 'Cancel',
+    destructive: false
   };
+  private readonly dialogRef = inject<MatDialogRef<ConfirmDialogComponent, boolean>>(MatDialogRef, { optional: true });
 
-  close = (_confirmed: boolean): void => {
-    // MatDialog integration is introduced with the admin shell migration.
+  close = (confirmed: boolean): void => {
+    this.dialogRef?.close(confirmed);
   };
 }

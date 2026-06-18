@@ -29,6 +29,7 @@ export interface KioskConfiguration {
   defaultTopAnimationDurationMilliseconds: number;
   defaultAdAnimationDurationMilliseconds: number;
   inlineAdCount: number;
+  remoteControlPollingSeconds: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }

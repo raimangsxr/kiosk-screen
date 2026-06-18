@@ -14,6 +14,10 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
         CheckConstraint("default_top_animation_duration_milliseconds > 0", name="ck_kiosk_top_animation_duration_positive"),
         CheckConstraint("default_ad_animation_duration_milliseconds > 0", name="ck_kiosk_ad_animation_duration_positive"),
         CheckConstraint("inline_ad_count > 0", name="ck_kiosk_inline_ad_count_positive"),
+        CheckConstraint(
+            "remote_control_polling_seconds >= 1 AND remote_control_polling_seconds <= 60",
+            name="ck_kiosk_remote_control_polling_range",
+        ),
         CheckConstraint("configured_event_duration_minutes > 0", name="ck_kiosk_event_duration_positive"),
     )
 
@@ -29,4 +33,5 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
     default_top_animation_duration_milliseconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     default_ad_animation_duration_milliseconds: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
     inline_ad_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    remote_control_polling_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     configured_event_duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)

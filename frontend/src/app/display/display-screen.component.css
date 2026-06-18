@@ -8,6 +8,10 @@
   color: #f8faf6;
 }
 
+.display-screen--ads-hidden {
+  grid-template-rows: 1fr;
+}
+
 .top-region,
 .ad-region {
   min-height: 0;

@@ -15,6 +15,7 @@ export interface KioskConfiguration {
   defaultTopAnimationDurationMilliseconds?: number;
   defaultAdAnimationDurationMilliseconds?: number;
   inlineAdCount?: number;
+  remoteControlPollingSeconds?: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -55,6 +56,13 @@ export interface DisplayState {
   configuration: KioskConfiguration;
   topContent: ContentItem[];
   ads: AdItem[];
+  remoteControl?: {
+    contentMode: 'loop' | 'iframe';
+    selectedContentId: string | null;
+    adsVisible: boolean;
+    updatedAt: string;
+  };
+  selectedIframe?: ContentItem | null;
   fallbackActive: boolean;
 }
 

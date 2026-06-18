@@ -19,6 +19,7 @@ describe('DisplayScreenComponent', () => {
       defaultTopAnimationDurationMilliseconds: 300,
       defaultAdAnimationDurationMilliseconds: 300,
       inlineAdCount: 2,
+      remoteControlPollingSeconds: 3,
       configuredEventDurationMinutes: 120,
       isEnabled: true
     },
@@ -47,13 +48,13 @@ describe('DisplayScreenComponent', () => {
     fallbackActive: false
   };
 
-  function createComponent(state: DisplayState): ComponentFixture<DisplayScreenComponent> {
+  function createComponent(state: DisplayState, nextState: DisplayState = state): ComponentFixture<DisplayScreenComponent> {
     TestBed.configureTestingModule({
       imports: [DisplayScreenComponent],
       providers: [
         {
           provide: DisplayApiService,
-          useValue: { openDisplay: () => of(state) }
+          useValue: { openDisplay: () => of(state), getState: () => of(nextState) }
         },
         provideRouter([])
       ]
@@ -61,6 +62,27 @@ describe('DisplayScreenComponent', () => {
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     return fixture;
+  }
+
+  function createComponentWithStateSequence(states: DisplayState[]): {
+    fixture: ComponentFixture<DisplayScreenComponent>;
+    getState: jasmine.Spy<() => ReturnType<DisplayApiService['getState']>>;
+  } {
+    const [initialState, ...pollStates] = states;
+    const getState = jasmine.createSpy('getState').and.callFake(() => of(pollStates.shift() ?? states.at(-1) ?? initialState));
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: { openDisplay: () => of(initialState), getState }
+        },
+        provideRouter([])
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+    return { fixture, getState };
   }
 
   it('renders a stable 4-to-1 kiosk shell without management controls', () => {
@@ -185,10 +207,172 @@ describe('DisplayScreenComponent', () => {
     expect(fixture.componentInstance.visibleAds).toEqual([]);
   });
 
+  it('starts with loop content and visible ads when remote control state is absent', () => {
+    const fixture = createComponent({ ...readyState, remoteControl: undefined, selectedIframe: undefined });
+
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+    expect(fixture.componentInstance.adsVisible).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.ad-region')).not.toBeNull();
+  });
+
   it('produces a rotation-fade class for fade animation', () => {
     const fixture = createComponent(readyState);
     const expected = `rotation-${readyState.topContent[0].effectiveRotationAnimation}`;
 
     expect(fixture.componentInstance.animationClass(readyState.topContent[0])).toBe(expected);
   });
+
+  it('polls display state and applies remote iframe mode', fakeAsync(() => {
+    const iframeState: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'iframe',
+        selectedContentId: 'content-iframe',
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z'
+      },
+      selectedIframe: {
+        ...readyState.topContent[0],
+        id: 'content-iframe',
+        title: 'Agenda',
+        contentType: 'embedded_web',
+        sourceReference: 'https://example.org/agenda',
+        displayOrder: 2
+      }
+    };
+    const fixture = createComponent(readyState, iframeState);
+
+    tick(3000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-iframe');
+    expect(fixture.nativeElement.querySelector('iframe')?.getAttribute('src')).toBe('https://example.org/agenda');
+  }));
+
+  it('hides ads and expands content when remote ads visibility is disabled', fakeAsync(() => {
+    const hiddenAdsState: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedContentId: null,
+        adsVisible: false,
+        updatedAt: '2026-06-18T00:00:00Z'
+      }
+    };
+    const fixture = createComponent(readyState, hiddenAdsState);
+
+    tick(3000);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.display-screen')?.classList).toContain('display-screen--ads-hidden');
+    expect(fixture.nativeElement.querySelector('.ad-region')).toBeNull();
+    expect(fixture.componentInstance.visibleAds).toEqual([]);
+  }));
+
+  it('restores ads layout when remote ads visibility is enabled again', fakeAsync(() => {
+    const hiddenAdsState: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedContentId: null,
+        adsVisible: false,
+        updatedAt: '2026-06-18T00:00:00Z'
+      }
+    };
+    const fixture = createComponent(hiddenAdsState, {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedContentId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:01Z'
+      }
+    });
+
+    expect(fixture.nativeElement.querySelector('.ad-region')).toBeNull();
+
+    tick(3000);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.display-screen')?.classList).not.toContain('display-screen--ads-hidden');
+    expect(fixture.nativeElement.querySelector('.ad-region')).not.toBeNull();
+    expect(fixture.componentInstance.visibleAds.length).toBe(1);
+  }));
+
+  it('reschedules polling with the hot-applied configuration interval', fakeAsync(() => {
+    const { getState } = createComponentWithStateSequence([
+      readyState,
+      { ...readyState, configuration: { ...readyState.configuration, remoteControlPollingSeconds: 1 } }
+    ]);
+
+    tick(3000);
+    expect(getState).toHaveBeenCalledTimes(1);
+
+    tick(999);
+    expect(getState).toHaveBeenCalledTimes(1);
+
+    tick(1);
+    expect(getState).toHaveBeenCalledTimes(2);
+  }));
+
+  it('hot-applies timing, animation, and inline ad count changes from display polling', fakeAsync(() => {
+    const hotState: DisplayState = {
+      ...readyState,
+      configuration: {
+        ...readyState.configuration,
+        defaultTopDurationSeconds: 1,
+        defaultTopRotationAnimation: 'slide',
+        inlineAdCount: 1
+      },
+      topContent: [
+        {
+          ...readyState.topContent[0],
+          title: 'First',
+          durationSeconds: null,
+          effectiveDurationSeconds: 1,
+          effectiveRotationAnimation: 'slide'
+        },
+        {
+          ...readyState.topContent[0],
+          id: 'content-2',
+          title: 'Second',
+          displayOrder: 2,
+          durationSeconds: null,
+          effectiveDurationSeconds: 1,
+          effectiveRotationAnimation: 'slide'
+        }
+      ],
+      ads: [
+        readyState.ads[0],
+        { ...readyState.ads[0], id: 'ad-2', label: 'Second ad', displayOrder: 2 }
+      ]
+    };
+    const { fixture } = createComponentWithStateSequence([readyState, hotState]);
+
+    tick(3000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.visibleAds.length).toBe(1);
+    expect(fixture.componentInstance.animationClass(fixture.componentInstance.currentContent!)).toBe('rotation-slide');
+
+    tick(1000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+  }));
+
+  it('shows a display unavailable fallback when hot configuration disables the kiosk', fakeAsync(() => {
+    const disabledState: DisplayState = {
+      ...readyState,
+      configuration: { ...readyState.configuration, isEnabled: false }
+    };
+    const { fixture } = createComponentWithStateSequence([readyState, disabledState]);
+
+    tick(3000);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Display unavailable');
+    expect(fixture.componentInstance.currentContent).toBeNull();
+    expect(fixture.componentInstance.visibleAds).toEqual([]);
+  }));
 });

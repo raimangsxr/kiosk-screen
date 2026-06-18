@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { HallComponent } from './hall.component';
 
 describe('HallComponent', () => {
-  it('offers kiosk and administration destinations', () => {
+  it('offers kiosk, remote control, and administration destinations', () => {
     TestBed.configureTestingModule({
       imports: [HallComponent],
       providers: [provideRouter([])]
@@ -19,7 +19,9 @@ describe('HallComponent', () => {
 
     expect(text).toContain('Enter kiosk mode');
     expect(text).toContain('Open administration panel');
+    expect(text).toContain('Open remote control');
     expect(links).toContain('/display');
     expect(links).toContain('/admin');
+    expect(links).toContain('/remote-control');
   });
 });
