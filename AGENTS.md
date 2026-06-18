@@ -1,7 +1,7 @@
 # AGENTS.md
 
 <!-- SPECKIT START -->
-For current feature context, read `specs/005-admin-refactor/plan.md`.
+For current feature context, read `specs/009-public-content-api/plan.md`.
 <!-- SPECKIT END -->
 
 ## Project operating model

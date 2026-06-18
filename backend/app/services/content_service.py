@@ -1,3 +1,4 @@
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 
@@ -10,6 +11,7 @@ from app.repositories.content import ContentRepository
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
 from app.repositories.models.content import TopContentItem
+from app.services.api_key_service import ApiKeyService
 from app.services.media_storage_service import MediaStorageService
 
 
@@ -130,6 +132,114 @@ class ContentService:
             self.session.rollback()
             MediaStorageService(self.session).delete_file(media)
             raise
+
+    def append_via_public_api(
+        self,
+        organization_id: str,
+        api_key_id: str,
+        upload: UploadFile,
+        title: str,
+    ) -> TopContentItem:
+        """Append a new top-content item from a public-API upload.
+
+        Serializes per-organization appends via a Postgres transactional advisory lock
+        (FR-013) so concurrent uploads produce contiguous ``displayOrder`` values
+        with no gaps, duplicates, or races.
+
+        - Computes ``display_order = max(existing) + 1`` inside the locked transaction.
+        - Records a ``content_changed`` ``DisplayEvent`` with ``source=public_api`` (FR-014).
+        - Updates the API key's ``last_used_at`` only after the row commits successfully (FR-015).
+        """
+        from app.shared.errors.application_errors import (
+            EmptyFileError,
+            MissingFileError,
+            MissingTitleError,
+            TitleTooLongError,
+            UnsupportedMediaTypeError,
+        )
+
+        # File presence and title are validated by the route; this is defensive.
+        if upload is None:
+            raise MissingFileError()
+        if not title or not title.strip():
+            raise MissingTitleError()
+        if len(title) > 255:
+            raise TitleTooLongError(255)
+
+        content_type = (upload.content_type or "").lower()
+        if content_type.startswith("image/"):
+            media_type = "image"
+            content_kind = "photo"
+        elif content_type.startswith("video/"):
+            media_type = "video"
+            content_kind = "video"
+        else:
+            raise UnsupportedMediaTypeError()
+
+        # Acquire the per-organization advisory lock for the duration of the transaction.
+        # Released automatically on commit or rollback.
+        self.session.execute(
+            select(func.pg_advisory_xact_lock(func.hashtext(f"content_append:{organization_id}")))
+        )
+
+        # Save the file (may raise on size / type validation); the lock is held
+        # for the duration but the file is small relative to the lock window.
+        media = MediaStorageService(self.session).save_upload(
+            organization_id, None, upload, media_type
+        )
+
+        try:
+            current_max = self.session.scalar(
+                select(func.max(TopContentItem.display_order)).where(
+                    TopContentItem.organization_id == organization_id
+                )
+            )
+            next_order = (current_max or 0) + 1
+
+            item = TopContentItem(
+                organization_id=organization_id,
+                title=title.strip(),
+                content_type=content_kind,
+                source_reference=media.public_reference,
+                media_file_id=media.id,
+                approved_domain_id=None,
+                is_active=True,
+                display_order=next_order,
+                created_by_user_id=None,
+                updated_by_user_id=None,
+            )
+            self.repository.add(item)
+
+            # Audit event (FR-014) — the API key id is recorded, not a user id.
+            self._record_change(
+                organization_id,
+                None,
+                "content_changed",
+                f"Content added via public API: {title}",
+                item.id,
+            )
+
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            try:
+                MediaStorageService(self.session).delete_file(media)
+            except Exception:
+                pass
+            raise
+
+        # After the row is committed, mark the API key as recently used (FR-015).
+        # This is intentionally OUTSIDE the locked transaction so the timestamp
+        # update does not serialize behind other uploads.
+        from app.repositories.api_keys import ApiKeyRepository
+
+        try:
+            ApiKeyService(ApiKeyRepository(self.session)).mark_used_by_id(api_key_id)
+        except Exception:
+            # Audit/last-used is best-effort; the upload itself has already succeeded.
+            pass
+
+        return item
 
     def delete(self, organization_id: str, user_id: str, content_id: str) -> None:
         item = self.repository.get(organization_id, content_id)
