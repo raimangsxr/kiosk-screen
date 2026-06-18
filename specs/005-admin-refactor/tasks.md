@@ -168,20 +168,20 @@
 
 ### Tests for User Story 3
 
-- [ ] T084 [P] [US3] Add frontend kiosk Escape-to-hall regression tests for FR-003, FR-004 in `frontend/src/app/display/display-screen.component.spec.ts`
-- [ ] T085 [P] [US3] Add frontend display rotation regression tests for ordering, timing, animation class, and inline ads for FR-004, FR-008, FR-011 in `frontend/src/app/display/display-rotation.service.spec.ts` and `frontend/src/app/display/display-screen.component.spec.ts`
-- [ ] T086 [P] [US3] Add backend display state v1 contract tests for migrated/refactored payloads for FR-004, FR-021 in `backend/tests/contract/test_v1_display_contract.py`
-- [ ] T087 [P] [US3] Add backend display service regression tests for approved content/ad selection and effective settings for FR-004, FR-011 in `backend/tests/unit/test_display_application_service.py`
-- [ ] T088 [P] [US3] Add manual kiosk regression checklist for FR-025, FR-026 in `specs/005-admin-refactor/validation/kiosk-regression.md`
+- [X] T084 [P] [US3] Add frontend kiosk Escape-to-hall regression tests for FR-003, FR-004 in `frontend/src/app/display/display-screen.component.spec.ts`
+- [X] T085 [P] [US3] Add frontend display rotation regression tests for ordering, timing, animation class, and inline ads for FR-004, FR-008, FR-011 in `frontend/src/app/display/display-rotation.service.spec.ts` and `frontend/src/app/display/display-screen.component.spec.ts`
+- [X] T086 [P] [US3] Add backend display state v1 contract tests for migrated/refactored payloads for FR-004, FR-021 in `backend/tests/contract/test_v1_display_contract.py`
+- [X] T087 [P] [US3] Add backend display service regression tests for approved content/ad selection and effective settings for FR-004, FR-011 in `backend/tests/unit/test_display_application_service.py`
+- [X] T088 [P] [US3] Add manual kiosk regression checklist for FR-025, FR-026 in `specs/005-admin-refactor/validation/kiosk-regression.md`
 
 ### Implementation for User Story 3
 
-- [ ] T089 [US3] Keep kiosk display outside Material admin layout while updating imports to new shared contracts for FR-003, FR-004, FR-016 in `frontend/src/app/display/display-screen.component.ts`
-- [ ] T090 [US3] Move display API adapter to refactored core/feature boundary while preserving display state contract for FR-004, FR-015, FR-016 in `frontend/src/app/display/display-api.service.ts` and `frontend/src/app/display/display.models.ts`
+- [X] T089 [US3] Keep kiosk display outside Material admin layout while updating imports to new shared contracts for FR-003, FR-004, FR-016 in `frontend/src/app/display/display-screen.component.ts`
+- [X] T090 [US3] Move display API adapter to refactored core/feature boundary while preserving display state contract for FR-004, FR-015, FR-016 in `frontend/src/app/display/display-api.service.ts` and `frontend/src/app/display/display.models.ts`
 - [X] T091 [US3] Move backend display open/state handlers into v1 module while preserving authorization and behavior for FR-004, FR-016 in `backend/app/api/v1/display/routes.py`
 - [X] T092 [US3] Move display state business behavior into application service while preserving rotation inputs and fallback behavior for FR-004, FR-011, FR-016 in `backend/app/application/display/service.py`
-- [ ] T093 [US3] Document display contract changes and compatibility notes for FR-004A, FR-021 in `specs/005-admin-refactor/contracts/contract-change-log.md`
-- [ ] T094 [US3] Validate US3 kiosk smoke flow manually and record results for SC-001, SC-006, SC-014 in `specs/005-admin-refactor/validation/kiosk-regression.md`
+- [X] T093 [US3] Document display contract changes and compatibility notes for FR-004A, FR-021 in `specs/005-admin-refactor/contracts/contract-change-log.md`
+- [X] T094 [US3] Validate US3 kiosk smoke flow manually and record results for SC-001, SC-006, SC-014 in `specs/005-admin-refactor/validation/kiosk-regression.md`
 
 **Checkpoint**: User Story 3 is independently testable through hall-to-kiosk and Escape-to-hall regression.
 

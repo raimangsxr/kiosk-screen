@@ -14,6 +14,11 @@ describe('DisplayScreenComponent', () => {
       bottomRegionRatio: 1,
       defaultTopDurationSeconds: 15,
       defaultAdDurationSeconds: 10,
+      defaultTopRotationAnimation: 'fade',
+      defaultAdRotationAnimation: 'slide',
+      defaultTopAnimationDurationMilliseconds: 300,
+      defaultAdAnimationDurationMilliseconds: 300,
+      inlineAdCount: 2,
       configuredEventDurationMinutes: 120,
       isEnabled: true
     },
@@ -24,7 +29,9 @@ describe('DisplayScreenComponent', () => {
       sourceReference: 'https://example.com/welcome.jpg',
       isActive: true,
       displayOrder: 1,
-      durationSeconds: 15
+      durationSeconds: 15,
+      effectiveDurationSeconds: 15,
+      effectiveRotationAnimation: 'fade'
     }],
     ads: [{
       id: 'ad-1',
@@ -33,7 +40,9 @@ describe('DisplayScreenComponent', () => {
       sourceReference: 'https://example.com/ad.jpg',
       isActive: true,
       displayOrder: 1,
-      durationSeconds: 10
+      durationSeconds: 10,
+      effectiveDurationSeconds: 10,
+      effectiveRotationAnimation: 'slide'
     }],
     fallbackActive: false
   };
@@ -79,8 +88,8 @@ describe('DisplayScreenComponent', () => {
     const fixture = createComponent({
       ...readyState,
       topContent: [
-        { ...readyState.topContent[0], title: 'First', durationSeconds: 1 },
-        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 1 }
+        { ...readyState.topContent[0], title: 'First', durationSeconds: 1, effectiveDurationSeconds: 1 },
+        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 1, effectiveDurationSeconds: 1 }
       ]
     });
 
@@ -92,6 +101,46 @@ describe('DisplayScreenComponent', () => {
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
   }));
 
+  it('does not rotate content with a single item', fakeAsync(() => {
+    const fixture = createComponent(readyState);
+
+    tick(5000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+  }));
+
+  it('uses effective duration over item-level duration when both exist', fakeAsync(() => {
+    const fixture = createComponent({
+      ...readyState,
+      topContent: [
+        { ...readyState.topContent[0], title: 'First', durationSeconds: 30, effectiveDurationSeconds: 1 },
+        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2 }
+      ]
+    });
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('First');
+
+    tick(1000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+  }));
+
+  it('exposes only inlineAdCount ads in the visible ad strip', () => {
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, inlineAdCount: 1 },
+      ads: [
+        readyState.ads[0],
+        { ...readyState.ads[0], id: 'ad-2', label: 'Hall', displayOrder: 2 },
+        { ...readyState.ads[0], id: 'ad-3', label: 'Lobby', displayOrder: 3 }
+      ]
+    });
+
+    expect(fixture.componentInstance.visibleAds.length).toBe(1);
+  });
+
   it('returns to the hall when Escape is pressed', () => {
     const fixture = createComponent(readyState);
     const router = TestBed.inject(Router);
@@ -101,5 +150,45 @@ describe('DisplayScreenComponent', () => {
 
     expect(router.navigateByUrl).toHaveBeenCalledWith('/hall');
     fixture.destroy();
+  });
+
+  it('ignores non-Escape keys', () => {
+    const fixture = createComponent(readyState);
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
+
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    globalThis.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape' }));
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+    fixture.destroy();
+  });
+
+  it('removes the Escape listener on destroy', () => {
+    const fixture = createComponent(readyState);
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
+
+    fixture.destroy();
+
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('falls back to null content and ads when arrays are empty but fallbackActive is false', () => {
+    const fixture = createComponent({ ...readyState, topContent: [], ads: [], fallbackActive: false });
+
+    expect(fixture.componentInstance.currentContent).toBeNull();
+    expect(fixture.componentInstance.currentAd).toBeNull();
+    expect(fixture.componentInstance.visibleAds).toEqual([]);
+  });
+
+  it('produces a rotation-fade class for fade animation', () => {
+    const fixture = createComponent(readyState);
+    const expected = `rotation-${readyState.topContent[0].effectiveRotationAnimation}`;
+
+    expect(fixture.componentInstance.animationClass(readyState.topContent[0])).toBe(expected);
   });
 });
