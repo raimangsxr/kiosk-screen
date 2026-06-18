@@ -4,7 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { AdminApiService, KioskConfiguration } from '../../admin/admin-api.service';
+import { AdminApiService, KioskConfiguration } from '../../core/api/admin.api';
 import { DisplayConfigFacade } from './display-config.facade';
 import { DisplayConfigComponent } from './display-config.component';
 

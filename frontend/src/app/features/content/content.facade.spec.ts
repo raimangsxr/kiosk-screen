@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 
-import { ContentApiService, ContentItem } from '../../content/content-api.service';
+import { ContentApiService, ContentItem } from '../../core/api/content.api';
 import { ContentFacade } from './content.facade';
 import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 

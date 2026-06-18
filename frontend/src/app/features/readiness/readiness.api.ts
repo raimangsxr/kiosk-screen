@@ -1,1 +1,1 @@
-export { ReadinessApiService } from '../../readiness/readiness-api.service';
+export { ReadinessApiService, ReadinessReport } from '../../core/api/readiness.api';

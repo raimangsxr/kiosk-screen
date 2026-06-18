@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
-import { ReadinessApiService, ReadinessReport } from '../../readiness/readiness-api.service';
+import { ReadinessApiService, ReadinessReport } from '../../core/api/readiness.api';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })

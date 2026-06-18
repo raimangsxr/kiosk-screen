@@ -5,7 +5,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
-import { AdminApiService, ApprovedDomain } from '../../admin/admin-api.service';
+import { AdminApiService, ApprovedDomain } from '../../core/api/admin.api';
 import { DomainsFacade } from './domains.facade';
 import { DomainListComponent } from './domain-list.component';
 import { DomainFormComponent } from './domain-form.component';

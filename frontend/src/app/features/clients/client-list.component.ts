@@ -1,19 +1,17 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-
-import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTableModule } from '@angular/material/table';
 
 import { ClientsFacade } from './clients.facade';
-import { AdminStateComponent } from '../../shared/admin-state.component';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
-import { SectionActionsComponent } from '../../shared/ui/section-actions/section-actions.component';
-import { Client } from '../../ads/ads-api.service';
+import { Client } from '../../core/api/ads.api';
+import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { StatusChipComponent } from '../../shared/ui/status-chip.component';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-client-list',
@@ -26,50 +24,27 @@ import { Client } from '../../ads/ads-api.service';
     MatButtonModule,
     MatIconModule,
     MatCardModule,
-    MatProgressBarModule,
     MatSnackBarModule,
-    AdminStateComponent,
-    PageHeaderComponent,
-    SectionActionsComponent
+    DataListComponent,
+    StatusChipComponent
   ],
   template: `
-    <app-page-header
-      eyebrow="Administration"
-      title="Clients"
-      description="Clients own the ads shown in the bottom region. Deactivate a client to keep its ads out of rotation."
-    />
-
-    <app-section-actions [actions]="headerActions" />
-
-    <mat-card appearance="outlined" class="client-list__card">
-      <mat-card-header>
-        <mat-card-title>{{ facade.clients().length }} client{{ facade.clients().length === 1 ? '' : 's' }}</mat-card-title>
-        <mat-card-subtitle>Delete is blocked when ads depend on a client. Use deactivate instead.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading clients" />
-        <app-admin-state
-          *ngIf="facade.error() as error"
-          type="error"
-          title="Clients unavailable"
-          [message]="error.message"
-        />
-        <app-admin-state
-          *ngIf="facade.empty()"
-          type="empty"
-          title="No clients yet"
-          message="Create a client before uploading ads."
-          actionLabel="Add client"
-          actionRoute="/admin/clients/new"
-        />
-
-        <table
-          *ngIf="facade.ready()"
-          mat-table
-          [dataSource]="facade.clients()"
-          aria-label="Clients"
-          class="client-list__table"
-        >
+    <app-data-list
+      [title]="pageTitle"
+      [description]="pageDescription"
+      [loading]="facade.loading()"
+      [error]="facade.error()"
+      [empty]="facade.empty()"
+      [primaryAction]="primaryAction"
+      [refreshAction]="refreshAction"
+      emptyTitle="No clients yet"
+      emptyMessage="Create a client before uploading ads."
+      emptyActionLabel="Add client"
+      emptyActionRoute="/admin/clients/new"
+      emptyIcon="business"
+    >
+      <ng-template #dataListTable>
+        <table mat-table [dataSource]="facade.clients()" aria-label="Clients" class="client-list__table">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let client">{{ client.name }}</td>
@@ -78,9 +53,10 @@ import { Client } from '../../ads/ads-api.service';
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let client">
-              <span class="status-pill" [class.blocked]="!client.isActive">
-                {{ client.isActive ? 'Active' : 'Inactive' }}
-              </span>
+              <app-status-chip
+                [label]="client.isActive ? 'Active' : 'Inactive'"
+                [kind]="client.isActive ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
 
@@ -123,32 +99,83 @@ import { Client } from '../../ads/ads-api.service';
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
-      </mat-card-content>
-    </mat-card>
+      </ng-template>
+
+      <ng-template #dataListCards>
+        @for (client of facade.clients(); track client.id) {
+          <mat-card appearance="outlined" class="client-list__card-item">
+            <mat-card-content>
+              <div class="client-list__card-header">
+                <h3 class="client-list__card-title">{{ client.name }}</h3>
+                <app-status-chip
+                  [label]="client.isActive ? 'Active' : 'Inactive'"
+                  [kind]="client.isActive ? 'success' : 'neutral'"
+                />
+              </div>
+            </mat-card-content>
+            <mat-card-actions class="client-list__card-actions">
+              <a
+                mat-button
+                color="primary"
+                [routerLink]="['/admin/clients', client.id, 'edit']"
+                [attr.aria-label]="'Edit ' + client.name"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+                Edit
+              </a>
+              <button
+                mat-button
+                type="button"
+                (click)="toggle(client)"
+                [disabled]="facade.saving()"
+                [attr.aria-label]="(client.isActive ? 'Deactivate ' : 'Reactivate ') + client.name"
+              >
+                <mat-icon aria-hidden="true">{{ client.isActive ? 'pause' : 'play_arrow' }}</mat-icon>
+                {{ client.isActive ? 'Deactivate' : 'Reactivate' }}
+              </button>
+              <button
+                mat-button
+                color="warn"
+                type="button"
+                (click)="remove(client)"
+                [disabled]="facade.saving()"
+                [attr.aria-label]="'Delete ' + client.name"
+              >
+                <mat-icon aria-hidden="true">delete</mat-icon>
+                Delete
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </ng-template>
+    </app-data-list>
   `,
   styles: [
     `
-      .client-list__card {
-        margin-top: 16px;
-      }
       .client-list__table {
         width: 100%;
+        background: transparent;
       }
-      .status-pill {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: #dcfce7;
-        color: #166534;
-        font-size: 12px;
+      .client-list__card-item {
+        display: block;
+      }
+      .client-list__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .client-list__card-title {
+        margin: 0;
+        font-size: 16px;
         font-weight: 600;
       }
-      .status-pill.blocked {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      mat-progress-bar {
-        margin-bottom: 12px;
+      .client-list__card-actions {
+        display: flex;
+        gap: 8px;
+        padding: 0 16px 12px;
+        flex-wrap: wrap;
       }
     `
   ]
@@ -156,13 +183,18 @@ import { Client } from '../../ads/ads-api.service';
 export class ClientListComponent implements OnInit {
   protected readonly facade = inject(ClientsFacade);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(ConfirmDialogService);
 
+  protected readonly pageTitle = 'Clients';
+  protected readonly pageDescription =
+    'Clients own the ads shown in the bottom region. Deactivate a client to keep its ads out of rotation.';
+  protected readonly primaryAction = {
+    label: 'Add client',
+    route: '/admin/clients/new',
+    icon: 'add'
+  };
+  protected readonly refreshAction = { route: '/admin/clients', label: 'Refresh' };
   protected readonly displayedColumns = ['name', 'status', 'actions'] as const;
-
-  protected readonly headerActions = [
-    { label: 'Refresh', route: '/admin/clients', kind: 'secondary' as const },
-    { label: 'Add client', route: '/admin/clients/new', kind: 'primary' as const }
-  ];
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -172,19 +204,32 @@ export class ClientListComponent implements OnInit {
     this.facade.toggleActive(client).subscribe(() => {
       if (this.facade.error() === null) {
         const next = !client.isActive;
-        this.snackBar.open(`${client.name} ${next ? 'reactivated' : 'deactivated'}.`, 'Dismiss', { duration: 3000 });
+        this.snackBar.open(
+          `${client.name} ${next ? 'reactivated' : 'deactivated'}.`,
+          'Dismiss',
+          { duration: 3000 }
+        );
       }
     });
   }
 
   protected remove(client: Client): void {
-    if (!window.confirm(`Delete ${client.name}? Deactivate it instead if it has active ads.`)) {
-      return;
-    }
-    this.facade.remove(client.id).subscribe(() => {
-      if (this.facade.error() === null) {
-        this.snackBar.open(`Deleted ${client.name}.`, 'Dismiss', { duration: 3000 });
+    const ref = this.dialog.open({
+      title: `Delete ${client.name}?`,
+      message: 'Deactivate the client instead if it has active ads.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
       }
+      this.facade.remove(client.id).subscribe(() => {
+        if (this.facade.error() === null) {
+          this.snackBar.open(`Deleted ${client.name}.`, 'Dismiss', { duration: 3000 });
+        }
+      });
     });
   }
 }

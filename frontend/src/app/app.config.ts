@@ -4,7 +4,13 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
+import { provideExtendedColors } from './core/theme/extended-colors';
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideHttpClient(withFetch()), provideRouter(routes), provideAnimationsAsync()]
+  providers: [
+    provideHttpClient(withFetch()),
+    provideRouter(routes),
+    provideAnimationsAsync(),
+    provideExtendedColors()
+  ]
 };

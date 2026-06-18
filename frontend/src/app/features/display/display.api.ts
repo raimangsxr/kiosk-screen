@@ -1,1 +1,7 @@
-export { DisplayApiService } from '../../display/display-api.service';
+export {
+  DisplayApiService,
+  DisplayState,
+  DisplayContentItem,
+  DisplayAdItem,
+  DisplayKioskConfiguration
+} from '../../core/api/display.api';
