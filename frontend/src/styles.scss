@@ -41,6 +41,9 @@ body {
   --app-card-radius-lg: var(--mat-sys-corner-large);
   --app-section-gap: 16px;
   --app-touch-target: 48px;
+  --focus-ring-color: var(--mat-sys-primary);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 }
 
 @media (min-width: 600px) {
@@ -78,15 +81,30 @@ a {
   touch-action: manipulation;
 }
 
+*:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: 4px;
+}
+
 button:focus-visible,
 a:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--mat-sys-primary);
-  outline-offset: 2px;
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.mat-mdc-button-base:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .mat-mdc-snack-bar-container {
   --mdc-snackbar-container-color: var(--mat-sys-inverse-surface);
+  --mdc-snackbar-supporting-text-color: var(--mat-sys-inverse-on-surface);
+  --mat-mdc-snack-bar-button-color: var(--mat-sys-inverse-primary);
+}
+
+.mat-mdc-snack-bar-container {
   --mdc-snackbar-supporting-text-color: var(--mat-sys-inverse-on-surface);
 }
 
@@ -98,5 +116,19 @@ a:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    @include mat.theme((
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$cyan-palette,
+        theme-type: dark,
+      ),
+      typography: $typography,
+      density: 0,
+    ));
   }
 }
