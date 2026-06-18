@@ -222,6 +222,26 @@ The project requires tests for changed behavior. Typical validation includes:
 - OpenAPI contract validation
 - Alembic migration checks
 
+### Administration Refactor Validation
+
+The administration refactor is tracked under `specs/005-admin-refactor/`.
+Implementation must follow the approved spec, plan, and task list. If the
+implementation conflicts with those artifacts, stop the affected work and record
+the conflict in `specs/005-admin-refactor/validation/implementation-conflicts.md`
+before changing direction.
+
+Local validation for this refactor should record evidence in
+`specs/005-admin-refactor/validation/final-acceptance.md`, including:
+
+- backend tests
+- frontend tests and build
+- Docker image builds
+- hall, administration, and kiosk smoke checks
+- migration compatibility validation
+- desktop/tablet accessibility checks
+- safe user-facing error checks
+- kiosk regression checks
+
 ## Out Of Scope
 
 - Billing and invoicing

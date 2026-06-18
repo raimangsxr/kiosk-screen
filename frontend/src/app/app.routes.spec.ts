@@ -4,8 +4,10 @@ import { dirtyFormGuard } from './shared/dirty-form.guard';
 describe('routes', () => {
   it('wires login and guarded display routes', () => {
     const displayRoute = routes.find((route) => route.path === 'display');
+    const hallRoute = routes.find((route) => route.path === 'hall');
 
     expect(routes.some((route) => route.path === 'login')).toBeTrue();
+    expect(hallRoute?.canActivate?.length).toBe(1);
     expect(displayRoute?.canActivate?.length).toBe(1);
   });
 

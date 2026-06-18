@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Router } from '@angular/router';
 
 import { AdItem, ContentItem, DisplayApiService, DisplayState } from './display-api.service';
 import { DisplayRotationService } from './display-rotation.service';
@@ -40,8 +41,14 @@ import { DisplayRotationService } from './display-rotation.service';
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
   private readonly rotation = inject(DisplayRotationService);
+  private readonly router = inject(Router);
   private contentTimer: ReturnType<typeof setTimeout> | null = null;
   private adTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly escapeHandler = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape') {
+      void this.router.navigateByUrl('/hall');
+    }
+  };
 
   state: DisplayState | null = null;
   contentIndex = 0;
@@ -66,6 +73,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    globalThis.addEventListener?.('keydown', this.escapeHandler);
     this.api.openDisplay().subscribe((state) => {
       this.state = state;
       this.startRotation();
@@ -73,6 +81,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    globalThis.removeEventListener?.('keydown', this.escapeHandler);
     this.clearTimers();
   }
 

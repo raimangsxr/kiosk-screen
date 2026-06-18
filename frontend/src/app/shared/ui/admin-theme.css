@@ -1,0 +1,41 @@
+:root {
+  --admin-density-gap: 16px;
+  --admin-card-radius: 8px;
+  --admin-focus-ring: #2563eb;
+}
+
+.page-header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.page-header h1,
+.page-header p {
+  margin: 0;
+}
+
+.page-header__eyebrow {
+  color: #52616f;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.confirm-dialog {
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+  padding: 20px;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

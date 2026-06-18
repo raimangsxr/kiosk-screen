@@ -1,5 +1,6 @@
 import { of } from 'rxjs';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 
 import { DisplayApiService, DisplayState } from './display-api.service';
 import { DisplayScreenComponent } from './display-screen.component';
@@ -40,10 +41,13 @@ describe('DisplayScreenComponent', () => {
   function createComponent(state: DisplayState): ComponentFixture<DisplayScreenComponent> {
     TestBed.configureTestingModule({
       imports: [DisplayScreenComponent],
-      providers: [{
-        provide: DisplayApiService,
-        useValue: { openDisplay: () => of(state) }
-      }]
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: { openDisplay: () => of(state) }
+        },
+        provideRouter([])
+      ]
     });
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
@@ -87,4 +91,15 @@ describe('DisplayScreenComponent', () => {
 
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
   }));
+
+  it('returns to the hall when Escape is pressed', () => {
+    const fixture = createComponent(readyState);
+    const router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl').and.resolveTo(true);
+
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/hall');
+    fixture.destroy();
+  });
 });
