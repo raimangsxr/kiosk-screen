@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "angular-best-practices": {
+      "source": "alfredoperez/angular-best-practices",
+      "sourceType": "github",
+      "skillPath": "skills/angular-best-practices/SKILL.md",
+      "computedHash": "8a0f0f438f5fc7ec25cae5b336f587156089e03f1cb9de436bc323e9f11e1416"
+    },
+    "angular-developer": {
+      "source": "angular/angular",
+      "sourceType": "github",
+      "skillPath": "skills/dev-skills/angular-developer/SKILL.md",
+      "computedHash": "e6400c4e948ba8c9d002509e9a482862c189f96938e01655f56a1e9a4533cb19"
+    },
+    "fastapi-templates": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/api-scaffolding/skills/fastapi-templates/SKILL.md",
+      "computedHash": "629e7e404a3627790138127508b889bf38de3e7fad3647f2bb4367e5bfd19bd1"
+    },
+    "mobile-android-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/ui-design/skills/mobile-android-design/SKILL.md",
+      "computedHash": "bcb274bcc4e0ad076b5947f90e5a247f370ed4da1274b2b7347dc293ee396309"
+    }
+  }
+}

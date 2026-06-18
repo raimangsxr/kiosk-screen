@@ -44,6 +44,10 @@ Prerequisites:
 - Docker or OrbStack
 - PostgreSQL client tools are optional, but useful for debugging
 
+The repository pins the local Node version in `.nvmrc` (currently `22.14.0`).
+Use `nvm use` from the repository root to switch automatically before running
+any frontend command.
+
 The local lab PostgreSQL container is exposed on host port `15432`. This avoids
 conflicts with a native PostgreSQL server that may already be listening on
 `localhost:5432`.
@@ -158,11 +162,26 @@ Useful local checks:
 
 ```sh
 pytest backend/tests
-npm --prefix frontend run test -- --watch=false
+npm --prefix frontend run test
 npm --prefix frontend run build
 docker build -f backend/Dockerfile backend
 docker build -f frontend/Dockerfile frontend
 ```
+
+Frontend test scripts:
+
+- `npm --prefix frontend run test`: headless, single run. Use for day-to-day
+  validation; does not open a browser window.
+- `npm --prefix frontend run test:watch`: headed (`Chrome`) with autoWatch.
+  Use for TDD; opens a real browser window.
+- `npm --prefix frontend run test:ci`: headless, single run, with code
+  coverage. Use for pipelines; writes reports to
+  `frontend/coverage/kiosk-screen/`.
+
+Note: `pytest backend/tests/integration` must be run from the repository root.
+`backend/tests/integration/test_migrations.py` references `backend/alembic/...`
+with a path literal, so running it from inside `backend/` raises a
+`FileNotFoundError` and reports a false negative.
 
 If `npm --prefix frontend run build` exits non-zero but writes
 `frontend/dist/kiosk-screen`, inspect the generated files and keep the terminal
@@ -221,6 +240,26 @@ The project requires tests for changed behavior. Typical validation includes:
 - Frontend tests with Angular-compatible tooling
 - OpenAPI contract validation
 - Alembic migration checks
+
+### Administration Refactor Validation
+
+The administration refactor is tracked under `specs/005-admin-refactor/`.
+Implementation must follow the approved spec, plan, and task list. If the
+implementation conflicts with those artifacts, stop the affected work and record
+the conflict in `specs/005-admin-refactor/validation/implementation-conflicts.md`
+before changing direction.
+
+Local validation for this refactor should record evidence in
+`specs/005-admin-refactor/validation/final-acceptance.md`, including:
+
+- backend tests
+- frontend tests and build
+- Docker image builds
+- hall, administration, and kiosk smoke checks
+- migration compatibility validation
+- desktop/tablet accessibility checks
+- safe user-facing error checks
+- kiosk regression checks
 
 ## Out Of Scope
 

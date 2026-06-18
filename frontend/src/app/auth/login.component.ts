@@ -22,7 +22,7 @@ import { Router } from '@angular/router';
           <input name="password" type="password" [(ngModel)]="password" autocomplete="current-password" required>
         </label>
         <p class="error" role="alert" *ngIf="errorMessage">{{ errorMessage }}</p>
-        <button type="submit" [disabled]="isSubmitting">Open display</button>
+        <button type="submit" [disabled]="isSubmitting">Sign in</button>
       </form>
     </main>
   `,
@@ -112,7 +112,7 @@ export class LoginComponent {
       .subscribe({
         next: () => {
           globalThis.localStorage?.setItem('kiosk_authenticated', 'true');
-          void this.router.navigateByUrl('/display');
+          void this.router.navigateByUrl('/hall');
         },
         error: () => {
           this.errorMessage = 'Invalid credentials';

@@ -6,9 +6,11 @@ from fastapi import FastAPI
 from app.api.errors import APIError, api_error_handler
 from app.api.middleware import RequestIdMiddleware
 from app.api.router import api_router
+from app.api.v1.error_handlers import application_error_handler
 from app.config import get_settings
 from app.repositories.session import create_session_factory
 from app.services.bootstrap_service import ensure_mvp_bootstrap_data
+from app.shared.errors.application_errors import ApplicationError
 
 
 def bootstrap_default_data(app: FastAPI) -> None:
@@ -31,6 +33,7 @@ app.state.auth_sessions = {}
 app.state.skip_bootstrap = False
 app.add_middleware(RequestIdMiddleware)
 app.add_exception_handler(APIError, api_error_handler)
+app.add_exception_handler(ApplicationError, application_error_handler)
 app.include_router(api_router, prefix="/api")
 
 

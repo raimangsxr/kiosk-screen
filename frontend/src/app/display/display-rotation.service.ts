@@ -17,7 +17,8 @@ export class DisplayRotationService {
     if (orderedItems.length === 0) {
       return null;
     }
-    return orderedItems[index % orderedItems.length];
+    const wrapped = ((index % orderedItems.length) + orderedItems.length) % orderedItems.length;
+    return orderedItems[wrapped];
   }
 
   duration(item: OrderedDisplayItem | null, defaultDurationSeconds: number): number {

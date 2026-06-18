@@ -45,7 +45,6 @@ describe('LoginComponent', () => {
     request.flush({ id: 'user-1', email: 'operator@example.com', displayName: 'Operator', roles: ['event_operator'] });
 
     expect(localStorage.getItem('kiosk_authenticated')).toBe('true');
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/display');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/hall');
   });
 });
-
