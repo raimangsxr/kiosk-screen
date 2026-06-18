@@ -51,7 +51,7 @@ export const routes: Routes = [
       { path: 'configuration', component: DisplayConfigComponent },
       { path: 'users', component: UsersListComponent },
       { path: 'users/new', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
-      { path: 'users/:id/edit', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'users/:id/edit', component: UserFormComponent, canDeactivate: [dirtyFormGuard] }
     ]
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' }
