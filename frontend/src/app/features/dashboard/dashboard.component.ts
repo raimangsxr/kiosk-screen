@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 
-import { AdminDashboardService } from '../../admin/admin-dashboard.service';
+import { AdminDashboardService } from './dashboard.service';
 import { AdminDashboardState, AdminNavigationItem, AdminQuickAction, AdminSectionSummary } from '../../shared/admin-ui.models';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';

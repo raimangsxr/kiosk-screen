@@ -2,7 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
-import { AdminApiService, KioskConfiguration } from '../../admin/admin-api.service';
+import { AdminApiService, KioskConfiguration } from '../../core/api/admin.api';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })

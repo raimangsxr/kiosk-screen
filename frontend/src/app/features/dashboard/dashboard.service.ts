@@ -1,12 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { forkJoin, map, Observable } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 
-import { AdsApiService } from '../ads/ads-api.service';
-import { ContentApiService } from '../content/content-api.service';
-import { ReadinessApiService } from '../readiness/readiness-api.service';
-import { AdminDashboardState } from '../shared/admin-ui.models';
-import { AdminApiService } from './admin-api.service';
-import { AdminNavigationService } from './admin-navigation.service';
+import { AdsApiService } from '../../core/api/ads.api';
+import { AdminApiService } from '../../core/api/admin.api';
+import { ContentApiService } from '../../core/api/content.api';
+import { ReadinessApiService } from '../../core/api/readiness.api';
+import { AdminDashboardState } from '../../shared/admin-ui.models';
+import { AdminNavigationService } from '../admin-shell/admin-navigation.service';
 
 @Injectable({ providedIn: 'root' })
 export class AdminDashboardService {
