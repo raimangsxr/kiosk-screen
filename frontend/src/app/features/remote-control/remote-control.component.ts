@@ -167,7 +167,7 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
 
             @if (mode() === 'iframe' && hasIframes()) {
               <fieldset class="remote-control__fieldset remote-control__iframe-fieldset">
-                <legend class="remote-control__legend">Available iframes</legend>
+                <legend class="remote-control__legend">Select an iframe to display</legend>
                 <mat-radio-group
                   class="remote-control__iframe-list"
                   aria-label="Available iframes"
@@ -179,7 +179,15 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                   @for (option of facade.iframeOptions(); track option.id) {
                     <mat-radio-button [value]="option.id" class="remote-control__iframe-item">
                       <span class="remote-control__iframe-title">{{ option.title }}</span>
-                      <span class="remote-control__iframe-url">{{ truncate(option.sourceReference, 48) }}</span>
+                      <span class="remote-control__iframe-meta">
+                        <span class="remote-control__iframe-url">{{ truncate(option.sourceReference, 48) }}</span>
+                        @if (option.id === selectedIframeId()) {
+                          <span class="remote-control__iframe-badge" aria-label="Currently showing">
+                            <mat-icon aria-hidden="true">check_circle</mat-icon>
+                            Currently showing
+                          </span>
+                        }
+                      </span>
                     </mat-radio-button>
                   }
                 </mat-radio-group>
@@ -335,58 +343,96 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
       }
       .remote-control__mode-group {
         display: grid;
-        gap: 4px;
+        gap: 8px;
       }
       .remote-control__radio {
-        padding: 8px 12px;
+        padding: 12px 14px;
         border-radius: var(--mat-sys-corner-medium);
         min-height: var(--app-touch-target);
+        align-items: flex-start;
+        gap: 12px;
       }
-      .remote-control__radio .mdc-label {
-        display: grid;
-        gap: 2px;
+      .remote-control__radio ::ng-deep .mdc-label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        line-height: 1.35;
+        padding: 2px 0;
       }
       .remote-control__radio-title {
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
         color: var(--mat-sys-on-surface);
+        display: block;
       }
       .remote-control__radio-hint {
-        font: var(--mat-sys-body-small);
-        letter-spacing: var(--mat-sys-body-small-tracking);
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
+        display: block;
       }
       .remote-control__iframe-fieldset {
-        margin-top: 8px;
-        padding-top: 12px;
+        margin-top: 12px;
+        padding-top: 16px;
         border-top: 1px solid var(--mat-sys-outline-variant);
       }
       .remote-control__iframe-list {
         display: grid;
-        gap: 4px;
+        gap: 8px;
       }
       .remote-control__iframe-item {
-        padding: 10px 12px;
+        padding: 12px 14px;
         border: 1px solid var(--mat-sys-outline-variant);
         border-radius: var(--mat-sys-corner-medium);
         min-height: var(--app-touch-target);
         background: var(--mat-sys-surface);
+        align-items: flex-start;
+        gap: 12px;
       }
-      .remote-control__iframe-item .mdc-label {
-        display: grid;
-        gap: 2px;
+      .remote-control__iframe-item ::ng-deep .mdc-label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        line-height: 1.35;
+        padding: 2px 0;
+        width: 100%;
+      }
+      .remote-control__iframe-item .remote-control__iframe-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
       }
       .remote-control__iframe-title {
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
         color: var(--mat-sys-on-surface);
         word-break: break-word;
+        display: block;
       }
       .remote-control__iframe-url {
-        font: var(--mat-sys-body-small);
-        letter-spacing: var(--mat-sys-body-small-tracking);
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
         word-break: break-all;
+        display: block;
+      }
+      .remote-control__iframe-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--mat-sys-primary);
+        color: var(--mat-sys-on-primary);
+        font: var(--mat-sys-label-small);
+        letter-spacing: var(--mat-sys-label-small-tracking);
+        font-weight: 600;
+      }
+      .remote-control__iframe-badge mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
       }
       .remote-control__iframe-empty {
         display: grid;

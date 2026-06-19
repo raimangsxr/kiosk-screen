@@ -163,6 +163,7 @@ describe('RemoteControlComponent', () => {
     expect(iframeRadios.length).toBe(1);
     expect(iframeRadios[0].textContent).toContain('Agenda');
     expect(iframeRadios[0].textContent).toContain('https://example.org/agenda');
+    expect(iframeRadios[0].textContent).toContain('Currently showing');
   });
 
   it('disables the Iframe radio and shows the empty-state CTA when no iframes are configured', async () => {
