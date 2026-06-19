@@ -24,7 +24,7 @@ def upgrade() -> None:
         "api_keys",
         sa.Column("organization_id", sa.String(), nullable=False),
         sa.Column("label", sa.String(length=120), nullable=False),
-        sa.Column("key_prefix", sa.String(length=16), nullable=False),
+        sa.Column("key_prefix", sa.String(length=17), nullable=False),
         sa.Column("key_hash", sa.String(length=64), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),

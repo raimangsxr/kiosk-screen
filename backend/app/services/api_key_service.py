@@ -111,6 +111,13 @@ class ApiKeyService:
 
     def mark_used_by_id(self, key_id: str) -> None:
         self.repository.touch_last_used(key_id)
+        # The caller may have already committed the surrounding transaction; ensure
+        # the last_used_at write is visible to subsequent reads.
+        try:
+            self.repository.session.commit()
+        except Exception:
+            self.repository.session.rollback()
+            raise
 
     def list_for_organization(self, organization_id: str) -> list[ApiKey]:
         return self.repository.list_by_organization(organization_id)

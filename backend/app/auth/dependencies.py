@@ -3,6 +3,7 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.domain.roles import Role
 from app.repositories.api_keys import ApiKeyRepository
@@ -71,15 +72,28 @@ def require_roles(allowed_roles: set[Role]) -> Callable[[object], object]:
 
 
 def get_api_key_principal(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: Session = Depends(get_session),
 ) -> ApiKeyPrincipal:
-    if credentials is None:
+    # Distinguish three failure modes (FR-003, FR-004):
+    # - header absent → missing_api_key (401)
+    # - header present but not "Bearer ..." → invalid_authorization_scheme (401)
+    # - well-formed Bearer token but key unknown/inactive → invalid_api_key (401) or
+    #   inactive_api_key (403)
+    auth_header = request.headers.get("Authorization")
+    if auth_header is None or not auth_header.strip():
         raise MissingApiKeyError()
-    if credentials.scheme.lower() != "bearer" or not credentials.credentials:
+    parts = auth_header.strip().split(" ", 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1]:
+        raise InvalidAuthorizationSchemeError()
+    raw_key = parts[1]
+    if credentials is None:
+        # HTTPBearer refused it but our regex above accepts it; this is the rare
+        # mismatch path.
         raise InvalidAuthorizationSchemeError()
     service = ApiKeyService(ApiKeyRepository(session))
-    key = service.verify(credentials.credentials)
+    key = service.verify(raw_key)
     if key is None:
         raise InvalidApiKeyError()
     return ApiKeyPrincipal(key)

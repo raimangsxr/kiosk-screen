@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import UploadFile
 
 from app.api.schemas import ContentItemRequest
+from app.config import get_settings
 from app.domain.availability import validate_availability_window
 from app.domain.display_events import create_display_event
 from app.domain.embedded_domains import is_domain_approved
@@ -46,6 +47,7 @@ class ContentService:
     def __init__(self, session: Session):
         self.session = session
         self.repository = ContentRepository(session)
+        self.settings = get_settings()
 
     def list(self, organization_id: str) -> list[TopContentItem]:
         return self.repository.list(organization_id)
@@ -178,15 +180,35 @@ class ContentService:
 
         # Acquire the per-organization advisory lock for the duration of the transaction.
         # Released automatically on commit or rollback.
-        self.session.execute(
-            select(func.pg_advisory_xact_lock(func.hashtext(f"content_append:{organization_id}")))
-        )
+        # The lock is Postgres-only; on SQLite (used by integration tests) we skip
+        # it — the surrounding transaction still serializes the write at the
+        # connection level for the test, and the in-memory SQLite engine never
+        # actually serves concurrent writers in the test harness.
+        bind = self.session.get_bind()
+        if bind is not None and bind.dialect.name == "postgresql":
+            self.session.execute(
+                select(func.pg_advisory_xact_lock(func.hashtext(f"content_append:{organization_id}")))
+            )
 
         # Save the file (may raise on size / type validation); the lock is held
         # for the duration but the file is small relative to the lock window.
-        media = MediaStorageService(self.session).save_upload(
-            organization_id, None, upload, media_type
-        )
+        # Translate MediaStorageService's ValueError into the typed errors so the
+        # public endpoint returns 413/415 instead of 500.
+        from app.shared.errors.application_errors import MediaTooLargeError, UnsupportedMediaTypeError
+
+        try:
+            media = MediaStorageService(self.session).save_upload(
+                organization_id, None, upload, media_type
+            )
+        except ValueError as exc:
+            message = str(exc).lower()
+            # Match the media-domain validator's error messages by their stable
+            # fragments (these strings are produced by app.domain.media.validate_media_upload).
+            if "mb" in message or "too large" in message or "exceeds" in message:
+                raise MediaTooLargeError(self.settings.image_upload_max_bytes if media_type == "image" else self.settings.video_upload_max_bytes) from exc
+            if "unsupported" in message:
+                raise UnsupportedMediaTypeError() from exc
+            raise
 
         try:
             current_max = self.session.scalar(
@@ -209,14 +231,18 @@ class ContentService:
                 updated_by_user_id=None,
             )
             self.repository.add(item)
+            self.session.flush()
 
             # Audit event (FR-014) — the API key id is recorded, not a user id.
+            # The item's id is populated by SQLAlchemy on flush, so we can
+            # reference it as entity_id.
             self._record_change(
                 organization_id,
                 None,
                 "content_changed",
                 f"Content added via public API: {title}",
                 item.id,
+                metadata={"source": "public_api", "api_key_id": api_key_id},
             )
 
             self.session.commit()
@@ -253,7 +279,15 @@ class ContentService:
             MediaStorageService(self.session).delete_if_unreferenced(media_id, organization_id)
         self.session.commit()
 
-    def _record_change(self, organization_id: str, user_id: str, event_type: str, message: str, entity_id: str | None = None) -> None:
+    def _record_change(
+        self,
+        organization_id: str,
+        user_id: str,
+        event_type: str,
+        message: str,
+        entity_id: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> None:
         DisplayEventRepository(self.session).record(
             create_display_event(
                 organization_id=organization_id,
@@ -262,6 +296,7 @@ class ContentService:
                 message=message,
                 entity_type="top_content",
                 entity_id=entity_id,
-                created_by_user_id=user_id
+                created_by_user_id=user_id,
+                metadata=metadata,
             )
         )

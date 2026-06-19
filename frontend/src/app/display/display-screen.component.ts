@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 
-import { AdItem, ContentItem, DisplayApiService, DisplayState } from './display-api.service';
+import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayRotationService } from './display-rotation.service';
 
 @Component({
@@ -13,20 +14,39 @@ import { DisplayRotationService } from './display-rotation.service';
     <main class="display-screen" aria-label="Kiosk display">
       <section class="top-region" aria-label="Main content">
         <ng-container *ngIf="currentContent; else contentFallback">
-          <img *ngIf="currentContent.contentType === 'photo'" [src]="mediaSource(currentContent)" [alt]="currentContent.title" [class]="animationClass(currentContent)">
-          <video *ngIf="currentContent.contentType === 'video'" [src]="mediaSource(currentContent)" muted autoplay loop [class]="animationClass(currentContent)"></video>
-          <iframe *ngIf="currentContent.contentType === 'embedded_web'" [src]="currentContent.sourceReference" [title]="currentContent.title"></iframe>
+          <img
+            *ngIf="currentContent.contentType === 'photo'"
+            [src]="mediaSource(currentContent)"
+            [alt]="currentContent.title"
+            [class]="animationClass(currentContent)"
+            data-testid="display-content"
+          />
+          <video
+            *ngIf="currentContent.contentType === 'video'"
+            [src]="mediaSource(currentContent)"
+            muted
+            autoplay
+            loop
+            [class]="animationClass(currentContent)"
+            data-testid="display-content"
+          ></video>
+          <iframe
+            *ngIf="currentContent.contentType === 'embedded_web'"
+            [src]="currentContent.sourceReference"
+            [title]="currentContent.title"
+            data-testid="display-content"
+          ></iframe>
           <div class="content-label">{{ currentContent.title }}</div>
         </ng-container>
         <ng-template #contentFallback>
-          <div class="fallback">Content unavailable</div>
+          <div class="fallback" data-testid="display-fallback">Content unavailable</div>
         </ng-template>
       </section>
 
       <section class="ad-region" aria-label="Client ads">
         <ng-container *ngIf="visibleAds.length; else adFallback">
           <figure *ngFor="let ad of visibleAds">
-            <img [src]="mediaSource(ad)" [alt]="ad.label" [class]="animationClass(ad)">
+            <img [src]="mediaSource(ad)" [alt]="ad.label" [class]="animationClass(ad)" />
             <figcaption>{{ ad.label }}</figcaption>
           </figure>
         </ng-container>
@@ -36,14 +56,17 @@ import { DisplayRotationService } from './display-rotation.service';
       </section>
     </main>
   `,
-  styleUrl: './display-screen.component.css'
+  styleUrl: './display-screen.component.css',
 })
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
   private readonly rotation = inject(DisplayRotationService);
   private readonly router = inject(Router);
+
   private contentTimer: ReturnType<typeof setTimeout> | null = null;
-  private adTimer: ReturnType<typeof setTimeout> | null = null;
+  private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollSub: Subscription | null = null;
+
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
       void this.router.navigateByUrl('/hall');
@@ -51,76 +74,90 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   };
 
   state: DisplayState | null = null;
-  contentIndex = 0;
-  adIndex = 0;
-
-  get currentContent(): ContentItem | null {
-    return this.rotation.current(this.state?.topContent ?? [], this.contentIndex);
-  }
-
-  get currentAd(): AdItem | null {
-    return this.rotation.current(this.state?.ads ?? [], this.adIndex);
-  }
-
-  get visibleAds(): AdItem[] {
-    const ads = this.rotation.ordered(this.state?.ads ?? []);
-    if (!ads.length) {
-      return [];
-    }
-    const inlineCount = this.state?.configuration.inlineAdCount ?? 1;
-    const rotated = [...ads.slice(this.adIndex), ...ads.slice(0, this.adIndex)];
-    return rotated.slice(0, Math.min(inlineCount, rotated.length));
-  }
+  currentContent: DisplayContentItem | null = null;
+  defaultTopDurationSeconds = 10;
 
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
     this.api.openDisplay().subscribe((state) => {
       this.state = state;
-      this.startRotation();
+      this.defaultTopDurationSeconds = state.configuration.defaultTopDurationSeconds;
+      this.rotation.initialize(state.topContent);
+      // Render the first item directly (no advance). The first transition
+      // will fire after the first item's duration.
+      this.currentContent = this.rotation.getFullState()[0] ?? null;
+      this.scheduleTransition(this.durationOfCurrent());
+    });
+
+    this.pollSub = this.api.watchState(5000).subscribe((state) => {
+      if (this.state === null) {
+        return;
+      }
+      const previousContent = this.currentContent;
+      this.state = state;
+      this.rotation.applyPollState(state.topContent);
+      // If the currently-displayed item is gone, advance immediately.
+      if (previousContent && !state.topContent.find((i) => i.id === previousContent.id)) {
+        this.advanceNow();
+      }
     });
   }
 
   ngOnDestroy(): void {
     globalThis.removeEventListener?.('keydown', this.escapeHandler);
     this.clearTimers();
+    this.pollSub?.unsubscribe();
+    this.pollSub = null;
+    this.rotation.reset();
   }
 
-  mediaSource(item: ContentItem | AdItem): string {
+  mediaSource(item: DisplayContentItem): string {
     return item.mediaFile?.mediaUrl ?? item.sourceReference;
   }
 
-  animationClass(item: ContentItem | AdItem): string {
+  animationClass(item: DisplayContentItem): string {
     return `rotation-${item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none'}`;
   }
 
-  private startRotation(): void {
+  get visibleAds(): DisplayAdItem[] {
+    if (!this.state) {
+      return [];
+    }
+    const ads = this.rotation.ordered(this.state.ads);
+    const limit = this.state.configuration.inlineAdCount ?? ads.length ?? 1;
+    return ads.slice(0, Math.min(limit, ads.length));
+  }
+
+  private scheduleTransition(durationMs: number): void {
     this.clearTimers();
-    this.scheduleNextContent();
-    this.scheduleNextAd();
+    if (durationMs > 1000) {
+      this.preTransitionPollTimer = setTimeout(() => {
+        this.api.getState().subscribe((s) => {
+          if (this.state !== null) {
+            this.state = s;
+            this.rotation.applyPollState(s.topContent);
+          }
+        });
+      }, durationMs - 1000);
+    }
+    this.contentTimer = setTimeout(() => this.advanceNow(), durationMs);
   }
 
-  private scheduleNextContent(): void {
-    const items = this.state?.topContent ?? [];
-    if (items.length <= 1) {
-      return;
+  private advanceNow(): void {
+    this.currentContent = this.rotation.pickNext();
+    if (this.currentContent === null && this.state && this.state.topContent.length > 0) {
+      // Edge case: fullState exists but pickNext returned null. Re-anchor.
+      this.rotation.initialize(this.state.topContent);
+      this.currentContent = this.rotation.pickNext();
     }
-    const durationSeconds = this.rotation.duration(this.currentContent, this.state?.configuration.defaultTopDurationSeconds ?? 10);
-    this.contentTimer = setTimeout(() => {
-      this.contentIndex = (this.contentIndex + 1) % items.length;
-      this.scheduleNextContent();
-    }, durationSeconds * 1000);
+    this.scheduleTransition(this.durationOfCurrent());
   }
 
-  private scheduleNextAd(): void {
-    const ads = this.state?.ads ?? [];
-    if (ads.length <= 1) {
-      return;
+  private durationOfCurrent(): number {
+    if (this.currentContent === null) {
+      return this.defaultTopDurationSeconds * 1000;
     }
-    const durationSeconds = this.rotation.duration(this.currentAd, this.state?.configuration.defaultAdDurationSeconds ?? 10);
-    this.adTimer = setTimeout(() => {
-      this.adIndex = (this.adIndex + 1) % ads.length;
-      this.scheduleNextAd();
-    }, durationSeconds * 1000);
+    return this.rotation.duration(this.currentContent, this.defaultTopDurationSeconds) * 1000;
   }
 
   private clearTimers(): void {
@@ -128,9 +165,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       clearTimeout(this.contentTimer);
       this.contentTimer = null;
     }
-    if (this.adTimer) {
-      clearTimeout(this.adTimer);
-      this.adTimer = null;
+    if (this.preTransitionPollTimer) {
+      clearTimeout(this.preTransitionPollTimer);
+      this.preTransitionPollTimer = null;
     }
   }
 }

@@ -14,7 +14,7 @@ class ApiKey(IdMixin, TimestampMixin, Base):
         ForeignKey("organizations.id"), nullable=False, index=True
     )
     label: Mapped[str] = mapped_column(String(120), nullable=False)
-    key_prefix: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    key_prefix: Mapped[str] = mapped_column(String(17), nullable=False, unique=True)
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_used_at: Mapped[Optional[datetime]] = mapped_column(

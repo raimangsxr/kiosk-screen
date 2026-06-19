@@ -73,7 +73,13 @@ class TitleTooLongError(ValidationApplicationError):
 
 class UnsupportedMediaTypeError(ApplicationError):
     def __init__(self) -> None:
-        super().__init__(415, "unsupported_media_type", "This file type is not supported.", "upload", details={})
+        super().__init__(
+            415,
+            "unsupported_media_type",
+            "This file type is not supported.",
+            "upload",
+            details={},
+        )
 
 
 class MediaTooLargeError(ApplicationError):

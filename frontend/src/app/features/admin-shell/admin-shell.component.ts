@@ -200,6 +200,9 @@ export class AdminShellComponent implements OnInit {
     if (route.startsWith('/admin/users')) {
       return 'group';
     }
+    if (route.startsWith('/admin/api-keys')) {
+      return 'vpn_key';
+    }
     return 'arrow_forward';
   }
 

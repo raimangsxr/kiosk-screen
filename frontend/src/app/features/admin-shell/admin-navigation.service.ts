@@ -12,7 +12,8 @@ export class AdminNavigationService {
     { label: 'Iframe domains', route: '/admin/domains', summary: 'Approved embedded web sources' },
     { label: 'Display configuration', route: '/admin/configuration', summary: 'Rotation, animation, and kiosk defaults' },
     { label: 'Readiness', route: '/admin/readiness', summary: 'Blockers and warnings' },
-    { label: 'Users and roles', route: '/admin/users', summary: 'Operator access and role assignments' }
+    { label: 'Users and roles', route: '/admin/users', summary: 'Operator access and role assignments' },
+    { label: 'API keys', route: '/admin/api-keys', summary: 'Bearer tokens for external system uploads' }
   ];
 
   readonly quickActions: AdminQuickAction[] = [
