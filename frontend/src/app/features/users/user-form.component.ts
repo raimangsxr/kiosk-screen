@@ -10,23 +10,22 @@ import {
   Validators
 } from '@angular/forms';
 
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { Subject, takeUntil } from 'rxjs';
 
 import { UsersFacade, AVAILABLE_ROLES, AvailableRole } from './users.facade';
-import { UserRecord } from '../../admin/admin-api.service';
+import { UserRecord } from '../../core/api/admin.api';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
+import { FormPageComponent } from '../../shared/ui/form-page.component';
 import { nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
@@ -49,14 +48,13 @@ interface UserFormValue {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatSlideToggleModule,
     MatCheckboxModule,
-    MatProgressBarModule,
     MatDividerModule,
     MatSnackBarModule,
     PageHeaderComponent,
-    AdminStateComponent
+    AdminStateComponent,
+    FormPageComponent
   ],
   template: `
     <app-page-header
@@ -65,31 +63,43 @@ interface UserFormValue {
       description="Create or update an authorized account. Assign at least one existing role type."
     />
 
-    <form *ngIf="form" [formGroup]="form" (ngSubmit)="submit()" class="user-form" novalidate aria-label="User form">
-      <mat-card appearance="outlined">
-        <mat-card-content>
-          <mat-progress-bar *ngIf="loading()" mode="indeterminate" aria-label="Loading user" />
-          <app-admin-state *ngIf="loadError() as error" type="error" title="Could not load user" [message]="error.message" />
+    <form
+      *ngIf="form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="user-form"
+      novalidate
+      aria-label="User form"
+    >
+      <app-form-page [loading]="loading()">
+        <app-admin-state
+          *ngIf="loadError() as error"
+          kind="error"
+          title="Could not load user"
+          [message]="error.message"
+        />
 
-          <div class="user-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Email</mat-label>
-              <input matInput type="email" formControlName="email" required maxlength="255" autocomplete="off" />
-              <mat-error *ngIf="form.controls.email.hasError('required')">Email is required.</mat-error>
-              <mat-error *ngIf="form.controls.email.hasError('nonBlankString')">Email cannot be blank.</mat-error>
-            </mat-form-field>
+        <div class="user-form__row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Email</mat-label>
+            <input matInput type="email" formControlName="email" required maxlength="255" autocomplete="off" />
+            <mat-error *ngIf="form.controls.email.hasError('required')">Email is required.</mat-error>
+            <mat-error *ngIf="form.controls.email.hasError('nonBlankString')">Email cannot be blank.</mat-error>
+          </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Display name</mat-label>
-              <input matInput formControlName="displayName" required maxlength="120" autocomplete="off" />
-              <mat-error *ngIf="form.controls.displayName.hasError('required')">Name is required.</mat-error>
-              <mat-error *ngIf="form.controls.displayName.hasError('nonBlankString')">Name cannot be blank.</mat-error>
-            </mat-form-field>
-          </div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Display name</mat-label>
+            <input matInput formControlName="displayName" required maxlength="120" autocomplete="off" />
+            <mat-error *ngIf="form.controls.displayName.hasError('required')">Name is required.</mat-error>
+            <mat-error *ngIf="form.controls.displayName.hasError('nonBlankString')">Name cannot be blank.</mat-error>
+          </mat-form-field>
+        </div>
 
-          <mat-divider />
+        <mat-divider />
+
+        <section class="user-form__roles" formArrayName="roles">
           <h3 class="user-form__section">Roles</h3>
-          <div class="user-form__roles" formArrayName="roles">
+          <div class="user-form__role-list">
             <mat-checkbox
               *ngFor="let role of availableRoles; let i = index"
               [checked]="rolesArray.at(i).value"
@@ -98,53 +108,75 @@ interface UserFormValue {
               {{ role }}
             </mat-checkbox>
           </div>
+        </section>
 
-          <mat-divider />
-          <div class="user-form__row user-form__row--align-center">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-            <span class="user-form__hint" *ngIf="!form.controls.isActive.value">
-              Inactive users cannot sign in.
-            </span>
-          </div>
+        <mat-divider />
 
-          <app-admin-state *ngIf="saveError() as error" type="error" title="Could not save user" [message]="error.message" />
-        </mat-card-content>
-        <mat-card-actions align="end">
+        <div class="user-form__toggle">
+          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+          <span class="user-form__hint" *ngIf="!form.controls.isActive.value">
+            Inactive users cannot sign in.
+          </span>
+        </div>
+
+        <app-admin-state
+          *ngIf="saveError() as error"
+          kind="error"
+          title="Could not save user"
+          [message]="error.message"
+        />
+
+        <div formPageActions>
           <a mat-button routerLink="/admin/users">Cancel</a>
-          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || facade.saving() || loading()">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="form.invalid || facade.saving() || loading()"
+          >
             <mat-icon aria-hidden="true">save</mat-icon>
             {{ facade.saving() ? 'Saving…' : 'Save' }}
           </button>
-        </mat-card-actions>
-      </mat-card>
+        </div>
+      </app-form-page>
     </form>
   `,
   styles: [
     `
-      .user-form { margin-top: 16px; display: block; }
+      .user-form {
+        display: block;
+      }
+      mat-form-field {
+        width: 100%;
+      }
       .user-form__row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 16px;
-        margin-bottom: 16px;
       }
-      .user-form__row--align-center { align-items: center; }
       .user-form__section {
-        font-size: 14px;
-        font-weight: 600;
-        color: #475569;
         margin: 0 0 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font: var(--mat-sys-title-small);
+        letter-spacing: var(--mat-sys-title-small-tracking);
+        color: var(--mat-sys-on-surface);
       }
-      .user-form__roles {
+      .user-form__role-list {
         display: flex;
         flex-wrap: wrap;
         gap: 16px;
-        margin: 8px 0 16px;
       }
-      .user-form__hint { color: #92400e; font-size: 13px; }
-      mat-form-field { width: 100%; }
+      .user-form__toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 4px 0;
+      }
+      .user-form__hint {
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
     `
   ]
 })

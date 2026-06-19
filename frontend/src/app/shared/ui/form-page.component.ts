@@ -47,25 +47,28 @@ import { BreakpointService } from '../../core/layout/breakpoint.service';
       }
       .form-page {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .form-page__header {
-        padding: 20px 20px 8px;
+        padding: 24px 24px 8px;
       }
       .form-page__title {
-        font-size: 20px;
-        font-weight: 600;
+        font: var(--mat-sys-title-large);
+        letter-spacing: var(--mat-sys-title-large-tracking);
       }
       .form-page__subtitle {
         margin-top: 4px;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
       .form-page__content {
-        padding: 12px 20px 16px;
+        padding: 16px 24px;
         display: grid;
-        gap: 12px;
+        gap: 16px;
       }
       .form-page__actions {
-        padding: 8px 16px 16px;
+        padding: 8px 24px 24px;
         gap: 8px;
         display: flex;
         flex-wrap: wrap;
@@ -73,10 +76,6 @@ import { BreakpointService } from '../../core/layout/breakpoint.service';
       .form-page__actions--stacked {
         flex-direction: column;
         align-items: stretch;
-      }
-      .form-page__actions--stacked ::ng-deep > * {
-        width: 100%;
-        min-height: var(--app-touch-target);
       }
     `
   ]

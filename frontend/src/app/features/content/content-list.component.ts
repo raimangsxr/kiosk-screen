@@ -1,21 +1,19 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-
-import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatTableModule } from '@angular/material/table';
 
 import { ContentFacade } from './content.facade';
-import { AdminStateComponent } from '../../shared/admin-state.component';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
-import { SectionActionsComponent } from '../../shared/ui/section-actions/section-actions.component';
-import { ContentItem } from '../../content/content-api.service';
+import { ContentItem } from '../../core/api/content.api';
 import { RotationAnimation } from '../../shared/media-upload.models';
+import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { StatusChipComponent } from '../../shared/ui/status-chip.component';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-content-list',
@@ -28,51 +26,29 @@ import { RotationAnimation } from '../../shared/media-upload.models';
     MatButtonModule,
     MatIconModule,
     MatCardModule,
-    MatProgressBarModule,
+    MatChipsModule,
     MatSnackBarModule,
-    MatTooltipModule,
-    AdminStateComponent,
-    PageHeaderComponent,
-    SectionActionsComponent
+    DataListComponent,
+    StatusChipComponent
   ],
   template: `
-    <app-page-header
-      eyebrow="Administration"
-      title="Top content"
-      description="Photos, videos, and embedded web content shown in the top region of the kiosk display."
-    />
-
-    <app-section-actions [actions]="headerActions" />
-
-    <mat-card appearance="outlined" class="content-list__card">
-      <mat-card-header>
-        <mat-card-title>{{ facade.items().length }} item{{ facade.items().length === 1 ? '' : 's' }}</mat-card-title>
-        <mat-card-subtitle>Order, type, and rotation are honored at runtime.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading content" />
-        <app-admin-state
-          *ngIf="facade.error() as error"
-          type="error"
-          title="Content unavailable"
-          [message]="error.message"
-        />
-        <app-admin-state
-          *ngIf="facade.empty()"
-          type="empty"
-          title="No content yet"
-          message="Add photos, videos, or iframe content for the top region."
-          actionLabel="Add content"
-          actionRoute="/admin/content/new"
-        />
-
-        <table
-          *ngIf="facade.ready() && facade.items().length > 0"
-          mat-table
-          [dataSource]="facade.items()"
-          aria-label="Top content items"
-          class="content-list__table"
-        >
+    <app-data-list
+      [title]="pageTitle"
+      [description]="pageDescription"
+      [loading]="facade.loading()"
+      [error]="facade.error()"
+      errorTitle="Content unavailable"
+      [empty]="facade.empty()"
+      [primaryAction]="primaryAction"
+      [refreshAction]="refreshAction"
+      emptyTitle="No content yet"
+      emptyMessage="Add photos, videos, or iframe content for the top region."
+      emptyActionLabel="Add content"
+      emptyActionRoute="/admin/content/new"
+      emptyIcon="photo_library"
+    >
+      <ng-template #dataListTable>
+        <table mat-table [dataSource]="facade.items()" aria-label="Top content items" class="app-table content-list__table">
           <ng-container matColumnDef="order">
             <th mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let item">{{ item.displayOrder }}</td>
@@ -101,9 +77,10 @@ import { RotationAnimation } from '../../shared/media-upload.models';
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let item">
-              <span class="status-pill" [class.blocked]="!item.isActive">
-                {{ item.isActive ? 'Active' : 'Inactive' }}
-              </span>
+              <app-status-chip
+                [label]="item.isActive ? 'Active' : 'Inactive'"
+                [kind]="item.isActive ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
 
@@ -136,32 +113,89 @@ import { RotationAnimation } from '../../shared/media-upload.models';
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
-      </mat-card-content>
-    </mat-card>
+      </ng-template>
+
+      <ng-template #dataListCards>
+        @for (item of facade.items(); track item.id) {
+          <mat-card appearance="outlined" class="content-list__card-item">
+            <mat-card-content>
+              <div class="content-list__card-header">
+                <h3 class="content-list__card-title">{{ item.title }}</h3>
+                <app-status-chip
+                  [label]="item.isActive ? 'Active' : 'Inactive'"
+                  [kind]="item.isActive ? 'success' : 'neutral'"
+                />
+              </div>
+              <p class="content-list__card-meta">
+                <span>{{ typeLabel(item.contentType) }}</span>
+                <span> · {{ mediaLabel(item) }}</span>
+                <span> · Order {{ item.displayOrder }}</span>
+              </p>
+              <p class="content-list__card-rotation">{{ rotationSummary(item) }}</p>
+            </mat-card-content>
+            <mat-card-actions class="app-card-actions content-list__card-actions">
+              <a
+                mat-button
+                color="primary"
+                [routerLink]="['/admin/content', item.id, 'edit']"
+                [attr.aria-label]="'Edit ' + item.title"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+                Edit
+              </a>
+              <button
+                mat-button
+                color="warn"
+                type="button"
+                (click)="remove(item)"
+                [disabled]="facade.saving()"
+                [attr.aria-label]="'Delete ' + item.title"
+              >
+                <mat-icon aria-hidden="true">delete</mat-icon>
+                Delete
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </ng-template>
+    </app-data-list>
   `,
   styles: [
     `
-      .content-list__card {
-        margin-top: 16px;
-      }
       .content-list__table {
         width: 100%;
+        background: transparent;
       }
-      .status-pill {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: #dcfce7;
-        color: #166534;
-        font-size: 12px;
-        font-weight: 600;
+      .content-list__card-item {
+        display: block;
+        background: var(--mat-sys-surface);
       }
-      .status-pill.blocked {
-        background: #fee2e2;
-        color: #991b1b;
+      .content-list__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
       }
-      mat-progress-bar {
-        margin-bottom: 12px;
+      .content-list__card-title {
+        margin: 0;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
+      }
+      .content-list__card-meta {
+        margin: 4px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .content-list__card-rotation {
+        margin: 6px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .content-list__card-actions {
+        padding: 0 16px 12px;
       }
     `
   ]
@@ -169,7 +203,17 @@ import { RotationAnimation } from '../../shared/media-upload.models';
 export class ContentListComponent implements OnInit {
   protected readonly facade = inject(ContentFacade);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(ConfirmDialogService);
 
+  protected readonly pageTitle = 'Top content';
+  protected readonly pageDescription =
+    'Photos, videos, and embedded web content shown in the top region of the kiosk display.';
+  protected readonly primaryAction = {
+    label: 'Add content',
+    route: '/admin/content/new',
+    icon: 'add'
+  };
+  protected readonly refreshAction = { route: '/admin/content', label: 'Refresh' };
   protected readonly displayedColumns = [
     'order',
     'title',
@@ -179,11 +223,6 @@ export class ContentListComponent implements OnInit {
     'status',
     'actions'
   ] as const;
-
-  protected readonly headerActions = [
-    { label: 'Refresh', route: '/admin/content', kind: 'secondary' as const },
-    { label: 'Add content', route: '/admin/content/new', kind: 'primary' as const }
-  ];
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -222,13 +261,22 @@ export class ContentListComponent implements OnInit {
   }
 
   protected remove(item: ContentItem): void {
-    if (!window.confirm(`Delete ${item.title}?`)) {
-      return;
-    }
-    this.facade.remove(item.id).subscribe(() => {
-      if (this.facade.error() === null) {
-        this.snackBar.open(`Deleted ${item.title}.`, 'Dismiss', { duration: 3000 });
+    const ref = this.dialog.open({
+      title: `Delete ${item.title}?`,
+      message: 'This content will be removed from rotation. The action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
       }
+      this.facade.remove(item.id).subscribe(() => {
+        if (this.facade.error() === null) {
+          this.snackBar.open(`Deleted ${item.title}.`, 'Dismiss', { duration: 3000 });
+        }
+      });
     });
   }
 }

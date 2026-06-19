@@ -16,6 +16,7 @@ import { DomainListComponent, DomainFormComponent } from './features/domains/dom
 import { DisplayConfigComponent } from './features/display-config/display-config.component';
 import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
+import { ApiKeysListComponent } from './features/api-keys/api-keys-list.component';
 import { RemoteControlComponent } from './features/remote-control/remote-control.component';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
 
@@ -53,7 +54,8 @@ export const routes: Routes = [
       { path: 'configuration', component: DisplayConfigComponent },
       { path: 'users', component: UsersListComponent },
       { path: 'users/new', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
-      { path: 'users/:id/edit', component: UserFormComponent, canDeactivate: [dirtyFormGuard] }
+      { path: 'users/:id/edit', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'api-keys', component: ApiKeysListComponent }
     ]
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' }

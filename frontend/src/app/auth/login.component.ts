@@ -102,22 +102,23 @@ interface LoginFormValue {
               mat-flat-button
               color="primary"
               type="submit"
+              class="login-form__submit"
               [disabled]="form.invalid || submitting()"
             >
               @if (submitting()) {
-                <ng-container>
+                <span class="login-form__submit-content">
                   <mat-progress-spinner
                     diameter="18"
                     mode="indeterminate"
                     aria-label="Signing in"
                   />
                   <span>Signing in…</span>
-                </ng-container>
+                </span>
               } @else {
-                <ng-container>
-                  <mat-icon aria-hidden="true">login</mat-icon>
+                <span class="login-form__submit-content">
+                  <mat-icon aria-hidden="true" class="login-form__submit-icon">login</mat-icon>
                   <span>Sign in</span>
-                </ng-container>
+                </span>
               }
             </button>
           </mat-card-actions>
@@ -135,14 +136,52 @@ interface LoginFormValue {
         min-height: 100vh;
       }
       .login-page {
+        position: relative;
+        overflow: hidden;
         min-height: 100vh;
         display: grid;
         place-items: center;
-        padding: 24px;
-        background: var(--mat-sys-surface);
+        padding: clamp(20px, 6vw, 48px);
+        background:
+          linear-gradient(135deg, var(--mat-sys-surface-container-lowest) 0 44%, transparent 44%),
+          repeating-linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--mat-sys-primary) 9%, transparent) 0 1px,
+            transparent 1px 72px
+          ),
+          var(--mat-sys-surface);
+      }
+      .login-page::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 0 58%;
+        background:
+          linear-gradient(180deg, var(--mat-sys-primary-container), var(--mat-sys-secondary-container));
+        opacity: 0.34;
+        pointer-events: none;
+      }
+      .login-page::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--mat-sys-outline-variant) 1px, transparent 1px),
+          linear-gradient(90deg, var(--mat-sys-outline-variant) 1px, transparent 1px);
+        background-size: 36px 36px;
+        mask-image: linear-gradient(135deg, transparent 0 36%, black 36% 100%);
+        opacity: 0.18;
+        pointer-events: none;
       }
       .login-card {
+        position: relative;
+        z-index: 1;
         width: min(100%, 420px);
+        background: color-mix(in srgb, var(--mat-sys-surface) 94%, transparent);
+        box-shadow: var(--mat-sys-level2);
+        backdrop-filter: blur(8px);
+      }
+      .login-card mat-card-header {
+        padding: 24px 24px 12px;
       }
       .login-card__brand {
         display: inline-flex;
@@ -156,8 +195,8 @@ interface LoginFormValue {
       }
       .login-form__content {
         display: grid;
-        gap: 12px;
-        padding-top: 12px;
+        gap: 14px;
+        padding: 16px 24px 8px;
       }
       .login-form__error {
         display: flex;
@@ -167,27 +206,60 @@ interface LoginFormValue {
         padding: 8px 12px;
         background: var(--mat-sys-error-container);
         color: var(--mat-sys-on-error-container);
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: var(--mat-sys-corner-medium);
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
       }
       .login-form__actions {
-        padding: 8px 16px 16px;
+        padding: 8px 24px 16px;
         gap: 8px;
       }
-      .login-form__actions button {
+      .login-form__submit {
         min-width: 132px;
         min-height: var(--app-touch-target);
       }
+      .login-form__submit-content {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        line-height: 1;
+      }
+      .login-form__submit-icon {
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+      }
       .login-card__hint {
         margin: 0;
-        padding: 0 16px 16px;
-        font-size: 12px;
+        padding: 0 24px 24px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
       .login-card__hint code {
         background: var(--mat-sys-surface-container);
         padding: 1px 6px;
-        border-radius: 4px;
+        border-radius: var(--mat-sys-corner-extra-small);
+      }
+      @media (max-width: 599.98px) {
+        .login-page::before {
+          inset: auto 0 0 0;
+          height: 34%;
+        }
+        .login-page::after {
+          mask-image: linear-gradient(180deg, transparent 0 52%, black 52% 100%);
+        }
+        .login-card mat-card-header {
+          padding-inline: 20px;
+        }
+        .login-form__content,
+        .login-form__actions,
+        .login-card__hint {
+          padding-inline: 20px;
+        }
       }
     `
   ]

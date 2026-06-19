@@ -1,20 +1,18 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-
-import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTableModule } from '@angular/material/table';
 
 import { AdsFacade } from './ads.facade';
-import { AdminStateComponent } from '../../shared/admin-state.component';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
-import { SectionActionsComponent } from '../../shared/ui/section-actions/section-actions.component';
-import { AdItem } from '../../ads/ads-api.service';
+import { AdItem } from '../../core/api/ads.api';
 import { RotationAnimation } from '../../shared/media-upload.models';
+import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { StatusChipComponent } from '../../shared/ui/status-chip.component';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-ad-list',
@@ -27,50 +25,28 @@ import { RotationAnimation } from '../../shared/media-upload.models';
     MatButtonModule,
     MatIconModule,
     MatCardModule,
-    MatProgressBarModule,
     MatSnackBarModule,
-    AdminStateComponent,
-    PageHeaderComponent,
-    SectionActionsComponent
+    DataListComponent,
+    StatusChipComponent
   ],
   template: `
-    <app-page-header
-      eyebrow="Administration"
-      title="Client ads"
-      description="Image ads shown in the bottom region of the kiosk display, ordered by display order."
-    />
-
-    <app-section-actions [actions]="headerActions" />
-
-    <mat-card appearance="outlined" class="ad-list__card">
-      <mat-card-header>
-        <mat-card-title>{{ facade.ads().length }} ad{{ facade.ads().length === 1 ? '' : 's' }}</mat-card-title>
-        <mat-card-subtitle>Each ad belongs to a client and uses its own rotation settings.</mat-card-subtitle>
-      </mat-card-header>
-      <mat-card-content>
-        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading ads" />
-        <app-admin-state
-          *ngIf="facade.error() as error"
-          type="error"
-          title="Ads unavailable"
-          [message]="error.message"
-        />
-        <app-admin-state
-          *ngIf="facade.empty()"
-          type="empty"
-          title="No ads yet"
-          message="Upload client image ads for the bottom region."
-          actionLabel="Add ad"
-          actionRoute="/admin/ads/new"
-        />
-
-        <table
-          *ngIf="facade.ready()"
-          mat-table
-          [dataSource]="facade.ads()"
-          aria-label="Ads"
-          class="ad-list__table"
-        >
+    <app-data-list
+      [title]="pageTitle"
+      [description]="pageDescription"
+      [loading]="facade.loading()"
+      [error]="facade.error()"
+      errorTitle="Ads unavailable"
+      [empty]="facade.empty()"
+      [primaryAction]="primaryAction"
+      [refreshAction]="refreshAction"
+      emptyTitle="No ads yet"
+      emptyMessage="Upload client image ads for the bottom region."
+      emptyActionLabel="Add ad"
+      emptyActionRoute="/admin/ads/new"
+      emptyIcon="campaign"
+    >
+      <ng-template #dataListTable>
+        <table mat-table [dataSource]="facade.ads()" aria-label="Ads" class="app-table ad-list__table">
           <ng-container matColumnDef="order">
             <th mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let ad">{{ ad.displayOrder }}</td>
@@ -99,9 +75,10 @@ import { RotationAnimation } from '../../shared/media-upload.models';
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef>Status</th>
             <td mat-cell *matCellDef="let ad">
-              <span class="status-pill" [class.blocked]="!ad.isActive">
-                {{ ad.isActive ? 'Active' : 'Inactive' }}
-              </span>
+              <app-status-chip
+                [label]="ad.isActive ? 'Active' : 'Inactive'"
+                [kind]="ad.isActive ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
 
@@ -134,32 +111,89 @@ import { RotationAnimation } from '../../shared/media-upload.models';
           <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
-      </mat-card-content>
-    </mat-card>
+      </ng-template>
+
+      <ng-template #dataListCards>
+        @for (ad of facade.ads(); track ad.id) {
+          <mat-card appearance="outlined" class="ad-list__card-item">
+            <mat-card-content>
+              <div class="ad-list__card-header">
+                <h3 class="ad-list__card-title">{{ ad.label }}</h3>
+                <app-status-chip
+                  [label]="ad.isActive ? 'Active' : 'Inactive'"
+                  [kind]="ad.isActive ? 'success' : 'neutral'"
+                />
+              </div>
+              <p class="ad-list__card-meta">
+                <span>{{ clientName(ad.clientId) }}</span>
+                <span> · {{ mediaLabel(ad) }}</span>
+                <span> · Order {{ ad.displayOrder }}</span>
+              </p>
+              <p class="ad-list__card-rotation">{{ rotationSummary(ad) }}</p>
+            </mat-card-content>
+            <mat-card-actions class="app-card-actions ad-list__card-actions">
+              <a
+                mat-button
+                color="primary"
+                [routerLink]="['/admin/ads', ad.id, 'edit']"
+                [attr.aria-label]="'Edit ' + ad.label"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+                Edit
+              </a>
+              <button
+                mat-button
+                color="warn"
+                type="button"
+                (click)="remove(ad)"
+                [disabled]="facade.saving()"
+                [attr.aria-label]="'Delete ' + ad.label"
+              >
+                <mat-icon aria-hidden="true">delete</mat-icon>
+                Delete
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </ng-template>
+    </app-data-list>
   `,
   styles: [
     `
-      .ad-list__card {
-        margin-top: 16px;
-      }
       .ad-list__table {
         width: 100%;
+        background: transparent;
       }
-      .status-pill {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 999px;
-        background: #dcfce7;
-        color: #166534;
-        font-size: 12px;
-        font-weight: 600;
+      .ad-list__card-item {
+        display: block;
+        background: var(--mat-sys-surface);
       }
-      .status-pill.blocked {
-        background: #fee2e2;
-        color: #991b1b;
+      .ad-list__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
       }
-      mat-progress-bar {
-        margin-bottom: 12px;
+      .ad-list__card-title {
+        margin: 0;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
+      }
+      .ad-list__card-meta {
+        margin: 4px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .ad-list__card-rotation {
+        margin: 6px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .ad-list__card-actions {
+        padding: 0 16px 12px;
       }
     `
   ]
@@ -167,7 +201,17 @@ import { RotationAnimation } from '../../shared/media-upload.models';
 export class AdListComponent implements OnInit {
   protected readonly facade = inject(AdsFacade);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(ConfirmDialogService);
 
+  protected readonly pageTitle = 'Client ads';
+  protected readonly pageDescription =
+    'Image ads shown in the bottom region of the kiosk display, ordered by display order.';
+  protected readonly primaryAction = {
+    label: 'Add ad',
+    route: '/admin/ads/new',
+    icon: 'add'
+  };
+  protected readonly refreshAction = { route: '/admin/ads', label: 'Refresh' };
   protected readonly displayedColumns = [
     'order',
     'label',
@@ -177,11 +221,6 @@ export class AdListComponent implements OnInit {
     'status',
     'actions'
   ] as const;
-
-  protected readonly headerActions = [
-    { label: 'Refresh', route: '/admin/ads', kind: 'secondary' as const },
-    { label: 'Add ad', route: '/admin/ads/new', kind: 'primary' as const }
-  ];
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -210,13 +249,22 @@ export class AdListComponent implements OnInit {
   }
 
   protected remove(ad: AdItem): void {
-    if (!window.confirm(`Delete ${ad.label}?`)) {
-      return;
-    }
-    this.facade.remove(ad.id).subscribe(() => {
-      if (this.facade.error() === null) {
-        this.snackBar.open(`Deleted ${ad.label}.`, 'Dismiss', { duration: 3000 });
+    const ref = this.dialog.open({
+      title: `Delete ${ad.label}?`,
+      message: 'This ad will be removed from rotation. The action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
       }
+      this.facade.remove(ad.id).subscribe(() => {
+        if (this.facade.error() === null) {
+          this.snackBar.open(`Deleted ${ad.label}.`, 'Dismiss', { duration: 3000 });
+        }
+      });
     });
   }
 }

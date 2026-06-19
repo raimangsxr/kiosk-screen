@@ -9,24 +9,24 @@ import {
   Validators
 } from '@angular/forms';
 
+import { MatButtonModule } from '@angular/material/button';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { Subject, takeUntil } from 'rxjs';
 
 import { ContentFacade } from './content.facade';
-import { ContentItem, ContentItemRequest } from '../../content/content-api.service';
+import { ContentItem, ContentItemRequest } from '../../core/api/content.api';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
+import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger, nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
@@ -56,13 +56,13 @@ interface ContentFormValue {
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatSlideToggleModule,
-    MatProgressBarModule,
     MatDividerModule,
     MatSnackBarModule,
     PageHeaderComponent,
-    AdminStateComponent
+    AdminStateComponent,
+    FormPageComponent,
+    FileInputComponent
   ],
   template: `
     <app-page-header
@@ -79,123 +79,115 @@ interface ContentFormValue {
       novalidate
       aria-label="Content item form"
     >
-      <mat-card appearance="outlined">
-        <mat-card-content>
-          <mat-progress-bar *ngIf="loading()" mode="indeterminate" aria-label="Loading content" />
-          <app-admin-state
-            *ngIf="loadError() as error"
-            type="error"
-            title="Could not load content"
-            [message]="error.message"
-          />
+      <app-form-page [loading]="loading()">
+        <app-admin-state
+          *ngIf="loadError() as error"
+          kind="error"
+          title="Could not load content"
+          [message]="error.message"
+        />
 
-          <div class="content-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Title</mat-label>
-              <input matInput formControlName="title" required maxlength="120" autocomplete="off" />
-              <mat-error *ngIf="form.controls.title.hasError('required')">Title is required.</mat-error>
-              <mat-error *ngIf="form.controls.title.hasError('nonBlankString')">
-                Title cannot be blank.
-              </mat-error>
-            </mat-form-field>
+        <div class="content-form__row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Title</mat-label>
+            <input matInput formControlName="title" required maxlength="120" autocomplete="off" />
+            <mat-error *ngIf="form.controls.title.hasError('required')">Title is required.</mat-error>
+            <mat-error *ngIf="form.controls.title.hasError('nonBlankString')">
+              Title cannot be blank.
+            </mat-error>
+          </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Type</mat-label>
-              <mat-select formControlName="contentType" required>
-                <mat-option value="photo">Photo</mat-option>
-                <mat-option value="video">Video</mat-option>
-                <mat-option value="embedded_web">Embedded web (iframe)</mat-option>
-              </mat-select>
-              <mat-error *ngIf="form.controls.contentType.hasError('required')">Type is required.</mat-error>
-            </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Type</mat-label>
+            <mat-select formControlName="contentType" required>
+              <mat-option value="photo">Photo</mat-option>
+              <mat-option value="video">Video</mat-option>
+              <mat-option value="embedded_web">Embedded web (iframe)</mat-option>
+            </mat-select>
+            <mat-error *ngIf="form.controls.contentType.hasError('required')">Type is required.</mat-error>
+          </mat-form-field>
+        </div>
+
+        @if (form.controls.contentType.value === 'embedded_web') {
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Iframe source URL</mat-label>
+            <input
+              matInput
+              formControlName="sourceReference"
+              placeholder="https://example.com/embed"
+              autocomplete="off"
+            />
+            <mat-hint>Must be on an approved domain allow-list.</mat-hint>
+            <mat-error *ngIf="form.controls.sourceReference.hasError('required')">
+              Iframe source is required.
+            </mat-error>
+          </mat-form-field>
+        } @else {
+          <div class="content-form__file">
+            <span class="content-form__file-label">Upload file</span>
+            <app-file-input
+              [accept]="fileAccept()"
+              [buttonLabel]="fileButtonLabel()"
+              [ariaLabel]="fileLabel()"
+              [existingFileName]="existingMediaName()"
+              [showPreview]="isPhoto()"
+              (fileSelected)="onFileSelected($event)"
+            />
           </div>
+        }
 
-          <div *ngIf="form.controls.contentType.value === 'embedded_web'" class="content-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Iframe source URL</mat-label>
-              <input
-                matInput
-                formControlName="sourceReference"
-                placeholder="https://example.com/embed"
-                autocomplete="off"
-              />
-              <mat-hint>Must be on an approved domain allow-list.</mat-hint>
-              <mat-error *ngIf="form.controls.sourceReference.hasError('required')">
-                Iframe source is required.
-              </mat-error>
-            </mat-form-field>
-          </div>
+        <div class="content-form__row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Display order</mat-label>
+            <input matInput type="number" formControlName="displayOrder" min="1" required />
+            <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
+            <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
+              Order must be a positive integer.
+            </mat-error>
+          </mat-form-field>
 
-          <div *ngIf="form.controls.contentType.value !== 'embedded_web'" class="content-form__row">
-            <label class="content-form__file">
-              <span class="content-form__file-label">Upload file</span>
-              <input
-                type="file"
-                [accept]="fileAccept()"
-                (change)="selectFile($event)"
-                [attr.aria-label]="fileLabel()"
-              />
-              <span class="content-form__file-name" *ngIf="selectedFileName() as name">
-                {{ name }}
-              </span>
-              <span class="content-form__file-name" *ngIf="!selectedFileName() && existingMediaName() as name">
-                Current file: {{ name }}
-              </span>
-            </label>
-          </div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Rotation time (seconds)</mat-label>
+            <input matInput type="number" formControlName="durationSeconds" min="1" />
+            <mat-hint>Leave empty to use kiosk default.</mat-hint>
+          </mat-form-field>
+        </div>
 
-          <div class="content-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Display order</mat-label>
-              <input matInput type="number" formControlName="displayOrder" min="1" required />
-              <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
-              <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
-                Order must be a positive integer.
-              </mat-error>
-            </mat-form-field>
+        <div class="content-form__row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Animation</mat-label>
+            <mat-select formControlName="rotationAnimation">
+              <mat-option [value]="null">Default</mat-option>
+              <mat-option *ngFor="let animation of animations" [value]="animation">
+                {{ animation }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Rotation time (seconds)</mat-label>
-              <input matInput type="number" formControlName="durationSeconds" min="1" />
-              <mat-hint>Leave empty to use kiosk default.</mat-hint>
-            </mat-form-field>
-          </div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Animation duration (ms)</mat-label>
+            <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
+            <mat-hint>Leave empty to use kiosk default.</mat-hint>
+          </mat-form-field>
+        </div>
 
-          <div class="content-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Animation</mat-label>
-              <mat-select formControlName="rotationAnimation">
-                <mat-option [value]="null">Default</mat-option>
-                <mat-option *ngFor="let animation of animations" [value]="animation">
-                  {{ animation }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+        <mat-divider />
 
-            <mat-form-field appearance="outline">
-              <mat-label>Animation duration (ms)</mat-label>
-              <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-              <mat-hint>Leave empty to use kiosk default.</mat-hint>
-            </mat-form-field>
-          </div>
+        <div class="content-form__toggle">
+          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+          <span class="content-form__hint" *ngIf="!form.controls.isActive.value">
+            Inactive items are skipped during rotation.
+          </span>
+        </div>
 
-          <mat-divider />
+        <app-admin-state
+          *ngIf="saveError() as error"
+          kind="error"
+          title="Could not save content"
+          [message]="error.message"
+        />
 
-          <div class="content-form__row content-form__row--align-center">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-            <span class="content-form__hint" *ngIf="!form.controls.isActive.value">
-              Inactive items are skipped during rotation.
-            </span>
-          </div>
-
-          <app-admin-state
-            *ngIf="saveError() as error"
-            type="error"
-            title="Could not save content"
-            [message]="error.message"
-          />
-        </mat-card-content>
-        <mat-card-actions align="end">
+        <div formPageActions>
           <a mat-button routerLink="/admin/content">Cancel</a>
           <button
             mat-flat-button
@@ -206,44 +198,44 @@ interface ContentFormValue {
             <mat-icon aria-hidden="true">save</mat-icon>
             {{ facade.saving() ? 'Saving…' : 'Save' }}
           </button>
-        </mat-card-actions>
-      </mat-card>
+        </div>
+      </app-form-page>
     </form>
   `,
   styles: [
     `
       .content-form {
-        margin-top: 16px;
         display: block;
+      }
+      mat-form-field {
+        width: 100%;
       }
       .content-form__row {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 16px;
-        margin-bottom: 16px;
-      }
-      .content-form__row--align-center {
-        align-items: center;
       }
       .content-form__file {
-        display: flex;
-        flex-direction: column;
+        display: grid;
         gap: 6px;
-        font-size: 14px;
       }
       .content-form__file-label {
-        font-weight: 600;
+        font: var(--mat-sys-label-large);
+        letter-spacing: var(--mat-sys-label-large-tracking);
+        font-weight: 500;
+        color: var(--mat-sys-on-surface);
       }
-      .content-form__file-name {
-        color: #475569;
-        font-size: 13px;
+      .content-form__toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 4px 0;
       }
       .content-form__hint {
-        color: #92400e;
-        font-size: 13px;
-      }
-      mat-form-field {
-        width: 100%;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
     `
   ]
@@ -328,6 +320,17 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     return '';
   }
 
+  protected fileButtonLabel(): string {
+    const type = this.form?.controls.contentType.value;
+    if (type === 'video') {
+      return 'Choose video';
+    }
+    if (type === 'photo') {
+      return 'Choose image';
+    }
+    return 'Choose file';
+  }
+
   protected fileLabel(): string {
     const type = this.form?.controls.contentType.value;
     if (type === 'video') {
@@ -339,17 +342,16 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     return 'Choose a file to upload';
   }
 
-  protected selectedFileName(): string | null {
-    return this.selectedFile()?.name ?? null;
-  }
-
   protected existingMediaName(): string | null {
     return this.existingMedia();
   }
 
-  protected selectFile(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.selectedFile.set(input.files?.[0] ?? null);
+  protected isPhoto(): boolean {
+    return this.form?.controls.contentType.value === 'photo';
+  }
+
+  protected onFileSelected(file: File): void {
+    this.selectedFile.set(file);
   }
 
   submit(): void {

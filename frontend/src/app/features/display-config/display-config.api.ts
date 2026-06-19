@@ -1,1 +1,1 @@
-export { AdminApiService as DisplayConfigApiService } from '../../admin/admin-api.service';
+export { AdminApiService as DisplayConfigApiService, KioskConfiguration } from '../../core/api/admin.api';

@@ -51,3 +51,25 @@ def create_display_event(
         created_by_user_id=created_by_user_id
     )
 
+
+def create_api_key_event(
+    organization_id: str,
+    api_key_id: str,
+    action: str,
+    key_label: str,
+    created_by_user_id: str | None = None,
+) -> DisplayEventRecord:
+    if action not in {"create", "rotate", "revoke"}:
+        raise ValueError(f"Unknown api-key action: {action!r}")
+    severity = "warning" if action == "revoke" else "info"
+    return create_display_event(
+        organization_id=organization_id,
+        event_type="api_key_changed",
+        severity=severity,
+        message=f"API key {action}: {key_label}",
+        entity_type="api_key",
+        entity_id=api_key_id,
+        created_by_user_id=created_by_user_id,
+        metadata={"action": action, "key_label": key_label},
+    )
+

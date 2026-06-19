@@ -45,7 +45,8 @@ import { AuthService } from '../auth/auth.service';
         border-radius: 50%;
         background: var(--mat-sys-primary-container);
         color: var(--mat-sys-on-primary-container);
-        font-size: 14px;
+        font: var(--mat-sys-label-large);
+        letter-spacing: var(--mat-sys-label-large-tracking);
         font-weight: 600;
       }
       .user-menu__header {
@@ -58,7 +59,8 @@ import { AuthService } from '../auth/auth.service';
         font-weight: 600;
       }
       .user-menu__email {
-        font-size: 12px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
     `

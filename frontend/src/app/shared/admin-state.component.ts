@@ -54,20 +54,20 @@ export type AdminStateKind = 'empty' | 'error' | 'success' | 'info' | 'warning';
         grid-template-columns: auto 1fr;
         align-items: center;
         gap: 12px;
-        padding: 16px;
+        padding: 16px 18px;
       }
       .admin-state__icon {
         grid-row: span 2;
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
         color: var(--mat-sys-on-surface-variant);
       }
       .admin-state--error .admin-state__icon {
         color: var(--mat-sys-error);
       }
       .admin-state--success .admin-state__icon {
-        color: var(--mat-sys-tertiary);
+        color: var(--mat-sys-primary);
       }
       .admin-state--warning .admin-state__icon {
         color: var(--mat-sys-secondary);
@@ -76,13 +76,14 @@ export type AdminStateKind = 'empty' | 'error' | 'success' | 'info' | 'warning';
         color: var(--mat-sys-primary);
       }
       .admin-state__title {
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .admin-state__message {
         margin: 4px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 14px;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
       }
       .admin-state__action {
         grid-column: 1 / -1;

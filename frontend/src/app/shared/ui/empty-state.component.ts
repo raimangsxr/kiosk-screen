@@ -33,27 +33,32 @@ import { RouterLink } from '@angular/router';
       }
       .empty-state {
         text-align: center;
-        padding: 32px 16px;
+        padding: 32px 20px;
+        background: var(--mat-sys-surface);
       }
       .empty-state__icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
         margin-bottom: 12px;
-        font-size: 48px;
-        color: var(--mat-sys-on-surface-variant);
+        border-radius: var(--mat-sys-corner-large);
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-primary);
+        font-size: 32px;
       }
       .empty-state__title {
         margin: 0 0 4px;
-        font-size: 18px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
         color: var(--mat-sys-on-surface);
       }
       .empty-state__message {
         margin: 0 auto 16px;
         max-width: 480px;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
     `

@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 
-import { AdsApiService, Client } from '../../ads/ads-api.service';
+import { AdsApiService, Client } from '../../core/api/ads.api';
 import { ClientsFacade } from './clients.facade';
 
 function buildClient(partial: Partial<Client> = {}): Client {

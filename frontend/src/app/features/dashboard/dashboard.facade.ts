@@ -1,1 +1,1 @@
-export { AdminDashboardService as DashboardFacade } from '../../admin/admin-dashboard.service';
+export { AdminDashboardService as DashboardFacade } from './dashboard.service';

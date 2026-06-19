@@ -9,22 +9,20 @@ import {
   Validators
 } from '@angular/forms';
 
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
+import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { Subject, takeUntil } from 'rxjs';
 
 import { DomainsFacade } from './domains.facade';
-import { ApprovedDomain } from '../../admin/admin-api.service';
+import { ApprovedDomain } from '../../core/api/admin.api';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
+import { FormPageComponent } from '../../shared/ui/form-page.component';
 import { nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
@@ -45,13 +43,11 @@ interface DomainFormValue {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatSlideToggleModule,
-    MatProgressBarModule,
-    MatDividerModule,
     MatSnackBarModule,
     PageHeaderComponent,
-    AdminStateComponent
+    AdminStateComponent,
+    FormPageComponent
   ],
   template: `
     <app-page-header
@@ -60,55 +56,86 @@ interface DomainFormValue {
       description="Approve a host from which iframe content may load. Deactivate to keep it out of the allow-list."
     />
 
-    <form *ngIf="form" [formGroup]="form" (ngSubmit)="submit()" class="domain-form" novalidate aria-label="Approved domain form">
-      <mat-card appearance="outlined">
-        <mat-card-content>
-          <mat-progress-bar *ngIf="loading()" mode="indeterminate" aria-label="Loading domain" />
-          <app-admin-state *ngIf="loadError() as error" type="error" title="Could not load domain" [message]="error.message" />
+    <form
+      *ngIf="form"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      class="domain-form"
+      novalidate
+      aria-label="Approved domain form"
+    >
+      <app-form-page [loading]="loading()">
+        <app-admin-state
+          *ngIf="loadError() as error"
+          kind="error"
+          title="Could not load domain"
+          [message]="error.message"
+        />
 
-          <div class="domain-form__row">
-            <mat-form-field appearance="outline">
-              <mat-label>Domain</mat-label>
-              <input matInput formControlName="domain" required maxlength="255" placeholder="example.com" autocomplete="off" />
-              <mat-hint>Host only, no scheme. Matches iframe source URLs.</mat-hint>
-              <mat-error *ngIf="form.controls.domain.hasError('required')">Domain is required.</mat-error>
-              <mat-error *ngIf="form.controls.domain.hasError('nonBlankString')">Domain cannot be blank.</mat-error>
-            </mat-form-field>
-          </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Domain</mat-label>
+          <input
+            matInput
+            formControlName="domain"
+            required
+            maxlength="255"
+            placeholder="example.com"
+            autocomplete="off"
+          />
+          <mat-hint>Host only, no scheme. Matches iframe source URLs.</mat-hint>
+          <mat-error *ngIf="form.controls.domain.hasError('required')">Domain is required.</mat-error>
+          <mat-error *ngIf="form.controls.domain.hasError('nonBlankString')">Domain cannot be blank.</mat-error>
+        </mat-form-field>
 
-          <mat-divider />
+        <div class="domain-form__toggle">
+          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+          <span class="domain-form__hint" *ngIf="!form.controls.isActive.value">
+            Inactive domains keep their configuration but are excluded from iframe allow-listing.
+          </span>
+        </div>
 
-          <div class="domain-form__row domain-form__row--align-center">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-            <span class="domain-form__hint" *ngIf="!form.controls.isActive.value">
-              Inactive domains keep their configuration but are excluded from iframe allow-listing.
-            </span>
-          </div>
+        <app-admin-state
+          *ngIf="saveError() as error"
+          kind="error"
+          title="Could not save domain"
+          [message]="error.message"
+        />
 
-          <app-admin-state *ngIf="saveError() as error" type="error" title="Could not save domain" [message]="error.message" />
-        </mat-card-content>
-        <mat-card-actions align="end">
+        <div formPageActions>
           <a mat-button routerLink="/admin/domains">Cancel</a>
-          <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || facade.saving() || loading()">
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="form.invalid || facade.saving() || loading()"
+          >
             <mat-icon aria-hidden="true">save</mat-icon>
             {{ facade.saving() ? 'Saving…' : 'Save' }}
           </button>
-        </mat-card-actions>
-      </mat-card>
+        </div>
+      </app-form-page>
     </form>
   `,
   styles: [
     `
-      .domain-form { margin-top: 16px; display: block; }
-      .domain-form__row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        margin-bottom: 16px;
+      .domain-form {
+        display: block;
       }
-      .domain-form__row--align-center { align-items: center; }
-      .domain-form__hint { color: #92400e; font-size: 13px; }
-      mat-form-field { width: 100%; }
+      mat-form-field {
+        width: 100%;
+      }
+      .domain-form__toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 4px 0;
+      }
+      .domain-form__hint {
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
     `
   ]
 })

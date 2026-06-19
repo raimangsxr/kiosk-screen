@@ -61,3 +61,20 @@ export interface DataMigrationDecision {
   readonly reason: string;
   readonly validationArtifact: string;
 }
+
+export interface ApiKeyRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly keyPrefix: string;
+  readonly isActive: boolean;
+  readonly createdAt: string;
+  readonly lastRotatedAt: string | null;
+  readonly lastUsedAt: string | null;
+  readonly revokedAt: string | null;
+  readonly createdByUserId: string | null;
+}
+
+export interface ApiKeyWithRawSecret {
+  readonly record: ApiKeyRecord;
+  readonly rawKey: string;
+}
