@@ -196,7 +196,7 @@ interface DisplayConfigFormValue {
         <div class="display-config__toggle">
           <mat-slide-toggle formControlName="isEnabled">Kiosk enabled</mat-slide-toggle>
           <span class="display-config__hint" *ngIf="!form.controls.isEnabled.value">
-            When disabled, the kiosk will not run and readiness will block setup.
+            When disabled, the kiosk will not run and the setup check will report a blocker.
           </span>
         </div>
 

@@ -1,7 +1,6 @@
 from app.api.schemas import (
     AdItemSchema,
     ApprovedEmbeddedDomainSchema,
-    ClientSchema,
     ContentItemSchema,
     DisplayEventSchema,
     KioskConfigurationSchema,
@@ -10,7 +9,6 @@ from app.api.schemas import (
 )
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
-from app.repositories.models.client import Client
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
@@ -77,10 +75,6 @@ def to_content_schema(
     )
 
 
-def to_client_schema(client: Client) -> ClientSchema:
-    return ClientSchema(id=client.id, name=client.name, isActive=client.is_active)
-
-
 def to_ad_schema(
     item: ClientAdItem,
     *,
@@ -90,8 +84,6 @@ def to_ad_schema(
 ) -> AdItemSchema:
     return AdItemSchema(
         id=item.id,
-        clientId=item.client_id,
-        label=item.label,
         sourceReference=item.source_reference,
         mediaFile=to_media_schema(getattr(item, "media_file", None)),
         isActive=item.is_active,
@@ -103,7 +95,8 @@ def to_ad_schema(
         effectiveRotationAnimation=effective_rotation_animation,
         effectiveAnimationDurationMilliseconds=effective_animation_duration_milliseconds,
         availableFrom=item.available_from,
-        availableUntil=item.available_until
+        availableUntil=item.available_until,
+        advertiser=item.advertiser
     )
 
 

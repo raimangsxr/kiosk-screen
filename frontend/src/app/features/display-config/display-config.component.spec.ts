@@ -130,4 +130,12 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     form.controls.name.setValue('Edited');
     expect(fixture.componentInstance.hasUnsavedChanges()).toBeTrue();
   });
+
+  it('does not mention readiness in the disabled hint copy', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.isEnabled.setValue(false);
+    fixture.detectChanges();
+    const text = (fixture.nativeElement.textContent as string).toLowerCase();
+    expect(text).not.toContain('readiness');
+  });
 });

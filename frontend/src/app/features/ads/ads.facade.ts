@@ -2,21 +2,19 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { catchError, of, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
-import { AdItem, AdsApiService, Client } from '../../core/api/ads.api';
+import { AdItem, AdPayload, AdsApiService } from '../../core/api/ads.api';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })
 export class AdsFacade {
   private readonly api = inject(AdsApiService);
   private readonly adsState = signal<readonly AdItem[]>([]);
-  private readonly clientsState = signal<readonly Client[]>([]);
   private readonly currentState = signal<AdItem | null>(null);
   private readonly loadingState = signal(false);
   private readonly savingState = signal(false);
   private readonly errorState = signal<ApplicationErrorContract | null>(null);
 
   readonly ads = this.adsState.asReadonly();
-  readonly clients = this.clientsState.asReadonly();
   readonly current = this.currentState.asReadonly();
   readonly loading = this.loadingState.asReadonly();
   readonly saving = this.savingState.asReadonly();
@@ -40,16 +38,6 @@ export class AdsFacade {
     );
   }
 
-  loadClients() {
-    return this.api.listClients().pipe(
-      tap((clients) => this.clientsState.set(clients)),
-      catchError((error: unknown) => {
-        this.errorState.set(adaptApiError(error));
-        return throwError(() => error);
-      })
-    );
-  }
-
   loadAd(id: string) {
     this.loadingState.set(true);
     this.errorState.set(null);
@@ -66,7 +54,7 @@ export class AdsFacade {
     );
   }
 
-  save(payload: Omit<AdItem, 'id'>, id?: string, file?: File | null) {
+  save(payload: AdPayload, id?: string, file?: File | null) {
     this.savingState.set(true);
     this.errorState.set(null);
     const request = file
@@ -101,6 +89,23 @@ export class AdsFacade {
         this.errorState.set(adaptApiError(error));
         this.savingState.set(false);
         return of(null);
+      })
+    );
+  }
+
+  reorder(orderedIds: string[]) {
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return this.api.reorderAds(orderedIds).pipe(
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        this.refresh().subscribe();
+        return throwError(() => error);
       })
     );
   }

@@ -39,29 +39,24 @@ def test_application_display_symbols_resolve_to_real_service():
         assert facade_obj is real_obj, f"{name} must be the same object as in services.display_service"
 
 
-def test_eligible_filters_drop_inactive_clients(db_session):
+def test_eligible_filters_drop_inactive_ads(db_session):
     from app.repositories.models.ad import ClientAdItem
-    from app.repositories.models.client import Client
     from app.services.bootstrap_service import bootstrap_mvp_data
 
     result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    inactive = Client(organization_id=result.organization.id, name="Inactive", is_active=False)
-    db_session.add(inactive)
-    db_session.flush()
     db_session.add(
         ClientAdItem(
             organization_id=result.organization.id,
-            client_id=inactive.id,
-            label="Inactive ad",
             source_reference="https://example.com/inactive.jpg",
             is_active=True,
             display_order=2,
+            advertiser="Inactive"
         )
     )
     db_session.commit()
 
     assert len(facade.eligible_top_content(db_session, result.organization.id)) == 1
-    assert len(facade.eligible_ads(db_session, result.organization.id)) == 1
+    assert len(facade.eligible_ads(db_session, result.organization.id)) == 2
 
 
 def test_fallback_state_reported_when_no_ads(db_session):

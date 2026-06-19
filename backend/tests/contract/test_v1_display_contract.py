@@ -112,8 +112,6 @@ def test_v1_display_state_roundtrip_preserves_effective_fields():
         "ads": [
             {
                 "id": "00000000-0000-0000-0000-000000000020",
-                "clientId": "00000000-0000-0000-0000-000000000030",
-                "label": "Sponsor",
                 "sourceReference": "https://example.com/ad.jpg",
                 "mediaFile": None,
                 "isActive": True,
@@ -126,6 +124,7 @@ def test_v1_display_state_roundtrip_preserves_effective_fields():
                 "effectiveAnimationDurationMilliseconds": 300,
                 "availableFrom": None,
                 "availableUntil": None,
+                "advertiser": "Sponsor",
             }
         ],
         "fallbackActive": False,

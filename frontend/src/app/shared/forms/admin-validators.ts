@@ -2,6 +2,9 @@ import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 export function positiveInteger(messageKey = 'positiveInteger'): ValidatorFn {
   return (control: AbstractControl): ValidationErrors | null => {
+    if (control.value === null || control.value === undefined || control.value === '') {
+      return null;
+    }
     const value = Number(control.value);
     if (!Number.isInteger(value) || value <= 0) {
       return { [messageKey]: true };

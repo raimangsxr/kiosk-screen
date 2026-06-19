@@ -39,8 +39,6 @@ export interface DisplayContentItem {
 
 export interface DisplayAdItem {
   id: string;
-  clientId: string;
-  label: string;
   sourceReference: string;
   mediaFile?: MediaFileReference | null;
   isActive: boolean;
@@ -51,6 +49,7 @@ export interface DisplayAdItem {
   effectiveDurationSeconds?: number | null;
   effectiveRotationAnimation?: RotationAnimation | null;
   effectiveAnimationDurationMilliseconds?: number | null;
+  advertiser?: string | null;
 }
 
 export interface DisplayRemoteControlState {

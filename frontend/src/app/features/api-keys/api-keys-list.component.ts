@@ -114,6 +114,15 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               >
                 <mat-icon>block</mat-icon> Revoke
               </button>
+              <button
+                mat-button
+                type="button"
+                (click)="onDelete(key.id, key.label)"
+                [disabled]="key.isActive || facade.saving()"
+                data-testid="delete-key"
+              >
+                <mat-icon>delete_outline</mat-icon> Delete
+              </button>
             </td>
           </ng-container>
 
@@ -230,6 +239,32 @@ export class ApiKeysListComponent implements OnInit {
         this.facade.revoke(id).subscribe({
           next: () => {
             this.snackBar.open('API key revoked.', 'Dismiss', { duration: 4000 });
+            this.facade.refresh().subscribe();
+          },
+          error: () => {
+            // Error already mapped to facade.error
+          },
+        });
+      });
+  }
+
+  onDelete(id: string, label: string): void {
+    this.confirmDialog
+      .confirm({
+        title: `Delete ${label}?`,
+        message: 'This permanently removes the key from the list. The audit trail is preserved. This cannot be undone.',
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        destructive: true,
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed !== true) {
+          return;
+        }
+        this.facade.delete(id).subscribe({
+          next: () => {
+            this.snackBar.open('API key deleted.', 'Dismiss', { duration: 4000 });
             this.facade.refresh().subscribe();
           },
           error: () => {

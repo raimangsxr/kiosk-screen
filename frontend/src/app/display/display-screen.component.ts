@@ -54,8 +54,8 @@ type DisplayRenderableItem = Pick<
       <section *ngIf="adsVisible" class="ad-region" aria-label="Client ads">
         <ng-container *ngIf="visibleAds.length; else adFallback">
           <figure *ngFor="let ad of visibleAds">
-            <img [src]="mediaSource(ad)" [alt]="ad.label" [class]="animationClass(ad)" />
-            <figcaption>{{ ad.label }}</figcaption>
+            <img [src]="mediaSource(ad)" [alt]="ad.advertiser ?? 'Ad'" [class]="animationClass(ad)" />
+            <figcaption>{{ ad.advertiser ?? 'Ad' }}</figcaption>
           </figure>
         </ng-container>
         <ng-template #adFallback>

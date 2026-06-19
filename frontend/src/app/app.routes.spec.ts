@@ -18,13 +18,11 @@ describe('routes', () => {
     const childPaths = adminRoute?.children?.map((route) => route.path) ?? [];
     const contentEditor = adminRoute?.children?.find((route) => route.path === 'content/:id/edit');
     const adEditor = adminRoute?.children?.find((route) => route.path === 'ads/:id/edit');
-    const clientEditor = adminRoute?.children?.find((route) => route.path === 'clients/:id/edit');
 
     expect(adminRoute?.canActivate?.length).toBe(1);
     expect(childPaths).toContain('');
     expect(childPaths).toContain('content');
     expect(childPaths).toContain('ads');
-    expect(childPaths).toContain('clients');
     expect(childPaths).toContain('domains');
     expect(childPaths).toContain('configuration');
     expect(childPaths).toContain('readiness');
@@ -32,6 +30,5 @@ describe('routes', () => {
     expect(childPaths).toContain('api-keys');
     expect(contentEditor?.canDeactivate).toContain(dirtyFormGuard);
     expect(adEditor?.canDeactivate).toContain(dirtyFormGuard);
-    expect(clientEditor?.canDeactivate).toContain(dirtyFormGuard);
   });
 });

@@ -1,26 +1,20 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { of, throwError } from 'rxjs';
+import { throwError } from 'rxjs';
 
-import { AdItem, AdsApiService, Client } from '../../core/api/ads.api';
+import { AdItem, AdsApiService } from '../../core/api/ads.api';
 import { AdsFacade } from './ads.facade';
-import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 function buildAd(partial: Partial<AdItem> = {}): AdItem {
   return {
     id: 'ad-1',
-    clientId: 'client-1',
-    label: 'Lobby ad',
     sourceReference: 'https://example.com/ad.jpg',
     isActive: true,
     displayOrder: 1,
+    advertiser: 'Sponsor',
     ...partial
   };
-}
-
-function buildClient(partial: Partial<Client> = {}): Client {
-  return { id: 'client-1', name: 'Sponsor', isActive: true, ...partial };
 }
 
 describe('AdsFacade', () => {
@@ -41,7 +35,7 @@ describe('AdsFacade', () => {
 
   it('refresh exposes loaded ads through ads and ready signals', () => {
     facade.refresh().subscribe();
-    httpController.expectOne('/api/ads').flush([buildAd(), buildAd({ id: 'ad-2', label: 'Hall ad' })]);
+    httpController.expectOne('/api/ads').flush([buildAd(), buildAd({ id: 'ad-2' })]);
     expect(facade.ads().length).toBe(2);
     expect(facade.ready()).toBeTrue();
   });
@@ -61,50 +55,64 @@ describe('AdsFacade', () => {
     expect(facade.error()?.category).toBe('permission');
   });
 
-  it('loadClients exposes active client list', () => {
-    facade.loadClients().subscribe();
-    httpController.expectOne('/api/clients').flush([buildClient(), buildClient({ id: 'client-2', name: 'Host' })]);
-    expect(facade.clients().length).toBe(2);
-  });
-
   it('loadAd populates current signal', () => {
     facade.loadAd('ad-1').subscribe();
-    httpController.expectOne('/api/ads/ad-1').flush(buildAd({ label: 'Featured' }));
-    expect(facade.current()?.label).toBe('Featured');
+    httpController.expectOne('/api/ads/ad-1').flush(buildAd({ displayOrder: 5 }));
+    expect(facade.current()?.displayOrder).toBe(5);
   });
 
   it('save creates an ad without file and refreshes list', () => {
-    facade.save({ clientId: 'client-1', label: 'Lobby', sourceReference: 'x', isActive: true, displayOrder: 1 }).subscribe();
+    facade.save({ sourceReference: 'x', isActive: true, displayOrder: 1, advertiser: 'Sponsor' }).subscribe();
     const post = httpController.expectOne('/api/ads');
     expect(post.request.method).toBe('POST');
+    const body = post.request.body as Record<string, unknown>;
+    expect('clientId' in body).toBeFalse();
+    expect('label' in body).toBeFalse();
+    expect(body['advertiser']).toBe('Sponsor');
     post.flush(buildAd());
     httpController.expectOne('/api/ads').flush([buildAd()]);
   });
 
   it('save updates an existing ad when id is provided', () => {
-    facade.save({ clientId: 'client-1', label: 'Lobby', sourceReference: 'x', isActive: true, displayOrder: 1 }, 'ad-1').subscribe();
+    facade.save({ sourceReference: 'x', isActive: true, displayOrder: 1, advertiser: 'Sponsor' }, 'ad-1').subscribe();
     const put = httpController.expectOne('/api/ads/ad-1');
     expect(put.request.method).toBe('PUT');
+    const body = put.request.body as Record<string, unknown>;
+    expect('clientId' in body).toBeFalse();
+    expect('label' in body).toBeFalse();
     put.flush(buildAd());
     httpController.expectOne('/api/ads').flush([buildAd()]);
   });
 
   it('save uploads multipart FormData when a file is provided on create', () => {
     const file = new File(['binary'], 'ad.jpg', { type: 'image/jpeg' });
-    facade.save({ clientId: 'client-1', label: 'Lobby', sourceReference: '', isActive: true, displayOrder: 1 }, undefined, file).subscribe();
+    facade.save({ sourceReference: '', isActive: true, displayOrder: 1, advertiser: 'Sponsor' }, undefined, file).subscribe();
     const post = httpController.expectOne('/api/ads/upload');
     expect(post.request.method).toBe('POST');
     expect(post.request.body instanceof FormData).toBeTrue();
+    const formData = post.request.body as FormData;
+    expect(formData.has('clientId')).toBeFalse();
+    expect(formData.has('label')).toBeFalse();
+    expect(formData.get('advertiser')).toBe('Sponsor');
     post.flush(buildAd());
     httpController.expectOne('/api/ads').flush([buildAd()]);
   });
 
   it('save updates without file when id is provided', () => {
-    facade.save({ clientId: 'client-1', label: 'Lobby', sourceReference: 'x', isActive: true, displayOrder: 1 }, 'ad-1').subscribe();
+    facade.save({ sourceReference: 'x', isActive: true, displayOrder: 1, advertiser: 'Sponsor' }, 'ad-1').subscribe();
     const put = httpController.expectOne('/api/ads/ad-1');
     expect(put.request.method).toBe('PUT');
     put.flush(buildAd());
     httpController.expectOne('/api/ads').flush([]);
+  });
+
+  it('reorder sends the orderedIds list to the new endpoint', () => {
+    facade.reorder(['ad-2', 'ad-1', 'ad-3']).subscribe();
+    const req = httpController.expectOne('/api/ads/reorder');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ orderedIds: ['ad-2', 'ad-1', 'ad-3'] });
+    req.flush(null);
+    httpController.expectOne('/api/ads').flush([buildAd(), buildAd({ id: 'ad-2' })]);
   });
 
   it('remove issues DELETE and refreshes the list', () => {

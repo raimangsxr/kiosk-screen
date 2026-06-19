@@ -50,7 +50,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         />
         <a mat-button color="primary" routerLink="/admin/readiness">
           <mat-icon aria-hidden="true">fact_check</mat-icon>
-          Review readiness
+          Run setup check
         </a>
       </div>
 
@@ -85,7 +85,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
       </section>
 
       <section *ngIf="s.blockers.length || s.warnings.length" class="dashboard__alerts">
-        <h3 class="dashboard__alerts-title">Readiness</h3>
+        <h3 class="dashboard__alerts-title">Setup check</h3>
         <ul class="dashboard__alerts-list">
           <li *ngFor="let blocker of s.blockers" class="dashboard__alert dashboard__alert--blocked">
             <mat-icon aria-hidden="true">error</mat-icon>
@@ -131,16 +131,16 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
       .dashboard__status {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 8px;
         flex-wrap: wrap;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
       }
       .dashboard__grid,
       .dashboard__actions-grid {
         display: grid;
-        gap: 12px;
+        gap: 8px;
         grid-template-columns: 1fr;
-        margin-bottom: 16px;
+        margin-bottom: 10px;
       }
       .dashboard__grid--two,
       .dashboard__actions-grid--two {
@@ -162,7 +162,13 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         background: var(--mat-sys-primary-container);
         color: var(--mat-sys-primary);
       }
-      .dashboard__tile mat-card-actions {
+      .dashboard__tile .mat-mdc-card-content,
+      .dashboard__action .mat-mdc-card-content {
+        padding: 10px 14px;
+      }
+      .dashboard__tile .mat-mdc-card-actions,
+      .dashboard__action .mat-mdc-card-actions {
+        padding: 4px 12px 10px;
         gap: 8px;
       }
       .dashboard__action p {
@@ -172,8 +178,8 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .dashboard__alerts {
-        margin: 16px 0;
-        padding: 16px;
+        margin: 10px 0;
+        padding: 12px;
         background: var(--mat-sys-surface-container-low);
         border-radius: var(--mat-sys-corner-medium);
       }
@@ -287,7 +293,6 @@ export class AdminDashboardComponent implements OnInit {
   protected iconFor(route: string): string {
     if (route.startsWith('/admin/content')) return 'photo_library';
     if (route.startsWith('/admin/ads')) return 'campaign';
-    if (route.startsWith('/admin/clients')) return 'business';
     if (route.startsWith('/admin/domains')) return 'public';
     if (route.startsWith('/admin/configuration')) return 'tune';
     if (route.startsWith('/admin/users')) return 'group';

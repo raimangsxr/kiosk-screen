@@ -42,6 +42,7 @@ import { AuthService } from '../auth/auth.service';
         justify-content: center;
         width: 40px;
         height: 40px;
+        line-height: 1;
         border-radius: 50%;
         background: var(--mat-sys-primary-container);
         color: var(--mat-sys-on-primary-container);

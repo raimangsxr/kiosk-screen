@@ -7,7 +7,6 @@ from app.auth.service import hash_password
 from app.config import Settings
 from app.domain.roles import Role
 from app.repositories.models.ad import ClientAdItem
-from app.repositories.models.client import Client
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.organization import Organization
@@ -22,7 +21,6 @@ class BootstrapResult:
     operator: User
     configuration: KioskDisplayConfiguration
     top_content: TopContentItem
-    client: Client
     ad: ClientAdItem
 
 
@@ -79,25 +77,23 @@ def bootstrap_mvp_data(
         created_by_user_id=administrator.id,
         updated_by_user_id=administrator.id
     )
-    client = Client(organization_id=organization.id, name="Sample Client", is_active=True)
-    session.add_all([configuration, top_content, client])
+    session.add_all([configuration, top_content])
     session.flush()
 
     ad = ClientAdItem(
         organization_id=organization.id,
-        client_id=client.id,
-        label="Sample Ad",
         source_reference="https://example.com/ad.jpg",
         is_active=True,
         display_order=1,
         duration_seconds=10,
+        advertiser="Sample Client",
         created_by_user_id=administrator.id,
         updated_by_user_id=administrator.id
     )
     session.add(ad)
     session.flush()
 
-    return BootstrapResult(organization, administrator, operator, configuration, top_content, client, ad)
+    return BootstrapResult(organization, administrator, operator, configuration, top_content, ad)
 
 
 def ensure_mvp_bootstrap_data(session: Session, settings: Settings) -> bool:

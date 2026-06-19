@@ -11,7 +11,6 @@ import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 
 import { AdminToolbarComponent } from '../../core/layout/admin-toolbar.component';
-import { DrawerHeaderComponent } from '../../core/layout/drawer-header.component';
 import { UserMenuComponent } from '../../core/layout/user-menu.component';
 import { BreakpointService } from '../../core/layout/breakpoint.service';
 import { AdminNavigationService } from './admin-navigation.service';
@@ -32,7 +31,6 @@ import { AdminNavigationService } from './admin-navigation.service';
     MatToolbarModule,
     MatDividerModule,
     AdminToolbarComponent,
-    DrawerHeaderComponent,
     UserMenuComponent
   ],
   template: `
@@ -53,7 +51,6 @@ import { AdminNavigationService } from './admin-navigation.service';
         [autoFocus]="isHandset() ? 'first-tabbable' : false"
         [disableClose]="!isHandset()"
       >
-        <app-drawer-header />
         <mat-nav-list aria-label="Admin sections">
           @for (item of navigation.items; track item.route) {
             <a
@@ -199,9 +196,6 @@ export class AdminShellComponent implements OnInit {
     if (route.startsWith('/admin/ads')) {
       return 'campaign';
     }
-    if (route.startsWith('/admin/clients')) {
-      return 'business';
-    }
     if (route.startsWith('/admin/domains')) {
       return 'public';
     }
@@ -210,6 +204,9 @@ export class AdminShellComponent implements OnInit {
     }
     if (route.startsWith('/admin/readiness')) {
       return 'fact_check';
+    }
+    if (route === '/remote-control') {
+      return 'cast_connected';
     }
     if (route.startsWith('/admin/users')) {
       return 'group';

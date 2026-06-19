@@ -5,18 +5,19 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_content_schema
-from app.api.schemas import ContentItemRequest, ContentItemSchema
+from app.api.schemas import ContentItemRequest, ContentItemSchema, ReorderRequest
 from app.auth.dependencies import CurrentUser, get_current_user, require_roles
 from app.domain.roles import CONTENT_MANAGEMENT_ROLES
 from app.repositories.session import get_session
 from app.services.content_service import ContentService
+from app.shared.errors.application_errors import ApplicationError
 
 router = APIRouter(prefix="/content", tags=["Top Content"])
 
 
 @router.get("", response_model=list[ContentItemSchema])
 def list_content(user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> list[ContentItemSchema]:
-    return [to_content_schema(item) for item in ContentService(session).list(user.organization_id)]
+    return [to_content_schema(item) for item in ContentService(session).list_items(user.organization_id)]
 
 
 @router.post("", response_model=ContentItemSchema, status_code=status.HTTP_201_CREATED)
@@ -48,7 +49,7 @@ def upload_content(
     title: str = Form(...),
     content_type: str = Form(..., alias="contentType"),
     is_active: bool = Form(..., alias="isActive"),
-    display_order: int = Form(..., alias="displayOrder"),
+    display_order: int | None = Form(default=None, alias="displayOrder"),
     duration_seconds: int | None = Form(default=None, alias="durationSeconds"),
     rotation_animation: str | None = Form(default=None, alias="rotationAnimation"),
     animation_duration_milliseconds: int | None = Form(default=None, alias="animationDurationMilliseconds"),
@@ -109,3 +110,18 @@ def delete_content(
         ContentService(session).delete(user.organization_id, user.id, content_id)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_content(
+    payload: ReorderRequest,
+    user: CurrentUser = Depends(require_roles(CONTENT_MANAGEMENT_ROLES)),
+    session: Session = Depends(get_session)
+) -> None:
+    """Reorder the organization's top-content items."""
+    try:
+        ContentService(session).reorder(user.organization_id, user.id, payload.ordered_ids)
+    except ApplicationError:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

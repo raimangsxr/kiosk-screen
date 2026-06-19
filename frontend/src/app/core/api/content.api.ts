@@ -20,7 +20,7 @@ export interface ContentItem {
   effectiveAnimationDurationMilliseconds?: number | null;
 }
 
-export type ContentItemRequest = Omit<ContentItem, 'id'>;
+export type ContentItemRequest = Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number };
 
 @Injectable({ providedIn: 'root' })
 export class ContentApiService {
@@ -30,11 +30,11 @@ export class ContentApiService {
     return this.http.get<ContentItem[]>('/api/content', { withCredentials: true });
   }
 
-  create(payload: ContentItemRequest): Observable<ContentItem> {
+  create(payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }): Observable<ContentItem> {
     return this.http.post<ContentItem>('/api/content', payload, { withCredentials: true });
   }
 
-  createIframe(payload: ContentItemRequest): Observable<ContentItem> {
+  createIframe(payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }): Observable<ContentItem> {
     return this.http.post<ContentItem>('/api/content/iframe', payload, { withCredentials: true });
   }
 
@@ -42,7 +42,7 @@ export class ContentApiService {
     return this.http.get<ContentItem>(`/api/content/${id}`, { withCredentials: true });
   }
 
-  update(id: string, payload: ContentItemRequest): Observable<ContentItem> {
+  update(id: string, payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }): Observable<ContentItem> {
     return this.http.put<ContentItem>(`/api/content/${id}`, payload, { withCredentials: true });
   }
 
@@ -50,16 +50,22 @@ export class ContentApiService {
     return this.http.delete<void>(`/api/content/${id}`, { withCredentials: true });
   }
 
-  upload(payload: ContentItemRequest, file: File): Observable<ContentItem> {
+  upload(payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }, file: File): Observable<ContentItem> {
     const body = new FormData();
     body.append('file', file);
     body.append('title', payload.title);
     body.append('contentType', payload.contentType);
     body.append('isActive', String(payload.isActive));
-    body.append('displayOrder', String(payload.displayOrder));
+    if (payload.displayOrder !== undefined) {
+      body.append('displayOrder', String(payload.displayOrder));
+    }
     if (payload.durationSeconds) body.append('durationSeconds', String(payload.durationSeconds));
     if (payload.rotationAnimation) body.append('rotationAnimation', payload.rotationAnimation);
     if (payload.animationDurationMilliseconds) body.append('animationDurationMilliseconds', String(payload.animationDurationMilliseconds));
     return this.http.post<ContentItem>('/api/content/upload', body, { withCredentials: true });
+  }
+
+  reorderContent(orderedIds: string[]): Observable<void> {
+    return this.http.post<void>('/api/content/reorder', { orderedIds }, { withCredentials: true });
   }
 }

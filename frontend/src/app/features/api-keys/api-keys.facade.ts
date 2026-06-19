@@ -89,6 +89,22 @@ export class ApiKeysFacade {
     );
   }
 
+  delete(id: string) {
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return this.api.delete(id).pipe(
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return throwError(() => error);
+      }),
+    );
+  }
+
   clearError(): void {
     this.errorState.set(null);
   }

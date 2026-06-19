@@ -7,7 +7,7 @@ from typing import Optional
 from app.repositories.api_keys import ApiKeyRepository
 from app.repositories.base import utc_now
 from app.repositories.models.api_key import ApiKey
-from app.shared.errors.application_errors import ApiKeyRevokedError, InactiveApiKeyError, InvalidApiKeyError
+from app.shared.errors.application_errors import ApiKeyNotRevokedError, ApiKeyRevokedError, InactiveApiKeyError, InvalidApiKeyError
 
 
 KEY_PREFIX_LITERAL = "ksk_live_"
@@ -104,6 +104,15 @@ class ApiKeyService:
         if not record.is_active:
             return True
         self.repository.revoke(record)
+        return True
+
+    def delete(self, organization_id: str, key_id: str) -> bool:
+        record = self.repository.get_by_id(organization_id, key_id)
+        if record is None:
+            return False
+        if record.is_active:
+            raise ApiKeyNotRevokedError()
+        self.repository.delete(record)
         return True
 
     def mark_used(self, key: ApiKey) -> None:

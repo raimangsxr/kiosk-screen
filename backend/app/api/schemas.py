@@ -121,7 +121,7 @@ class ContentItemRequest(CamelModel):
     source_reference: str = Field(alias="sourceReference")
     approved_domain_id: UUID | None = Field(default=None, alias="approvedDomainId")
     is_active: bool = Field(alias="isActive")
-    display_order: int = Field(alias="displayOrder", ge=1)
+    display_order: int | None = Field(default=None, alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
     rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
     animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
@@ -129,21 +129,12 @@ class ContentItemRequest(CamelModel):
     available_until: datetime | None = Field(default=None, alias="availableUntil")
 
 
-class ClientSchema(CamelModel):
-    id: UUID
-    name: str
-    is_active: bool = Field(alias="isActive")
-
-
-class ClientRequest(CamelModel):
-    name: str
-    is_active: bool = Field(alias="isActive")
+class ReorderRequest(CamelModel):
+    ordered_ids: list[str] = Field(alias="orderedIds", min_length=1)
 
 
 class AdItemSchema(CamelModel):
     id: UUID
-    client_id: UUID = Field(alias="clientId")
-    label: str
     source_reference: str = Field(alias="sourceReference")
     media_file: MediaFileReferenceSchema | None = Field(default=None, alias="mediaFile")
     is_active: bool = Field(alias="isActive")
@@ -156,19 +147,19 @@ class AdItemSchema(CamelModel):
     effective_animation_duration_milliseconds: int | None = Field(default=None, alias="effectiveAnimationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
+    advertiser: str | None = Field(default=None, max_length=120)
 
 
 class AdItemRequest(CamelModel):
-    client_id: UUID = Field(alias="clientId")
-    label: str
     source_reference: str = Field(alias="sourceReference")
     is_active: bool = Field(alias="isActive")
-    display_order: int = Field(alias="displayOrder", ge=1)
+    display_order: int | None = Field(default=None, alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
     rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
     animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
+    advertiser: str | None = Field(default=None, max_length=120)
 
 
 class ApprovedEmbeddedDomainSchema(CamelModel):

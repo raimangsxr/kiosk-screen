@@ -170,6 +170,69 @@ def test_revoke_unknown_returns_404(api_client: TestClient):
     assert r.status_code in (400, 404)
 
 
+# --- Spec 012: hard-delete revoked keys --------------------------------------
+
+
+def test_delete_active_key_returns_409(api_client: TestClient):
+    _admin_login(api_client)
+    body = _create_key(api_client, label="cannot delete active")
+    key_id = body["record"]["id"]
+    r = api_client.post(f"/api/admin/api-keys/{key_id}/delete")
+    assert r.status_code == 409
+    assert r.json()["code"] == "api_key_not_revoked"
+
+    listing = api_client.get("/api/admin/api-keys").json()
+    assert any(item["id"] == key_id for item in listing)
+
+
+def test_delete_revoked_key_removes_from_list(api_client: TestClient):
+    _admin_login(api_client)
+    body = _create_key(api_client, label="delete me")
+    key_id = body["record"]["id"]
+
+    assert api_client.delete(f"/api/admin/api-keys/{key_id}").status_code == 204
+    r = api_client.post(f"/api/admin/api-keys/{key_id}/delete")
+    assert r.status_code == 204
+
+    listing = api_client.get("/api/admin/api-keys").json()
+    assert not any(item["id"] == key_id for item in listing)
+
+
+def test_delete_unknown_id_returns_404(api_client: TestClient):
+    _admin_login(api_client)
+    r = api_client.post("/api/admin/api-keys/00000000-0000-0000-0000-000000000000/delete")
+    assert r.status_code in (400, 404)
+
+
+def test_delete_records_audit_event(api_client: TestClient):
+    from app.repositories.models.display_event import DisplayEvent
+    from app.repositories.session import get_session
+
+    _admin_login(api_client)
+    body = _create_key(api_client, label="audited delete")
+    key_id = body["record"]["id"]
+    assert api_client.delete(f"/api/admin/api-keys/{key_id}").status_code == 204
+    assert api_client.post(f"/api/admin/api-keys/{key_id}/delete").status_code == 204
+
+    api_client.get("/api/display/state")
+    gen = api_client.app.dependency_overrides[get_session]()
+    session = next(gen)
+    try:
+        events = session.query(DisplayEvent).filter(
+            DisplayEvent.entity_type == "api_key",
+            DisplayEvent.entity_id == key_id,
+        ).all()
+        actions = {(e.event_metadata.get("action"), e.severity) for e in events}
+    finally:
+        try:
+            next(gen)
+        except StopIteration:
+            pass
+        session.close()
+
+    assert ("delete", "warning") in actions
+
+
 # --- FR-022: multiple keys per org -------------------------------------------
 
 

@@ -21,6 +21,7 @@ from app.services.api_key_service import (
     _hash,
 )
 from app.shared.errors.application_errors import (
+    ApiKeyNotRevokedError,
     ApiKeyRevokedError,
     InactiveApiKeyError,
 )
@@ -210,6 +211,28 @@ def test_revoke_is_idempotent(service: ApiKeyService, repository: ApiKeyReposito
 def test_revoke_returns_false_when_not_found(service: ApiKeyService, repository: ApiKeyRepository):
     repository.get_by_id.return_value = None
     assert service.revoke(organization_id="org-1", key_id="missing") is False
+
+
+def test_delete_removes_revoked_key(service: ApiKeyService, repository: ApiKeyRepository):
+    record = _fake_key(is_active=False)
+    repository.get_by_id.return_value = record
+
+    assert service.delete(organization_id="org-1", key_id="key-1") is True
+    repository.delete.assert_called_once_with(record)
+
+
+def test_delete_rejects_active_key(service: ApiKeyService, repository: ApiKeyRepository):
+    record = _fake_key(is_active=True)
+    repository.get_by_id.return_value = record
+
+    with pytest.raises(ApiKeyNotRevokedError):
+        service.delete(organization_id="org-1", key_id="key-1")
+    repository.delete.assert_not_called()
+
+
+def test_delete_returns_false_when_not_found(service: ApiKeyService, repository: ApiKeyRepository):
+    repository.get_by_id.return_value = None
+    assert service.delete(organization_id="org-1", key_id="missing") is False
 
 
 def test_mark_used_delegates_to_repository(service: ApiKeyService, repository: ApiKeyRepository):

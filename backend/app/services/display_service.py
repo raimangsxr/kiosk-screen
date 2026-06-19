@@ -9,7 +9,6 @@ from app.domain.display_events import create_display_event
 from app.domain.roles import Role, can_open_display
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.ad import ClientAdItem
-from app.repositories.models.client import Client
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.operator_session import OperatorSession
@@ -45,11 +44,9 @@ def eligible_ads(session: Session, organization_id: str, now: datetime | None = 
     current_time = now or utc_now()
     rows = session.execute(
         select(ClientAdItem)
-        .join(Client, Client.id == ClientAdItem.client_id)
         .where(
             ClientAdItem.organization_id == organization_id,
-            ClientAdItem.is_active.is_(True),
-            Client.is_active.is_(True)
+            ClientAdItem.is_active.is_(True)
         )
         .order_by(ClientAdItem.display_order)
     )

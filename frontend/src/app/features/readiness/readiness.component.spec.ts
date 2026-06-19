@@ -75,7 +75,6 @@ describe('ReadinessComponent (Material)', () => {
     const component = fixture.componentInstance;
     expect(component.resolveRoute('No content available')).toBe('/admin/content');
     expect(component.resolveRoute('Missing ad image')).toBe('/admin/ads');
-    expect(component.resolveRoute('No client configured')).toBe('/admin/clients');
     expect(component.resolveRoute('No approved iframe domain')).toBe('/admin/domains');
     expect(component.resolveRoute('Display configuration incomplete')).toBe('/admin/configuration');
     expect(component.resolveRoute('No user with role')).toBe('/admin/users');
@@ -99,5 +98,16 @@ describe('ReadinessComponent (Material)', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Ready to open kiosk');
+  });
+
+  it('uses Setup check as the page title and description', () => {
+    fixture.detectChanges();
+    httpController.expectOne('/api/readiness').flush(buildReport({ ready: true, blockers: [] }));
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Setup check');
+    expect(text).toContain(
+      'Verify all kiosk setup is complete before opening the display for an event.'
+    );
   });
 });

@@ -27,6 +27,16 @@ class ApplicationError(Exception):
     details: dict[str, Any] = field(default_factory=dict)
 
 
+class ConflictApplicationError(ApplicationError):
+    def __init__(
+        self,
+        code: str,
+        user_message: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(409, code, user_message, "conflict", details=details or {})
+
+
 class ValidationApplicationError(ApplicationError):
     def __init__(self, code: str, user_message: str, details: dict[str, Any] | None = None):
         super().__init__(400, code, user_message, "validation", details=details or {})
@@ -123,4 +133,23 @@ class ApiKeyRevokedError(DependencyApplicationError):
         super().__init__(
             "api_key_revoked",
             "This API key has been revoked and cannot be rotated.",
+        )
+
+
+class ApiKeyNotRevokedError(DependencyApplicationError):
+    def __init__(self) -> None:
+        super().__init__(
+            "api_key_not_revoked",
+            "Only revoked keys can be deleted.",
+        )
+
+
+class ReorderIdsMismatchError(ConflictApplicationError):
+    """Raised when a reorder request's ``orderedIds`` does not match
+    the current set of rows for the organization."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "reorder_ids_mismatch",
+            "The list changed; refresh and try again.",
         )

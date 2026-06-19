@@ -9,6 +9,7 @@ Endpoints:
 - ``POST   /api/admin/api-keys`` — create; returns raw value **once**.
 - ``POST   /api/admin/api-keys/{id}/rotate`` — in-place; returns new raw value once.
 - ``DELETE /api/admin/api-keys/{id}`` — revoke (idempotent 204).
+- ``POST   /api/admin/api-keys/{id}/delete`` — hard-delete a revoked key (204).
 """
 from typing import Annotated
 
@@ -29,6 +30,7 @@ from app.repositories.session import get_session
 from app.services.api_key_service import ApiKeyService
 from app.shared.errors.application_errors import (
     ApiKeyNotFoundError,
+    ApiKeyNotRevokedError,
     ApiKeyRevokedError,
 )
 
@@ -175,3 +177,39 @@ def revoke_api_key(
         )
         DisplayEventRepository(session).record(event)
         session.commit()
+
+
+@router.post("/{key_id}/delete", status_code=status.HTTP_204_NO_CONTENT)
+def delete_api_key(
+    key_id: Annotated[str, Path(...)],
+    user: CurrentUser = Depends(require_roles(ADMIN_ROLES)),
+    session: Session = Depends(get_session),
+):
+    """Hard-delete a previously revoked API key.
+
+    Only revoked keys can be deleted. Attempting to delete an active
+    key returns 409 with code ``api_key_not_revoked``. The audit
+    trail in ``display_events`` outlives the row (it is keyed by
+    ``entity_id`` and has no FK), so the history is preserved.
+    """
+    repository = ApiKeyRepository(session)
+    pre = repository.get_by_id(user.organization_id, key_id)
+    if pre is None:
+        raise ApiKeyNotFoundError()
+    label = pre.label
+    service = ApiKeyService(repository)
+    try:
+        deleted = service.delete(user.organization_id, key_id)
+    except ApiKeyNotRevokedError:
+        raise
+    if not deleted:
+        raise ApiKeyNotFoundError()
+    event = create_api_key_event(
+        organization_id=user.organization_id,
+        api_key_id=key_id,
+        action="delete",
+        key_label=label,
+        created_by_user_id=user.id,
+    )
+    DisplayEventRepository(session).record(event)
+    session.commit()

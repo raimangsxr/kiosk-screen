@@ -27,4 +27,12 @@ export class ApiKeysApiService {
   revoke(id: string): Observable<void> {
     return this.http.delete<void>(`/api/admin/api-keys/${id}`, { withCredentials: true });
   }
+
+  delete(id: string): Observable<void> {
+    return this.http.post<void>(
+      `/api/admin/api-keys/${id}/delete`,
+      {},
+      { withCredentials: true },
+    );
+  }
 }

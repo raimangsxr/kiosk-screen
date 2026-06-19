@@ -1,1 +1,1 @@
-export type { AdItem, AdPayload, Client, ClientPayload } from '../../shared/admin-ui.models';
+export type { AdItem, AdPayload } from '../../core/api/ads.api';

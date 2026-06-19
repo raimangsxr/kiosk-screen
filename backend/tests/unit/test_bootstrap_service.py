@@ -14,7 +14,7 @@ def test_bootstrap_service_creates_mvp_fixture_data(db_session):
     db_session.commit()
 
     assert result.organization.name == "Default Organization"
-    assert result.ad.client_id == result.client.id
+    assert result.ad.advertiser == "Sample Client"
     assert result.top_content.is_active is True
     assert result.configuration.top_region_ratio == 4
     assert verify_password("admin", result.administrator.password_hash) is True
