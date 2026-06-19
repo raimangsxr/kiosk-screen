@@ -121,6 +121,23 @@ export class ContentFacade {
     );
   }
 
+  reorder(orderedIds: string[]) {
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return this.api.reorderContent(orderedIds).pipe(
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        this.refresh().subscribe();
+        return throwError(() => error);
+      })
+    );
+  }
+
   clearError(): void {
     this.errorState.set(null);
   }

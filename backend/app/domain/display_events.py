@@ -59,9 +59,9 @@ def create_api_key_event(
     key_label: str,
     created_by_user_id: str | None = None,
 ) -> DisplayEventRecord:
-    if action not in {"create", "rotate", "revoke"}:
+    if action not in {"create", "rotate", "revoke", "delete"}:
         raise ValueError(f"Unknown api-key action: {action!r}")
-    severity = "warning" if action == "revoke" else "info"
+    severity = "warning" if action in {"revoke", "delete"} else "info"
     return create_display_event(
         organization_id=organization_id,
         event_type="api_key_changed",

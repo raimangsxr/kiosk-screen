@@ -3,7 +3,6 @@ from fastapi import APIRouter
 from app.api.v1.ads.routes import router as ads_router
 from app.api.v1.api_keys.routes import router as api_keys_router
 from app.api.v1.auth.routes import router as auth_router
-from app.api.v1.clients.routes import router as clients_router
 from app.api.v1.content.routes import router as content_router
 from app.api.v1.display.routes import configuration_router, display_router
 from app.api.v1.domains.routes import router as approved_domains_router
@@ -19,7 +18,6 @@ api_v1_router.include_router(auth_router)
 api_v1_router.include_router(display_router)
 api_v1_router.include_router(configuration_router)
 api_v1_router.include_router(content_router)
-api_v1_router.include_router(clients_router)
 api_v1_router.include_router(ads_router)
 api_v1_router.include_router(media_router)
 api_v1_router.include_router(approved_domains_router)

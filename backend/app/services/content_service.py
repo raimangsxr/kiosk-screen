@@ -13,6 +13,7 @@ from app.repositories.events import DisplayEventRepository
 from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
 from app.repositories.models.content import TopContentItem
 from app.services.api_key_service import ApiKeyService
+from app.services.display_order import assign_ordered_display_orders, next_display_order
 from app.services.media_storage_service import MediaStorageService
 
 
@@ -49,11 +50,16 @@ class ContentService:
         self.repository = ContentRepository(session)
         self.settings = get_settings()
 
-    def list(self, organization_id: str) -> list[TopContentItem]:
+    def list_items(self, organization_id: str) -> list[TopContentItem]:
         return self.repository.list(organization_id)
 
     def create(self, organization_id: str, user_id: str, payload: ContentItemRequest) -> TopContentItem:
         validate_content(self.session, organization_id, payload)
+        display_order = (
+            payload.display_order
+            if payload.display_order is not None
+            else next_display_order(self.session, TopContentItem, organization_id, "content")
+        )
         item = TopContentItem(
             organization_id=organization_id,
             title=payload.title,
@@ -61,7 +67,7 @@ class ContentService:
             source_reference=payload.source_reference,
             approved_domain_id=str(payload.approved_domain_id) if payload.approved_domain_id else None,
             is_active=payload.is_active,
-            display_order=payload.display_order,
+            display_order=display_order,
             duration_seconds=payload.duration_seconds,
             rotation_animation=payload.rotation_animation,
             animation_duration_milliseconds=payload.animation_duration_milliseconds,
@@ -109,6 +115,11 @@ class ContentService:
         media_type = "image" if payload.content_type == "photo" else "video"
         media = MediaStorageService(self.session).save_upload(organization_id, user_id, upload, media_type)
         try:
+            display_order = (
+                payload.display_order
+                if payload.display_order is not None
+                else next_display_order(self.session, TopContentItem, organization_id, "content")
+            )
             item = TopContentItem(
                 organization_id=organization_id,
                 title=payload.title,
@@ -117,7 +128,7 @@ class ContentService:
                 media_file_id=media.id,
                 approved_domain_id=None,
                 is_active=payload.is_active,
-                display_order=payload.display_order,
+                display_order=display_order,
                 duration_seconds=payload.duration_seconds,
                 rotation_animation=payload.rotation_animation,
                 animation_duration_milliseconds=payload.animation_duration_milliseconds,
@@ -277,6 +288,25 @@ class ContentService:
         self.session.flush()
         if media_id:
             MediaStorageService(self.session).delete_if_unreferenced(media_id, organization_id)
+        self.session.commit()
+
+    def reorder(self, organization_id: str, user_id: str, ordered_ids: list[str]) -> None:
+        from app.shared.errors.application_errors import ReorderIdsMismatchError
+
+        existing_ids = {
+            item.id for item in self.repository.list(organization_id)
+        }
+        if set(ordered_ids) != existing_ids:
+            raise ReorderIdsMismatchError()
+        updated = assign_ordered_display_orders(
+            self.session, TopContentItem, organization_id, "content", ordered_ids
+        )
+        if updated != len(ordered_ids):
+            raise ReorderIdsMismatchError()
+        self._record_change(
+            organization_id, user_id, "content_changed", "Content reordered",
+            metadata={"count": updated}
+        )
         self.session.commit()
 
     def _record_change(

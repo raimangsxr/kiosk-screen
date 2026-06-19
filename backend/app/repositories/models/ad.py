@@ -15,8 +15,6 @@ class ClientAdItem(IdMixin, TimestampMixin, Base):
     )
 
     organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), nullable=False)
-    client_id: Mapped[str] = mapped_column(ForeignKey("clients.id"), nullable=False)
-    label: Mapped[str] = mapped_column(String(255), nullable=False)
     source_reference: Mapped[str] = mapped_column(String(1024), nullable=False)
     media_file_id: Mapped[str | None] = mapped_column(ForeignKey("media_file_references.id"), nullable=True)
     media_file: Mapped[object | None] = relationship("MediaFileReference")
@@ -27,5 +25,6 @@ class ClientAdItem(IdMixin, TimestampMixin, Base):
     animation_duration_milliseconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     available_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     available_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    advertiser: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     updated_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)

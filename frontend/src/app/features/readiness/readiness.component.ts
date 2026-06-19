@@ -30,17 +30,17 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
   template: `
     <app-page-header
       eyebrow="Administration"
-      title="Readiness"
-      description="Kiosk setup blockers and warnings. Resolve each item before opening the display."
+      title="Setup check"
+      description="Verify all kiosk setup is complete before opening the display for an event."
     />
 
     <mat-card appearance="outlined" class="readiness__card">
       <mat-card-content>
-        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading readiness" />
+        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading setup check" />
         <app-admin-state
           *ngIf="facade.error() as error"
           type="error"
-          title="Readiness unavailable"
+          title="Setup check unavailable"
           [message]="error.message"
         />
 
@@ -84,8 +84,8 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
         <ng-container *ngIf="!facade.loading() && !facade.error() && !facade.report()">
           <app-admin-state
             type="empty"
-            title="No readiness report"
-            message="Readiness has not been computed yet."
+            title="No setup check yet"
+            message="The setup check has not been computed yet."
           />
         </ng-container>
       </mat-card-content>
@@ -160,9 +160,6 @@ export class ReadinessComponent implements OnInit {
     }
     if (lower.includes('ad')) {
       return '/admin/ads';
-    }
-    if (lower.includes('client')) {
-      return '/admin/clients';
     }
     if (lower.includes('domain') || lower.includes('iframe') || lower.includes('embedded')) {
       return '/admin/domains';

@@ -35,14 +35,13 @@ describe('DisplayScreenComponent', () => {
     }],
     ads: [{
       id: 'ad-1',
-      clientId: 'client-1',
-      label: 'Sponsor',
       sourceReference: 'https://example.com/ad.jpg',
       isActive: true,
       displayOrder: 1,
       durationSeconds: 10,
       effectiveDurationSeconds: 10,
-      effectiveRotationAnimation: 'slide'
+      effectiveRotationAnimation: 'slide',
+      advertiser: 'Sponsor'
     }],
     fallbackActive: false
   };
@@ -137,8 +136,8 @@ describe('DisplayScreenComponent', () => {
       configuration: { ...readyState.configuration, inlineAdCount: 1 },
       ads: [
         readyState.ads[0],
-        { ...readyState.ads[0], id: 'ad-2', label: 'Hall', displayOrder: 2 },
-        { ...readyState.ads[0], id: 'ad-3', label: 'Lobby', displayOrder: 3 }
+        { ...readyState.ads[0], id: 'ad-2', displayOrder: 2 },
+        { ...readyState.ads[0], id: 'ad-3', displayOrder: 3 }
       ]
     });
 

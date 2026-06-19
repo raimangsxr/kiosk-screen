@@ -21,20 +21,19 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
 
 import { AdsFacade } from './ads.facade';
-import { AdItem } from '../../core/api/ads.api';
+import { AdItem, AdPayload } from '../../core/api/ads.api';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { FormPageComponent } from '../../shared/ui/form-page.component';
 import { FileInputComponent } from '../../shared/ui/file-input.component';
-import { positiveInteger, nonBlankString } from '../../shared/forms/admin-validators';
+import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
 interface AdFormValue {
-  clientId: string;
-  label: string;
+  advertiser: string;
   sourceReference: string;
-  displayOrder: number;
+  displayOrder: number | null;
   durationSeconds: number | null;
   rotationAnimation: RotationAnimation | null;
   animationDurationMilliseconds: number | null;
@@ -66,7 +65,7 @@ interface AdFormValue {
     <app-page-header
       eyebrow="Administration"
       [title]="formTitle()"
-      description="Upload an image ad and bind it to an active client for the bottom region."
+      description="Upload an image ad for the bottom region. The advertiser field is optional and free-form."
     />
 
     <form
@@ -87,25 +86,15 @@ interface AdFormValue {
 
         <div class="ad-form__row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Client</mat-label>
-            <mat-select formControlName="clientId" required>
-              <mat-option value="">Select a client</mat-option>
-              <mat-option
-                *ngFor="let client of facade.clients()"
-                [value]="client.id"
-                [disabled]="!client.isActive"
-              >
-                {{ client.name }} ({{ client.isActive ? 'active' : 'inactive' }})
-              </mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.controls.clientId.hasError('required')">Client is required.</mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Label</mat-label>
-            <input matInput formControlName="label" required maxlength="120" autocomplete="off" />
-            <mat-error *ngIf="form.controls.label.hasError('required')">Label is required.</mat-error>
-            <mat-error *ngIf="form.controls.label.hasError('nonBlankString')">Label cannot be blank.</mat-error>
+            <mat-label>Advertiser</mat-label>
+            <input
+              matInput
+              formControlName="advertiser"
+              maxlength="120"
+              placeholder="Optional advertiser or sponsor name"
+              autocomplete="off"
+            />
+            <mat-hint>Free-form; shows in the list. Optional.</mat-hint>
           </mat-form-field>
         </div>
 
@@ -134,11 +123,11 @@ interface AdFormValue {
           </mat-form-field>
         </div>
 
-        <div class="ad-form__row">
+        <div class="ad-form__row" *ngIf="adId()">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Display order</mat-label>
-            <input matInput type="number" formControlName="displayOrder" min="1" required />
-            <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
+            <input matInput type="number" formControlName="displayOrder" min="1" />
+            <mat-hint>Reorder by dragging rows in the ads list.</mat-hint>
             <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
               Order must be a positive integer.
             </mat-error>
@@ -256,10 +245,9 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected readonly existingMedia = signal<string | null>(null);
 
   protected form: FormGroup<{
-    clientId: FormControl<string>;
-    label: FormControl<string>;
+    advertiser: FormControl<string>;
     sourceReference: FormControl<string>;
-    displayOrder: FormControl<number>;
+    displayOrder: FormControl<number | null>;
     durationSeconds: FormControl<number | null>;
     rotationAnimation: FormControl<RotationAnimation | null>;
     animationDurationMilliseconds: FormControl<number | null>;
@@ -272,7 +260,6 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     this.adId.set(id);
     this.buildForm();
-    this.facade.loadClients().pipe(takeUntil(this.destroy$)).subscribe();
 
     if (id) {
       this.loading.set(true);
@@ -335,16 +322,17 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       return;
     }
 
-    const payload = {
-      clientId: value.clientId,
-      label: value.label.trim(),
+    const payload: AdPayload = {
       sourceReference: value.sourceReference.trim(),
-      displayOrder: value.displayOrder,
       isActive: value.isActive,
       durationSeconds: value.durationSeconds,
       rotationAnimation: value.rotationAnimation,
-      animationDurationMilliseconds: value.animationDurationMilliseconds
+      animationDurationMilliseconds: value.animationDurationMilliseconds,
+      advertiser: value.advertiser.trim() || null
     };
+    if (value.displayOrder !== null) {
+      payload.displayOrder = value.displayOrder;
+    }
 
     this.saveError.set(null);
     const id = this.adId() || undefined;
@@ -353,7 +341,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.snackBar.open(`Saved ${value.label}.`, 'Dismiss', { duration: 3000 });
+          this.snackBar.open(`Saved ad.`, 'Dismiss', { duration: 3000 });
           this.markPristine();
           this.router.navigate(['/admin/ads']);
         },
@@ -365,13 +353,10 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
 
   private buildForm(): void {
     this.form = this.fb.nonNullable.group({
-      clientId: this.fb.nonNullable.control('', { validators: [Validators.required] }),
-      label: this.fb.nonNullable.control('', {
-        validators: [Validators.required, nonBlankString('nonBlankString')]
-      }),
+      advertiser: this.fb.nonNullable.control(''),
       sourceReference: this.fb.nonNullable.control(''),
-      displayOrder: this.fb.nonNullable.control(1, {
-        validators: [Validators.required, positiveInteger('positiveInteger')]
+      displayOrder: this.fb.control<number | null>(null, {
+        validators: [positiveInteger('positiveInteger')]
       }),
       durationSeconds: this.fb.control<number | null>(null),
       rotationAnimation: this.fb.control<RotationAnimation | null>(null),
@@ -385,8 +370,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       return;
     }
     this.form.patchValue({
-      clientId: ad.clientId,
-      label: ad.label,
+      advertiser: ad.advertiser ?? '',
       sourceReference: ad.sourceReference,
       displayOrder: ad.displayOrder,
       durationSeconds: ad.durationSeconds ?? null,
@@ -408,8 +392,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     }
     const v = this.form.value as AdFormValue;
     return JSON.stringify({
-      clientId: v.clientId,
-      label: v.label,
+      advertiser: v.advertiser,
       sourceReference: v.sourceReference,
       displayOrder: v.displayOrder,
       durationSeconds: v.durationSeconds,

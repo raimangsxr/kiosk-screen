@@ -33,6 +33,7 @@ describe('ApiKeysFacade', () => {
       'create',
       'rotate',
       'revoke',
+      'delete',
     ]);
     TestBed.configureTestingModule({
       providers: [
@@ -105,6 +106,31 @@ describe('ApiKeysFacade', () => {
       expect(facade.keys()[0].isActive).toBeFalse();
       expect(facade.saving()).toBeFalse();
       done();
+    });
+  });
+
+  it('delete() refreshes the list and clears saving', (done) => {
+    api.delete.and.returnValue(of(undefined));
+    api.list.and.returnValue(of([]));
+    facade.delete('k1').subscribe(() => {
+      expect(api.delete).toHaveBeenCalledWith('k1');
+      expect(facade.keys().length).toBe(0);
+      expect(facade.saving()).toBeFalse();
+      done();
+    });
+  });
+
+  it('delete() maps an error envelope to facade.error', (done) => {
+    api.delete.and.returnValue(throwError(() => ({ status: 409, error: { code: 'api_key_not_revoked' } })));
+    facade.delete('k1').subscribe({
+      next: () => done.fail('expected error'),
+      error: () => {
+        const err = facade.error() as ApplicationErrorContract | null;
+        expect(err).not.toBeNull();
+        expect(err!.code).toBe('api_key_not_revoked');
+        expect(facade.saving()).toBeFalse();
+        done();
+      },
     });
   });
 

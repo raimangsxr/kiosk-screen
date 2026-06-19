@@ -136,11 +136,11 @@ interface ContentFormValue {
           </div>
         }
 
-        <div class="content-form__row">
+        <div class="content-form__row" *ngIf="contentId()">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Display order</mat-label>
-            <input matInput type="number" formControlName="displayOrder" min="1" required />
-            <mat-error *ngIf="form.controls.displayOrder.hasError('required')">Order is required.</mat-error>
+            <input matInput type="number" formControlName="displayOrder" min="1" />
+            <mat-hint>Reorder by dragging rows in the content list.</mat-hint>
             <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
               Order must be a positive integer.
             </mat-error>
@@ -261,7 +261,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     title: FormControl<string>;
     contentType: FormControl<ContentType>;
     sourceReference: FormControl<string>;
-    displayOrder: FormControl<number>;
+    displayOrder: FormControl<number | null>;
     durationSeconds: FormControl<number | null>;
     rotationAnimation: FormControl<RotationAnimation | null>;
     animationDurationMilliseconds: FormControl<number | null>;
@@ -365,7 +365,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       contentType: value.contentType,
       sourceReference: value.sourceReference.trim(),
       mediaFile: null,
-      displayOrder: value.displayOrder,
+      displayOrder: value.displayOrder ?? undefined,
       isActive: value.isActive,
       durationSeconds: value.durationSeconds,
       rotationAnimation: value.rotationAnimation,
@@ -414,8 +414,8 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
         validators: [Validators.required]
       }),
       sourceReference: this.fb.nonNullable.control(''),
-      displayOrder: this.fb.nonNullable.control(1, {
-        validators: [Validators.required, positiveInteger('positiveInteger')]
+      displayOrder: this.fb.control<number | null>(null, {
+        validators: [positiveInteger('positiveInteger')]
       }),
       durationSeconds: this.fb.control<number | null>(null),
       rotationAnimation: this.fb.control<RotationAnimation | null>(null),

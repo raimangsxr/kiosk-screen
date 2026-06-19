@@ -37,14 +37,11 @@ def test_content_upload_creates_protected_media(api_client: TestClient):
 
 def test_ad_upload_creates_media_reference(api_client: TestClient):
     api_client.post("/api/auth/login", json={"email": "admin@example.com", "password": "admin"})
-    client = api_client.post("/api/clients", json={"name": "Upload Sponsor", "isActive": True})
-    assert client.status_code == 201
 
     response = api_client.post(
         "/api/ads/upload",
         data={
-            "clientId": client.json()["id"],
-            "label": "Uploaded Ad",
+            "advertiser": "Upload Sponsor",
             "isActive": "true",
             "displayOrder": "4",
             "rotationAnimation": "slide"
@@ -56,3 +53,5 @@ def test_ad_upload_creates_media_reference(api_client: TestClient):
     body = response.json()
     assert body["mediaFile"]["mediaType"] == "image"
     assert body["rotationAnimation"] == "slide"
+    assert body["advertiser"] == "Upload Sponsor"
+    assert "clientId" not in body

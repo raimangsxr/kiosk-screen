@@ -183,16 +183,11 @@ components:
           type: boolean
     AdItem:
       type: object
-      required: [id, clientId, label, sourceReference, isActive, displayOrder]
+      required: [id, sourceReference, isActive, displayOrder]
       properties:
         id:
           type: string
           format: uuid
-        clientId:
-          type: string
-          format: uuid
-        label:
-          type: string
         sourceReference:
           type: string
         isActive:
@@ -212,15 +207,14 @@ components:
           type: string
           format: date-time
           nullable: true
+        advertiser:
+          type: string
+          maxLength: 120
+          nullable: true
     AdItemRequest:
       type: object
-      required: [clientId, label, sourceReference, isActive, displayOrder]
+      required: [sourceReference, isActive, displayOrder]
       properties:
-        clientId:
-          type: string
-          format: uuid
-        label:
-          type: string
         sourceReference:
           type: string
         isActive:
@@ -524,67 +518,6 @@ paths:
       responses:
         '204':
           description: Removed.
-  /clients:
-    get:
-      tags: [Clients]
-      summary: List clients.
-      responses:
-        '200':
-          description: Clients.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Client'
-    post:
-      tags: [Clients]
-      summary: Create client.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClientRequest'
-      responses:
-        '201':
-          description: Created client.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Client'
-  /clients/{clientId}:
-    parameters:
-      - name: clientId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-    put:
-      tags: [Clients]
-      summary: Update client.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ClientRequest'
-      responses:
-        '200':
-          description: Updated client.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Client'
-    delete:
-      tags: [Clients]
-      summary: Remove client when no active ads depend on it.
-      responses:
-        '204':
-          description: Removed.
-        '409':
-          description: Active ads depend on this client.
   /ads:
     get:
       tags: [Ads]

@@ -17,8 +17,8 @@ The MVP is planned as:
 - Opens a live kiosk display for a configured event duration.
 - Rotates eligible top content and ads in configured order.
 - Enforces approved domains for embedded web content.
-- Lets authorized users manage content, ads, clients, users, roles, and kiosk
-  readiness data.
+- Lets authorized users manage content, ads, clients, users, roles, and the
+  kiosk setup check.
 
 ## Repository Status
 
@@ -32,7 +32,7 @@ Current work is organized around the MVP plan:
 - Kiosk display MVP
 - Content management
 - Client ads management
-- Admin and readiness workflows
+- Admin and setup-check workflows
 - Deployment and release validation
 
 ## Local Lab Environment
@@ -151,7 +151,7 @@ navigation to:
 - `/admin/domains` for approved iframe domains
 - `/admin/configuration` for kiosk timing, animation, inline ads, and enabled
   state
-- `/admin/readiness` for setup blockers and warnings
+- `/admin/readiness` for the setup check (preflight blockers and warnings)
 - `/admin/users` for users, active status, and existing role assignment
 
 Create and edit forms warn before losing unsaved changes. Save and validation

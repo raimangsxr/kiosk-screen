@@ -83,6 +83,10 @@ class ApiKeyRepository:
         key.is_active = False
         key.revoked_at = revoked_at or utc_now()
 
+    def delete(self, key: ApiKey) -> None:
+        self.session.delete(key)
+        self.session.flush()
+
     def count(self, organization_id: str) -> int:
         return (
             self.session.query(ApiKey)

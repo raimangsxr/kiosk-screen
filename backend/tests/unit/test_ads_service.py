@@ -1,67 +1,51 @@
-import pytest
-
-from app.api.schemas import AdItemRequest, ClientRequest
-from app.repositories.models.client import Client
+from app.api.schemas import AdItemRequest
 from app.services.ads_service import AdsService
 from app.services.bootstrap_service import bootstrap_mvp_data
 
 
-def test_ads_service_requires_active_client_for_active_ads(db_session):
-    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    inactive = Client(organization_id=result.organization.id, name="Inactive", is_active=False)
-    db_session.add(inactive)
-    db_session.commit()
-    payload = AdItemRequest(
-        clientId=inactive.id,
-        label="Blocked",
-        sourceReference="https://example.com/blocked.jpg",
-        isActive=True,
-        displayOrder=1
-    )
-
-    with pytest.raises(ValueError):
-        AdsService(db_session).create_ad(result.organization.id, result.administrator.id, payload)
-
-
-def test_ads_service_creates_client_and_ad(db_session):
+def test_ads_service_creates_ad_with_advertiser(db_session):
     result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
     db_session.commit()
     service = AdsService(db_session)
-    client = service.create_client(result.organization.id, result.administrator.id, ClientRequest(name="Sponsor", isActive=True))
     ad = service.create_ad(
         result.organization.id,
         result.administrator.id,
         AdItemRequest(
-            clientId=client.id,
-            label="Sponsor Ad",
             sourceReference="https://example.com/sponsor.jpg",
             isActive=True,
-            displayOrder=2
+            displayOrder=2,
+            advertiser="Sponsor Inc."
         )
     )
 
-    assert ad.client_id == client.id
+    assert ad.advertiser == "Sponsor Inc."
 
 
-def test_ads_service_updates_client_and_blocks_delete_with_active_ads(db_session):
+def test_ads_service_updates_advertiser(db_session):
     result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
     db_session.commit()
     service = AdsService(db_session)
-    client = service.create_client(result.organization.id, result.administrator.id, ClientRequest(name="Sponsor", isActive=True))
-    service.create_ad(
+    ad = service.create_ad(
         result.organization.id,
         result.administrator.id,
         AdItemRequest(
-            clientId=client.id,
-            label="Sponsor Ad",
             sourceReference="https://example.com/sponsor.jpg",
             isActive=True,
-            displayOrder=2
+            displayOrder=2,
+            advertiser="Sponsor Inc."
         )
     )
 
-    updated = service.update_client(result.organization.id, result.administrator.id, client.id, ClientRequest(name="Sponsor Updated", isActive=False))
+    updated = service.update_ad(
+        result.organization.id,
+        result.administrator.id,
+        ad.id,
+        AdItemRequest(
+            sourceReference="https://example.com/sponsor.jpg",
+            isActive=True,
+            displayOrder=2,
+            advertiser="Sponsor Updated"
+        )
+    )
 
-    assert updated.name == "Sponsor Updated"
-    with pytest.raises(ValueError):
-        service.delete_client(result.organization.id, result.administrator.id, client.id)
+    assert updated.advertiser == "Sponsor Updated"

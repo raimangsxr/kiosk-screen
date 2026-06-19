@@ -6,7 +6,7 @@
 - Start the frontend with `npm --prefix frontend start`.
 - Sign in as the seeded administrator or operator.
 - Confirm unauthenticated users cannot open `/display`.
-- Review readiness and confirm blockers are readable when content or ads are missing.
+- Open the setup check and confirm blockers are readable when content or ads are missing.
 - Open the display and confirm the 4/5 top region and 1/5 ad region remain stable.
 - Confirm top content and ads follow configured order.
 - Confirm unauthorized users cannot modify content, ads, domains, users, or configuration.

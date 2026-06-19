@@ -25,6 +25,16 @@ def test_admin_api_keys_endpoints_are_documented(openapi_schema: dict):
     assert "delete" in paths["/api/admin/api-keys/{key_id}"]
     assert "/api/admin/api-keys/{key_id}/rotate" in paths
     assert "post" in paths["/api/admin/api-keys/{key_id}/rotate"]
+    assert "/api/admin/api-keys/{key_id}/delete" in paths
+    assert "post" in paths["/api/admin/api-keys/{key_id}/delete"]
+
+
+def test_admin_reorder_endpoints_are_documented(openapi_schema: dict):
+    paths = openapi_schema["paths"]
+    assert "/api/ads/reorder" in paths
+    assert "post" in paths["/api/ads/reorder"]
+    assert "/api/content/reorder" in paths
+    assert "post" in paths["/api/content/reorder"]
 
 
 def test_admin_keys_response_schema_documents_raw_key(openapi_schema: dict):

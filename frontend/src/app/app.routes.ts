@@ -6,8 +6,6 @@ import { DisplayScreenComponent } from './features/display/display-screen.compon
 import { HallComponent } from './features/hall/hall.component';
 import { ContentListComponent } from './features/content/content-list.component';
 import { ContentFormComponent } from './features/content/content-form.component';
-import { ClientListComponent } from './features/clients/client-list.component';
-import { ClientFormComponent } from './features/clients/client-form.component';
 import { AdListComponent } from './features/ads/ad-list.component';
 import { AdFormComponent } from './features/ads/ad-form.component';
 import { ReadinessComponent } from './features/readiness/readiness.component';
@@ -27,8 +25,6 @@ export const routes: Routes = [
   { path: 'remote-control', component: RemoteControlComponent, canActivate: [sessionGuard] },
   { path: 'content', pathMatch: 'full', redirectTo: 'admin/content' },
   { path: 'content/new', pathMatch: 'full', redirectTo: 'admin/content/new' },
-  { path: 'clients', pathMatch: 'full', redirectTo: 'admin/clients' },
-  { path: 'clients/new', pathMatch: 'full', redirectTo: 'admin/clients/new' },
   { path: 'ads', pathMatch: 'full', redirectTo: 'admin/ads' },
   { path: 'ads/new', pathMatch: 'full', redirectTo: 'admin/ads/new' },
   { path: 'readiness', pathMatch: 'full', redirectTo: 'admin/readiness' },
@@ -40,9 +36,6 @@ export const routes: Routes = [
       { path: 'content', component: ContentListComponent },
       { path: 'content/new', component: ContentFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'content/:id/edit', component: ContentFormComponent, canDeactivate: [dirtyFormGuard] },
-      { path: 'clients', component: ClientListComponent },
-      { path: 'clients/new', component: ClientFormComponent, canDeactivate: [dirtyFormGuard] },
-      { path: 'clients/:id/edit', component: ClientFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'ads', component: AdListComponent },
       { path: 'ads/new', component: AdFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'ads/:id/edit', component: AdFormComponent, canDeactivate: [dirtyFormGuard] },

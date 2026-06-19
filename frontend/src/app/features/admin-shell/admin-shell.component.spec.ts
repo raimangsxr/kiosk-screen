@@ -45,12 +45,32 @@ describe('AdminShellComponent', () => {
     expect(text).toContain('Iframe domains');
     expect(text).toContain('Content');
     expect(text).toContain('Users and roles');
+    expect(text).toContain('Setup check');
+    expect(text).toContain('Remote control');
     expect(text).toContain('Enter kiosk mode');
 
     const kioskLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
       .find((link) => link.getAttribute('href') === '/display');
     expect(kioskLink).toBeTruthy();
     expect(kioskLink?.textContent).toContain('Enter kiosk mode');
+
+    const remoteLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
+      .find((link) => link.getAttribute('href') === '/remote-control');
+    expect(remoteLink).toBeTruthy();
+    expect(remoteLink?.textContent).toContain('Remote control');
+  });
+
+  it('renders the brand in the admin toolbar and not in the sidenav', () => {
+    const fixture = TestBed.createComponent(AdminShellComponent);
+    fixture.detectChanges();
+
+    const toolbar = fixture.nativeElement.querySelector('mat-toolbar');
+
+    expect(toolbar?.textContent).toContain('Kiosk Screen');
+    expect(toolbar?.textContent).toContain('Administration');
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Signed in user"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.drawer-header__user')).toBeNull();
   });
 
   it('updates the toolbar title when navigation changes', async () => {
