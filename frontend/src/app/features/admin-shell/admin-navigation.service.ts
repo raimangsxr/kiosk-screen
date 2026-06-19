@@ -20,6 +20,7 @@ export class AdminNavigationService {
     { label: 'Add content', route: '/admin/content/new', description: 'Upload a photo or video, or add an iframe.' },
     { label: 'Add client', route: '/admin/clients/new', description: 'Create an advertiser before uploading ads.' },
     { label: 'Add ad', route: '/admin/ads/new', description: 'Upload a client image ad.' },
+    { label: 'Open remote control', route: '/remote-control', description: 'Switch kiosk mode and ad visibility.' },
     { label: 'Configure display', route: '/admin/configuration', description: 'Set timing, animations, and inline ad count.' },
     { label: 'Approve domain', route: '/admin/domains', description: 'Allow iframe content from a trusted domain.' },
     { label: 'Manage users', route: '/admin/users', description: 'Create users and assign existing roles.' }

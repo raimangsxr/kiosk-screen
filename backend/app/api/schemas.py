@@ -55,6 +55,7 @@ class KioskConfigurationSchema(CamelModel):
     default_top_animation_duration_milliseconds: int = Field(default=300, alias="defaultTopAnimationDurationMilliseconds", ge=1)
     default_ad_animation_duration_milliseconds: int = Field(default=300, alias="defaultAdAnimationDurationMilliseconds", ge=1)
     inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
+    remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
 
@@ -68,6 +69,7 @@ class KioskConfigurationRequest(CamelModel):
     default_top_animation_duration_milliseconds: int = Field(default=300, alias="defaultTopAnimationDurationMilliseconds", ge=1)
     default_ad_animation_duration_milliseconds: int = Field(default=300, alias="defaultAdAnimationDurationMilliseconds", ge=1)
     inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
+    remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
 
@@ -89,6 +91,28 @@ class ContentItemSchema(CamelModel):
     effective_animation_duration_milliseconds: int | None = Field(default=None, alias="effectiveAnimationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
+
+
+class RemoteControlStateSchema(CamelModel):
+    content_mode: str = Field(alias="contentMode")
+    selected_content_id: UUID | None = Field(default=None, alias="selectedContentId")
+    ads_visible: bool = Field(alias="adsVisible")
+    updated_at: datetime = Field(alias="updatedAt")
+
+
+class RemoteControlStateRequest(CamelModel):
+    content_mode: str = Field(alias="contentMode")
+    selected_content_id: UUID | None = Field(default=None, alias="selectedContentId")
+    ads_visible: bool = Field(alias="adsVisible")
+
+
+class RemoteControlAdminStateSchema(RemoteControlStateSchema):
+    selected_iframe: ContentItemSchema | None = Field(default=None, alias="selectedIframe")
+    display_session_active: bool = Field(default=True, alias="displaySessionActive")
+
+
+class RemoteControlIframeOptionsSchema(CamelModel):
+    items: list[ContentItemSchema]
 
 
 class ContentItemRequest(CamelModel):
@@ -168,6 +192,8 @@ class DisplayStateSchema(CamelModel):
     configuration: KioskConfigurationSchema
     top_content: list[ContentItemSchema] = Field(alias="topContent")
     ads: list[AdItemSchema]
+    remote_control: RemoteControlStateSchema | None = Field(default=None, alias="remoteControl")
+    selected_iframe: ContentItemSchema | None = Field(default=None, alias="selectedIframe")
     fallback_active: bool = Field(alias="fallbackActive")
 
 

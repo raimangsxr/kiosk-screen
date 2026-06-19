@@ -7,6 +7,7 @@ def test_backend_refactor_boundaries_are_importable() -> None:
         "app.application.content.service",
         "app.application.ads.service",
         "app.application.display.service",
+        "app.application.display_control.service",
         "app.shared.errors.application_errors",
     ]
 

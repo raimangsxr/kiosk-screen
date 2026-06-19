@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, distinctUntilChanged, interval, shareReplay, switchMap, timer } from 'rxjs';
+import { Observable, distinctUntilChanged, shareReplay, switchMap, timer } from 'rxjs';
+
 import { MediaFileReference, RotationAnimation } from '../../shared/media-upload.models';
 
 export interface DisplayKioskConfiguration {
@@ -15,6 +16,7 @@ export interface DisplayKioskConfiguration {
   defaultTopAnimationDurationMilliseconds?: number;
   defaultAdAnimationDurationMilliseconds?: number;
   inlineAdCount?: number;
+  remoteControlPollingSeconds?: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -51,10 +53,19 @@ export interface DisplayAdItem {
   effectiveAnimationDurationMilliseconds?: number | null;
 }
 
+export interface DisplayRemoteControlState {
+  contentMode: 'loop' | 'iframe';
+  selectedContentId: string | null;
+  adsVisible: boolean;
+  updatedAt: string;
+}
+
 export interface DisplayState {
   configuration: DisplayKioskConfiguration;
   topContent: DisplayContentItem[];
   ads: DisplayAdItem[];
+  remoteControl?: DisplayRemoteControlState;
+  selectedIframe?: DisplayContentItem | null;
   fallbackActive: boolean;
 }
 
@@ -70,28 +81,29 @@ export class DisplayApiService {
     return this.http.get<DisplayState>('/api/display/state', { withCredentials: true });
   }
 
-  /**
-   * Polls `GET /api/display/state` at `pollIntervalMs` (default 5 s) and emits
-   * a new snapshot only when the ``(topContent ids, topContent displayOrder,
-   * ads ids, ads displayOrder)`` tuple changes. Other state changes (e.g.,
-   * ``lastUsedAt`` on a media reference) do NOT trigger emissions.
-   */
   watchState(pollIntervalMs: number = 5000): Observable<DisplayState> {
     return timer(0, pollIntervalMs).pipe(
       switchMap(() => this.getState()),
-      distinctUntilChanged((prev, curr) => equalByIdAndOrder(prev, curr)),
+      distinctUntilChanged((prev, curr) => equalByDisplayFingerprint(prev, curr)),
       shareReplay({ bufferSize: 1, refCount: true }),
     );
   }
 }
 
-function equalByIdAndOrder(prev: DisplayState | null, curr: DisplayState): boolean {
+function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState): boolean {
   if (prev === null) {
     return false;
   }
   return (
     sameIdsAndOrder(prev.topContent, curr.topContent) &&
-    sameIdsAndOrder(prev.ads, curr.ads)
+    sameIdsAndOrder(prev.ads, curr.ads) &&
+    prev.configuration.isEnabled === curr.configuration.isEnabled &&
+    prev.configuration.inlineAdCount === curr.configuration.inlineAdCount &&
+    prev.configuration.remoteControlPollingSeconds === curr.configuration.remoteControlPollingSeconds &&
+    prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
+    prev.remoteControl?.selectedContentId === curr.remoteControl?.selectedContentId &&
+    prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
+    prev.selectedIframe?.id === curr.selectedIframe?.id
   );
 }
 

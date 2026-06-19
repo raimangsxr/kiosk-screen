@@ -36,7 +36,7 @@ import { AuthService } from '../../core/auth/auth.service';
       <header class="hall__header">
         <p class="hall__eyebrow">Choose where to go</p>
         <h1 class="hall__title">Welcome{{ auth.displayName() ? ', ' + auth.displayName() : '' }}</h1>
-        <p class="hall__subtitle">Open the kiosk display or manage the administration panel.</p>
+        <p class="hall__subtitle">Open the kiosk display, remote control, or administration panel.</p>
       </header>
 
       <section class="hall__grid" aria-label="Hall destinations">
@@ -76,6 +76,25 @@ import { AuthService } from '../../core/auth/auth.service';
             <a mat-stroked-button color="primary" routerLink="/admin">
               <mat-icon aria-hidden="true">arrow_forward</mat-icon>
               Open admin
+            </a>
+          </mat-card-actions>
+        </mat-card>
+
+        <mat-card appearance="outlined" class="hall__tile">
+          <mat-card-header>
+            <span mat-card-avatar class="hall__tile-avatar">
+              <mat-icon aria-hidden="true" class="hall__tile-icon">touch_app</mat-icon>
+            </span>
+            <mat-card-title>Open remote control</mat-card-title>
+            <mat-card-subtitle>Override kiosk content and ad visibility.</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <p>Switch the display between rotation mode and an approved iframe without leaving the hall.</p>
+          </mat-card-content>
+          <mat-card-actions align="end">
+            <a mat-stroked-button color="primary" routerLink="/remote-control">
+              <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+              Open remote
             </a>
           </mat-card-actions>
         </mat-card>
@@ -196,7 +215,7 @@ import { AuthService } from '../../core/auth/auth.service';
       }
       @media (min-width: 720px) {
         .hall__grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
       }
       @media (max-width: 599.98px) {

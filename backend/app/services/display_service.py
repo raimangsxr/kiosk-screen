@@ -13,15 +13,19 @@ from app.repositories.models.client import Client
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.operator_session import OperatorSession
+from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.base import utc_now
+from app.application.display_control.service import DisplayControlService
 
 
-@dataclass(frozen=True)
+@dataclass
 class DisplayState:
     configuration: KioskDisplayConfiguration
     top_content: list[TopContentItem]
     ads: list[ClientAdItem]
     fallback_active: bool
+    remote_control: DisplayControlState | None = None
+    selected_iframe: TopContentItem | None = None
 
 
 def eligible_top_content(session: Session, organization_id: str, now: datetime | None = None) -> list[TopContentItem]:
@@ -63,7 +67,22 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
         raise ValueError("Display configuration is required.")
     top_content = eligible_top_content(session, organization_id, now)
     ads = eligible_ads(session, organization_id, now)[:configuration.inline_ad_count]
-    return DisplayState(configuration, top_content, ads, fallback_active=not top_content or not ads)
+    remote_control = None
+    selected_iframe = None
+    control_service = DisplayControlService(session)
+    try:
+        remote_control = control_service.get_state_for_active_session(organization_id)
+        selected_iframe = control_service.selected_iframe(remote_control)
+    except LookupError:
+        pass
+    return DisplayState(
+        configuration,
+        top_content,
+        ads,
+        fallback_active=not top_content or not ads,
+        remote_control=remote_control,
+        selected_iframe=selected_iframe,
+    )
 
 
 def open_display(
@@ -91,6 +110,9 @@ def open_display(
         valid_until=current_time + timedelta(minutes=state.configuration.configured_event_duration_minutes)
     )
     session.add(token)
+    session.flush()
+    state.remote_control = DisplayControlService(session).ensure_default_state(organization_id, token.id, user_id)
+    state.selected_iframe = None
 
     DisplayEventRepository(session).record(
         create_display_event(

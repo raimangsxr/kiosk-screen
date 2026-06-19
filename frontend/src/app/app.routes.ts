@@ -17,12 +17,21 @@ import { DisplayConfigComponent } from './features/display-config/display-config
 import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
 import { ApiKeysListComponent } from './features/api-keys/api-keys-list.component';
+import { RemoteControlComponent } from './features/remote-control/remote-control.component';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'hall', component: HallComponent, canActivate: [sessionGuard] },
   { path: 'display', component: DisplayScreenComponent, canActivate: [sessionGuard] },
+  { path: 'remote-control', component: RemoteControlComponent, canActivate: [sessionGuard] },
+  { path: 'content', pathMatch: 'full', redirectTo: 'admin/content' },
+  { path: 'content/new', pathMatch: 'full', redirectTo: 'admin/content/new' },
+  { path: 'clients', pathMatch: 'full', redirectTo: 'admin/clients' },
+  { path: 'clients/new', pathMatch: 'full', redirectTo: 'admin/clients/new' },
+  { path: 'ads', pathMatch: 'full', redirectTo: 'admin/ads' },
+  { path: 'ads/new', pathMatch: 'full', redirectTo: 'admin/ads/new' },
+  { path: 'readiness', pathMatch: 'full', redirectTo: 'admin/readiness' },
   {
     path: 'admin',
     component: AdminShellComponent,

@@ -18,6 +18,7 @@ const configuration: KioskConfiguration = {
   defaultTopAnimationDurationMilliseconds: 300,
   defaultAdAnimationDurationMilliseconds: 300,
   inlineAdCount: 2,
+  remoteControlPollingSeconds: 3,
   configuredEventDurationMinutes: 60,
   isEnabled: true
 };
@@ -94,6 +95,7 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     const form = fixture.componentInstance['form']!;
     expect(form.controls.name.value).toBe('Main kiosk');
     expect(form.controls.defaultTopDurationSeconds.value).toBe(10);
+    expect(form.controls.remoteControlPollingSeconds.value).toBe(3);
   });
 
   it('saves a valid configuration', () => {
