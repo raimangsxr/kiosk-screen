@@ -6,6 +6,11 @@ import { Subscription } from 'rxjs';
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayRotationService } from './display-rotation.service';
 
+type DisplayRenderableItem = Pick<
+  DisplayContentItem,
+  'sourceReference' | 'mediaFile' | 'rotationAnimation' | 'effectiveRotationAnimation'
+>;
+
 @Component({
   selector: 'app-display-screen',
   standalone: true,
@@ -111,11 +116,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.rotation.reset();
   }
 
-  mediaSource(item: DisplayContentItem): string {
+  mediaSource(item: DisplayRenderableItem): string {
     return item.mediaFile?.mediaUrl ?? item.sourceReference;
   }
 
-  animationClass(item: DisplayContentItem): string {
+  animationClass(item: DisplayRenderableItem): string {
     return `rotation-${item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none'}`;
   }
 

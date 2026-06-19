@@ -22,25 +22,28 @@ import { MatCardModule } from '@angular/material/card';
       }
       .page-header {
         display: grid;
-        gap: 4px;
-        margin-bottom: 8px;
+        gap: 6px;
+        margin-bottom: 4px;
       }
       .page-header__eyebrow {
         margin: 0;
-        font-size: 12px;
-        font-weight: 700;
+        font: var(--mat-sys-label-large);
         letter-spacing: 0.08em;
+        font-weight: 700;
         text-transform: uppercase;
         color: var(--mat-sys-primary);
       }
       .page-header__title {
         margin: 0;
-        font-size: 24px;
-        font-weight: 600;
+        font: var(--mat-sys-headline-small);
+        letter-spacing: var(--mat-sys-headline-small-tracking);
         color: var(--mat-sys-on-surface);
       }
       .page-header__description {
         margin: 0;
+        max-width: 760px;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
     `

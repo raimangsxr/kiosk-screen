@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,14 +23,16 @@ import { AuthService } from '../../core/auth/auth.service';
     UserMenuComponent
   ],
   template: `
-    <mat-toolbar color="primary" class="hall__toolbar">
-      <mat-icon aria-hidden="true" class="hall__brand-icon">tv</mat-icon>
-      <span class="hall__brand">Kiosk Screen</span>
+    <mat-toolbar class="hall__toolbar">
+      <span class="hall__brand-lockup">
+        <mat-icon aria-hidden="true" class="hall__brand-icon">tv</mat-icon>
+        <span class="hall__brand">Kiosk Screen</span>
+      </span>
       <span class="hall__spacer"></span>
       <app-user-menu />
     </mat-toolbar>
 
-    <main class="hall app-page" aria-label="Application hall">
+    <main class="hall" aria-label="Application hall">
       <header class="hall__header">
         <p class="hall__eyebrow">Choose where to go</p>
         <h1 class="hall__title">Welcome{{ auth.displayName() ? ', ' + auth.displayName() : '' }}</h1>
@@ -38,11 +40,13 @@ import { AuthService } from '../../core/auth/auth.service';
       </header>
 
       <section class="hall__grid" aria-label="Hall destinations">
-        <a mat-card appearance="outlined" routerLink="/display" class="hall__tile hall__tile--primary">
+        <mat-card appearance="outlined" class="hall__tile hall__tile--primary">
           <mat-card-header>
-            <mat-icon mat-card-avatar aria-hidden="true" class="hall__tile-icon hall__tile-icon--primary">
+            <span mat-card-avatar class="hall__tile-avatar hall__tile-avatar--primary">
+              <mat-icon aria-hidden="true" class="hall__tile-icon">
               play_circle
-            </mat-icon>
+              </mat-icon>
+            </span>
             <mat-card-title>Enter kiosk mode</mat-card-title>
             <mat-card-subtitle>Open the fullscreen display for the venue.</mat-card-subtitle>
           </mat-card-header>
@@ -50,16 +54,18 @@ import { AuthService } from '../../core/auth/auth.service';
             <p>Launch the rotation of approved content and ads for the top and bottom regions.</p>
           </mat-card-content>
           <mat-card-actions align="end">
-            <button mat-flat-button color="primary" type="button">
+            <a mat-flat-button color="primary" routerLink="/display">
               <mat-icon aria-hidden="true">arrow_forward</mat-icon>
               Open display
-            </button>
+            </a>
           </mat-card-actions>
-        </a>
+        </mat-card>
 
-        <a mat-card appearance="outlined" routerLink="/admin" class="hall__tile">
+        <mat-card appearance="outlined" class="hall__tile">
           <mat-card-header>
-            <mat-icon mat-card-avatar aria-hidden="true" class="hall__tile-icon">settings</mat-icon>
+            <span mat-card-avatar class="hall__tile-avatar">
+              <mat-icon aria-hidden="true" class="hall__tile-icon">settings</mat-icon>
+            </span>
             <mat-card-title>Open administration</mat-card-title>
             <mat-card-subtitle>Configure content, ads, display, and users.</mat-card-subtitle>
           </mat-card-header>
@@ -67,12 +73,12 @@ import { AuthService } from '../../core/auth/auth.service';
             <p>Manage the top content, client ads, approved iframe domains, and operator accounts.</p>
           </mat-card-content>
           <mat-card-actions align="end">
-            <button mat-stroked-button color="primary" type="button">
+            <a mat-stroked-button color="primary" routerLink="/admin">
               <mat-icon aria-hidden="true">arrow_forward</mat-icon>
               Open admin
-            </button>
+            </a>
           </mat-card-actions>
-        </a>
+        </mat-card>
       </section>
     </main>
   `,
@@ -81,7 +87,7 @@ import { AuthService } from '../../core/auth/auth.service';
       :host {
         display: block;
         min-height: 100vh;
-        background: var(--mat-sys-surface);
+        background: var(--mat-sys-surface-container-lowest);
       }
       .hall__toolbar {
         position: sticky;
@@ -90,75 +96,117 @@ import { AuthService } from '../../core/auth/auth.service';
         min-height: var(--app-touch-target);
         display: flex;
         align-items: center;
+        gap: 16px;
+        padding: 0 16px;
+        background: var(--mat-sys-surface);
+        color: var(--mat-sys-on-surface);
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
+      }
+      .hall__brand-lockup {
+        display: inline-flex;
+        align-items: center;
         gap: 12px;
       }
       .hall__brand-icon {
-        font-size: 28px;
-        width: 28px;
-        height: 28px;
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+        color: var(--mat-sys-primary);
       }
       .hall__brand {
-        font-size: 18px;
-        font-weight: 500;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .hall__spacer {
         flex: 1;
       }
       .hall {
-        padding-top: 32px;
+        width: min(100% - 32px, 1120px);
+        margin: 0 auto;
+        padding: clamp(48px, 8vh, 84px) 0 64px;
+        display: grid;
+        gap: 28px;
       }
       .hall__header {
         display: grid;
-        gap: 6px;
+        gap: 8px;
         max-width: 720px;
       }
       .hall__eyebrow {
         margin: 0;
-        font-size: 12px;
-        font-weight: 700;
+        font: var(--mat-sys-label-large);
         letter-spacing: 0.08em;
+        font-weight: 700;
         text-transform: uppercase;
         color: var(--mat-sys-primary);
       }
       .hall__title {
         margin: 0;
-        font-size: clamp(28px, 5vw, 40px);
-        font-weight: 600;
+        font: var(--mat-sys-display-small);
+        letter-spacing: var(--mat-sys-display-small-tracking);
         color: var(--mat-sys-on-surface);
       }
       .hall__subtitle {
         margin: 0;
+        font: var(--mat-sys-body-large);
+        letter-spacing: var(--mat-sys-body-large-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
       .hall__grid {
         display: grid;
-        gap: 16px;
+        gap: 20px;
         grid-template-columns: 1fr;
-        margin-top: 8px;
       }
       .hall__tile {
         display: grid;
-        text-decoration: none;
-        color: inherit;
-        cursor: pointer;
-        min-height: 220px;
-        transition: transform 120ms ease, box-shadow 120ms ease;
+        grid-template-rows: auto 1fr auto;
+        min-height: 252px;
+        background: var(--mat-sys-surface);
       }
-      .hall__tile:hover {
-        transform: translateY(-2px);
+      .hall__tile mat-card-header {
+        padding: 24px 24px 0;
       }
-      .hall__tile-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
+      .hall__tile mat-card-content {
+        padding: 16px 24px 0;
+      }
+      .hall__tile mat-card-content p {
+        margin: 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
+      }
+      .hall__tile mat-card-actions {
+        padding: 16px 24px 24px;
+      }
+      .hall__tile-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--mat-sys-surface-container-high);
         color: var(--mat-sys-primary);
       }
-      .hall__tile-icon--primary {
-        color: var(--mat-sys-tertiary);
+      .hall__tile-avatar--primary {
+        background: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+      }
+      .hall__tile-icon {
+        font-size: 26px;
+        width: 26px;
+        height: 26px;
       }
       @media (min-width: 720px) {
         .hall__grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 599.98px) {
+        .hall {
+          width: min(100% - 24px, 1120px);
+          padding-top: 32px;
+        }
+        .hall__title {
+          font: var(--mat-sys-headline-large);
+          letter-spacing: var(--mat-sys-headline-large-tracking);
         }
       }
     `
@@ -166,5 +214,4 @@ import { AuthService } from '../../core/auth/auth.service';
 })
 export class HallComponent {
   protected readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 }

@@ -11,6 +11,7 @@ import { ApiKeysFacade } from './api-keys.facade';
 import { ApiKeysApiKeyCreateDialogComponent } from './api-keys-create-dialog.component';
 import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
+import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-api-keys-list',
@@ -42,12 +43,12 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       (refresh)="onRefresh()"
       (emptyAction)="onCreate()"
     >
-      <button mat-flat-button color="primary" type="button" (click)="onCreate()" data-testid="create-key">
+      <button dataListActions mat-flat-button color="primary" type="button" (click)="onCreate()" data-testid="create-key">
         <mat-icon>add</mat-icon>
         Create key
       </button>
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.keys()" aria-label="API keys" class="api-keys-list__table">
+        <table mat-table [dataSource]="facade.keys()" aria-label="API keys" class="app-table api-keys-list__table">
           <ng-container matColumnDef="label">
             <th mat-header-cell *matHeaderCellDef>Label</th>
             <td mat-cell *matCellDef="let key">{{ key.label }}</td>
@@ -128,8 +129,22 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
         width: 100%;
       }
       .api-keys-list__never {
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--mat-sys-on-surface-variant);
         font-style: italic;
+      }
+      .api-keys-list__table th {
+        color: var(--mat-sys-on-surface-variant);
+        font-weight: 600;
+      }
+      .api-keys-list__table td,
+      .api-keys-list__table th {
+        white-space: nowrap;
+      }
+      .api-keys-list__table code {
+        padding: 2px 6px;
+        border-radius: var(--mat-sys-corner-extra-small);
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
       }
     `,
   ],
@@ -137,6 +152,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 export class ApiKeysListComponent implements OnInit {
   readonly facade = inject(ApiKeysFacade);
   private readonly dialog = inject(MatDialog);
+  private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly snackBar = inject(MatSnackBar);
 
   readonly pageTitle = 'API Keys';
@@ -153,7 +169,7 @@ export class ApiKeysListComponent implements OnInit {
     'actions',
   ];
 
-  readonly refreshAction = { label: 'Refresh', icon: 'refresh' };
+  readonly refreshAction = { route: '/admin/api-keys', label: 'Refresh', icon: 'refresh' };
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -180,9 +196,50 @@ export class ApiKeysListComponent implements OnInit {
   }
 
   onRotate(id: string, label: string): void {
-    if (!window.confirm(`Rotate "${label}"? The current value will stop working immediately.`)) {
-      return;
-    }
+    this.confirmDialog
+      .confirm({
+        title: `Rotate ${label}?`,
+        message: 'The current API key value will stop working immediately.',
+        confirmLabel: 'Rotate',
+        cancelLabel: 'Cancel',
+        destructive: true,
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed !== true) {
+          return;
+        }
+        this.openRotateDialog(id, label);
+      });
+  }
+
+  onRevoke(id: string, label: string): void {
+    this.confirmDialog
+      .confirm({
+        title: `Revoke ${label}?`,
+        message: 'This key will no longer authorize public content uploads. This cannot be undone.',
+        confirmLabel: 'Revoke',
+        cancelLabel: 'Cancel',
+        destructive: true,
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed !== true) {
+          return;
+        }
+        this.facade.revoke(id).subscribe({
+          next: () => {
+            this.snackBar.open('API key revoked.', 'Dismiss', { duration: 4000 });
+            this.facade.refresh().subscribe();
+          },
+          error: () => {
+            // Error already mapped to facade.error
+          },
+        });
+      });
+  }
+
+  private openRotateDialog(id: string, label: string): void {
     this.dialog
       .open(ApiKeysApiKeyCreateDialogComponent, {
         width: '480px',
@@ -196,20 +253,5 @@ export class ApiKeysListComponent implements OnInit {
           this.facade.refresh().subscribe();
         }
       });
-  }
-
-  onRevoke(id: string, label: string): void {
-    if (!window.confirm(`Revoke "${label}"? This cannot be undone.`)) {
-      return;
-    }
-    this.facade.revoke(id).subscribe({
-      next: () => {
-        this.snackBar.open('API key revoked.', 'Dismiss', { duration: 4000 });
-        this.facade.refresh().subscribe();
-      },
-      error: () => {
-        // Error already mapped to facade.error
-      },
-    });
   }
 }

@@ -44,7 +44,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyIcon="business"
     >
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.clients()" aria-label="Clients" class="client-list__table">
+        <table mat-table [dataSource]="facade.clients()" aria-label="Clients" class="app-table client-list__table">
           <ng-container matColumnDef="name">
             <th mat-header-cell *matHeaderCellDef>Name</th>
             <td mat-cell *matCellDef="let client">{{ client.name }}</td>
@@ -113,7 +113,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 />
               </div>
             </mat-card-content>
-            <mat-card-actions class="client-list__card-actions">
+            <mat-card-actions class="app-card-actions client-list__card-actions">
               <a
                 mat-button
                 color="primary"
@@ -158,6 +158,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .client-list__card-item {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .client-list__card-header {
         display: flex;
@@ -168,14 +169,11 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .client-list__card-title {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .client-list__card-actions {
-        display: flex;
-        gap: 8px;
         padding: 0 16px 12px;
-        flex-wrap: wrap;
       }
     `
   ]

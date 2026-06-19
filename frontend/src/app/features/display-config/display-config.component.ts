@@ -228,8 +228,8 @@ interface DisplayConfigFormValue {
       }
       .display-config__section {
         margin: 0 0 4px;
-        font-size: 14px;
-        font-weight: 600;
+        font: var(--mat-sys-title-small);
+        letter-spacing: var(--mat-sys-title-small-tracking);
         color: var(--mat-sys-on-surface);
       }
       .display-config__toggle {
@@ -241,7 +241,8 @@ interface DisplayConfigFormValue {
       }
       .display-config__hint {
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
     `
   ]

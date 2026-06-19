@@ -45,7 +45,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyIcon="public"
     >
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.domains()" aria-label="Approved domains" class="domain-list__table">
+        <table mat-table [dataSource]="facade.domains()" aria-label="Approved domains" class="app-table domain-list__table">
           <ng-container matColumnDef="domain">
             <th mat-header-cell *matHeaderCellDef>Domain</th>
             <td mat-cell *matCellDef="let domain">{{ domain.domain }}</td>
@@ -104,7 +104,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 />
               </div>
             </mat-card-content>
-            <mat-card-actions class="domain-list__card-actions">
+            <mat-card-actions class="app-card-actions domain-list__card-actions">
               <a
                 mat-button
                 color="primary"
@@ -139,6 +139,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .domain-list__card-item {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .domain-list__card-header {
         display: flex;
@@ -149,15 +150,12 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .domain-list__card-title {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
         word-break: break-all;
       }
       .domain-list__card-actions {
-        display: flex;
-        gap: 8px;
         padding: 0 16px 12px;
-        flex-wrap: wrap;
       }
     `
   ]

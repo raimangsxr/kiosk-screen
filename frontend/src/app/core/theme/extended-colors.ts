@@ -17,9 +17,9 @@ export const EXTENDED_COLORS = new InjectionToken<ExtendedColorPalette>('app.ext
 
 export const DEFAULT_EXTENDED_COLORS: ExtendedColorPalette = {
   success: {
-    container: 'var(--mat-sys-tertiary-container)',
-    onContainer: 'var(--mat-sys-on-tertiary-container)',
-    accent: 'var(--mat-sys-tertiary)'
+    container: 'var(--mat-sys-primary-container)',
+    onContainer: 'var(--mat-sys-on-primary-container)',
+    accent: 'var(--mat-sys-primary)'
   },
   warning: {
     container: 'var(--mat-sys-secondary-container)',

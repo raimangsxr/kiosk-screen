@@ -124,6 +124,7 @@ export interface ApiKeyDialogResult {
     `
       .api-keys-create-dialog__description {
         margin: 0 0 12px 0;
+        color: var(--mat-sys-on-surface-variant);
       }
       .api-keys-create-dialog__field {
         width: 100%;
@@ -137,22 +138,24 @@ export interface ApiKeyDialogResult {
         display: flex;
         align-items: flex-start;
         gap: 12px;
-        background: rgba(255, 193, 7, 0.15);
+        background: var(--mat-sys-secondary-container);
+        color: var(--mat-sys-on-secondary-container);
         padding: 12px 16px;
-        border-radius: 6px;
-        border: 1px solid rgba(255, 193, 7, 0.4);
+        border-radius: var(--mat-sys-corner-medium);
+        border: 1px solid var(--mat-sys-outline-variant);
       }
       .api-keys-create-dialog__warning mat-icon {
-        color: #ff6f00;
+        color: var(--mat-sys-secondary);
       }
       .api-keys-create-dialog__keybox {
         display: flex;
         align-items: center;
         gap: 12px;
         padding: 12px;
-        background: rgba(0, 0, 0, 0.05);
-        border-radius: 4px;
-        border: 1px solid rgba(0, 0, 0, 0.12);
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
+        border-radius: var(--mat-sys-corner-small);
+        border: 1px solid var(--mat-sys-outline-variant);
       }
       .api-keys-create-dialog__keybox code {
         flex: 1;

@@ -218,7 +218,8 @@ interface AdFormValue {
         gap: 6px;
       }
       .ad-form__file-label {
-        font-size: 14px;
+        font: var(--mat-sys-label-large);
+        letter-spacing: var(--mat-sys-label-large-tracking);
         font-weight: 500;
         color: var(--mat-sys-on-surface);
       }
@@ -231,7 +232,8 @@ interface AdFormValue {
       }
       .ad-form__hint {
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
     `
   ]

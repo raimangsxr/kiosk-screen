@@ -48,7 +48,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyIcon="photo_library"
     >
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.items()" aria-label="Top content items" class="content-list__table">
+        <table mat-table [dataSource]="facade.items()" aria-label="Top content items" class="app-table content-list__table">
           <ng-container matColumnDef="order">
             <th mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let item">{{ item.displayOrder }}</td>
@@ -133,7 +133,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               </p>
               <p class="content-list__card-rotation">{{ rotationSummary(item) }}</p>
             </mat-card-content>
-            <mat-card-actions class="content-list__card-actions">
+            <mat-card-actions class="app-card-actions content-list__card-actions">
               <a
                 mat-button
                 color="primary"
@@ -168,6 +168,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .content-list__card-item {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .content-list__card-header {
         display: flex;
@@ -178,22 +179,22 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .content-list__card-title {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .content-list__card-meta {
         margin: 4px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .content-list__card-rotation {
         margin: 6px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .content-list__card-actions {
-        display: flex;
-        gap: 8px;
         padding: 0 16px 12px;
       }
     `

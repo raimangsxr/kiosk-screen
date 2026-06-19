@@ -9,7 +9,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatToolbarModule, MatButtonModule, MatIconModule],
   template: `
-    <mat-toolbar color="primary" class="admin-toolbar">
+    <mat-toolbar class="admin-toolbar">
       @if (showMenu()) {
         <button
           mat-icon-button
@@ -38,10 +38,13 @@ import { MatToolbarModule } from '@angular/material/toolbar';
         align-items: center;
         gap: 8px;
         min-height: var(--app-touch-target);
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
+        border-bottom: 1px solid var(--mat-sys-outline-variant);
       }
       .admin-toolbar__title {
-        font-size: 18px;
-        font-weight: 500;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .admin-toolbar__spacer {
         flex: 1;

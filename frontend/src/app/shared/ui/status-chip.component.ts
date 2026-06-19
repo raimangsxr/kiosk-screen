@@ -37,14 +37,15 @@ export type StatusKind = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
         gap: 4px;
         padding: 2px 12px;
         border-radius: 999px;
-        font-size: 12px;
+        font: var(--mat-sys-label-medium);
+        letter-spacing: var(--mat-sys-label-medium-tracking);
         font-weight: 600;
         line-height: 20px;
       }
       .status-chip__icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
       }
       .status-chip--success {
         background: var(--status-success-container);

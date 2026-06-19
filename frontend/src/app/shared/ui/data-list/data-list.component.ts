@@ -47,7 +47,10 @@ export interface DataListRefreshAction {
       [description]="description()"
     />
 
-    <app-section-actions [actions]="headerActions()" />
+    <div class="data-list__actions">
+      <app-section-actions [actions]="headerActions()" />
+      <ng-content select="[dataListActions]" />
+    </div>
 
     <mat-card appearance="outlined" class="data-list__card">
       <mat-progress-bar
@@ -107,9 +110,20 @@ export interface DataListRefreshAction {
       .data-list__card {
         margin-top: 8px;
       }
+      .data-list__actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .data-list__actions app-section-actions {
+        flex: 1 1 auto;
+      }
       .data-list__content {
         display: block;
-        padding: 8px 0 0;
+        padding: 0;
       }
       .data-list__table {
         display: block;

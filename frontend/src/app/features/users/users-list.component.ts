@@ -45,7 +45,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       emptyIcon="group"
     >
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.users()" aria-label="Users and roles" class="users-list__table">
+        <table mat-table [dataSource]="facade.users()" aria-label="Users and roles" class="app-table users-list__table">
           <ng-container matColumnDef="email">
             <th mat-header-cell *matHeaderCellDef>Email</th>
             <td mat-cell *matCellDef="let user">{{ user.email }}</td>
@@ -123,7 +123,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                 <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
               </mat-chip-set>
             </mat-card-content>
-            <mat-card-actions class="users-list__card-actions">
+            <mat-card-actions class="app-card-actions users-list__card-actions">
               <a
                 mat-button
                 color="primary"
@@ -157,6 +157,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       }
       .users-list__card-item {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .users-list__card-header {
         display: flex;
@@ -167,22 +168,20 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       }
       .users-list__card-name {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .users-list__card-email {
         margin: 2px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .users-list__card-roles {
         margin-top: 8px;
       }
       .users-list__card-actions {
-        display: flex;
-        gap: 8px;
         padding: 0 16px 12px;
-        flex-wrap: wrap;
       }
     `
   ]

@@ -46,7 +46,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyIcon="campaign"
     >
       <ng-template #dataListTable>
-        <table mat-table [dataSource]="facade.ads()" aria-label="Ads" class="ad-list__table">
+        <table mat-table [dataSource]="facade.ads()" aria-label="Ads" class="app-table ad-list__table">
           <ng-container matColumnDef="order">
             <th mat-header-cell *matHeaderCellDef>Order</th>
             <td mat-cell *matCellDef="let ad">{{ ad.displayOrder }}</td>
@@ -131,7 +131,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               </p>
               <p class="ad-list__card-rotation">{{ rotationSummary(ad) }}</p>
             </mat-card-content>
-            <mat-card-actions class="ad-list__card-actions">
+            <mat-card-actions class="app-card-actions ad-list__card-actions">
               <a
                 mat-button
                 color="primary"
@@ -166,6 +166,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .ad-list__card-item {
         display: block;
+        background: var(--mat-sys-surface);
       }
       .ad-list__card-header {
         display: flex;
@@ -176,22 +177,22 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .ad-list__card-title {
         margin: 0;
-        font-size: 16px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .ad-list__card-meta {
         margin: 4px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .ad-list__card-rotation {
         margin: 6px 0 0;
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .ad-list__card-actions {
-        display: flex;
-        gap: 8px;
         padding: 0 16px 12px;
       }
     `

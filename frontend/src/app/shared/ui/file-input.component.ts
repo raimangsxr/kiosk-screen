@@ -65,7 +65,8 @@ import { MatIconModule } from '@angular/material/icon';
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 14px;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface);
       }
       .file-input__filename--existing {
@@ -74,6 +75,7 @@ import { MatIconModule } from '@angular/material/icon';
       .file-input__preview {
         max-width: 320px;
         overflow: hidden;
+        background: var(--mat-sys-surface);
       }
       .file-input__preview img {
         display: block;

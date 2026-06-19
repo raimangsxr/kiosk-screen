@@ -8,7 +8,7 @@ import {
 
 describe('extended colors', () => {
   it('exposes a default palette that maps to Material 3 system roles', () => {
-    expect(DEFAULT_EXTENDED_COLORS.success.accent).toBe('var(--mat-sys-tertiary)');
+    expect(DEFAULT_EXTENDED_COLORS.success.accent).toBe('var(--mat-sys-primary)');
     expect(DEFAULT_EXTENDED_COLORS.warning.accent).toBe('var(--mat-sys-secondary)');
     expect(DEFAULT_EXTENDED_COLORS.info.accent).toBe('var(--mat-sys-primary)');
   });

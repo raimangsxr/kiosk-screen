@@ -73,7 +73,7 @@ import { AdminNavigationService } from './admin-navigation.service';
           <mat-divider />
           <a
             mat-flat-button
-            color="tertiary"
+            color="primary"
             routerLink="/display"
             class="admin-shell__kiosk-button"
             (click)="onNavItemClick()"
@@ -96,14 +96,15 @@ import { AdminNavigationService } from './admin-navigation.service';
       :host {
         display: block;
         min-height: 100vh;
-        background: var(--mat-sys-surface);
+        background: var(--mat-sys-surface-container-lowest);
       }
       .admin-shell {
         min-height: calc(100vh - var(--app-touch-target));
+        background: var(--mat-sys-surface-container-lowest);
       }
       .admin-shell__sidenav {
         width: 280px;
-        background: var(--mat-sys-surface);
+        background: var(--mat-sys-surface-container);
         border-right: 1px solid var(--mat-sys-outline-variant);
         display: flex;
         flex-direction: column;
@@ -111,15 +112,28 @@ import { AdminNavigationService } from './admin-navigation.service';
       .admin-shell__sidenav mat-nav-list {
         flex: 1;
         overflow-y: auto;
-        padding: 8px 0;
+        padding: 8px;
+      }
+      .admin-shell__sidenav a[mat-list-item] {
+        margin: 2px 0;
+        border-radius: var(--mat-sys-corner-large);
+      }
+      .admin-shell__sidenav a[mat-list-item]:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: -2px;
       }
       .admin-shell__nav-summary {
         color: var(--mat-sys-on-surface-variant);
-        font-size: 12px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .admin-shell__nav-active {
-        background: var(--mat-sys-secondary-container);
-        color: var(--mat-sys-on-secondary-container);
+        background: var(--mat-sys-primary-container);
+        color: var(--mat-sys-on-primary-container);
+        box-shadow: inset 3px 0 0 var(--mat-sys-primary);
+      }
+      .admin-shell__nav-active mat-icon {
+        color: var(--mat-sys-primary);
       }
       .admin-shell__footer {
         padding: 12px 16px 16px;

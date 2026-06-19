@@ -156,8 +156,8 @@ interface UserFormValue {
       }
       .user-form__section {
         margin: 0 0 8px;
-        font-size: 14px;
-        font-weight: 600;
+        font: var(--mat-sys-title-small);
+        letter-spacing: var(--mat-sys-title-small-tracking);
         color: var(--mat-sys-on-surface);
       }
       .user-form__role-list {
@@ -174,7 +174,8 @@ interface UserFormValue {
       }
       .user-form__hint {
         color: var(--mat-sys-on-surface-variant);
-        font-size: 13px;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
       }
     `
   ]

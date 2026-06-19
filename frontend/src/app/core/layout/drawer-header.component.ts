@@ -37,14 +37,18 @@ import { AuthService } from '../auth/auth.service';
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 20px 20px 12px;
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
+        padding: 20px 20px 10px;
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
       }
       .drawer-header__brand-icon {
-        font-size: 32px;
-        width: 32px;
-        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        width: 28px;
+        height: 28px;
+        color: var(--mat-sys-primary);
       }
       .drawer-header__brand {
         display: grid;
@@ -52,24 +56,24 @@ import { AuthService } from '../auth/auth.service';
       }
       .drawer-header__eyebrow {
         margin: 0;
-        font-size: 11px;
+        font: var(--mat-sys-label-small);
         font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        opacity: 0.78;
+        color: var(--mat-sys-primary);
       }
       .drawer-header__title {
         margin: 0;
-        font-size: 18px;
-        font-weight: 600;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .drawer-header__user {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 12px 20px 16px;
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
+        padding: 10px 20px 16px;
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
       }
       .drawer-header__avatar {
         display: inline-flex;
@@ -80,7 +84,8 @@ import { AuthService } from '../auth/auth.service';
         border-radius: 50%;
         background: var(--mat-sys-primary);
         color: var(--mat-sys-on-primary);
-        font-size: 13px;
+        font: var(--mat-sys-label-large);
+        letter-spacing: var(--mat-sys-label-large-tracking);
         font-weight: 600;
       }
       .drawer-header__user-text {
@@ -89,15 +94,16 @@ import { AuthService } from '../auth/auth.service';
         min-width: 0;
       }
       .drawer-header__name {
-        font-size: 14px;
-        font-weight: 600;
+        font: var(--mat-sys-title-small);
+        letter-spacing: var(--mat-sys-title-small-tracking);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .drawer-header__email {
-        font-size: 12px;
-        opacity: 0.78;
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+        color: var(--mat-sys-on-surface-variant);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

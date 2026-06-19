@@ -67,7 +67,6 @@ export interface SectionAction {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 12px;
       }
       .section-actions__button {
         min-height: var(--app-touch-target);
