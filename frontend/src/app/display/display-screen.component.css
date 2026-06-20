@@ -122,6 +122,27 @@ iframe {
   font-weight: 800;
 }
 
+.fullscreen-prompt {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  min-height: 56px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #102832;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 32%);
+  font: 700 20px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.fullscreen-prompt:focus-visible {
+  outline: 4px solid #f2b84a;
+  outline-offset: 3px;
+}
+
 @media (max-width: 760px) {
   .ad-region {
     grid-auto-columns: minmax(96px, 1fr);
@@ -133,5 +154,13 @@ iframe {
   .content-label,
   .fallback {
     font-size: 26px;
+  }
+
+  .fullscreen-prompt {
+    right: 12px;
+    bottom: 12px;
+    min-height: 48px;
+    padding: 0 18px;
+    font-size: 16px;
   }
 }

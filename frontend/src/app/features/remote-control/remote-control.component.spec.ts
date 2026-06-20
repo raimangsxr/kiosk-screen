@@ -21,6 +21,7 @@ const baseState: RemoteControlState = {
   selectedIframeId: null,
   selectedIframe: null,
   adsVisible: true,
+  fullscreenRequested: false,
   updatedAt: '2026-06-18T00:00:00Z',
   displaySessionActive: true
 };
@@ -48,7 +49,7 @@ function buildFacade(overrides: {
 } = {}) {
   return jasmine.createSpyObj<RemoteControlFacade>(
     'RemoteControlFacade',
-    ['refresh', 'setLoopMode', 'setIframeMode', 'setAdsVisible', 'navigate'],
+    ['refresh', 'setLoopMode', 'setIframeMode', 'setAdsVisible', 'setFullscreenRequested', 'navigate'],
     {
       state: (overrides.state ?? signal(baseState)).asReadonly(),
       iframeOptions: (overrides.iframeOptions ?? signal([iframeOption])).asReadonly(),
@@ -91,6 +92,7 @@ describe('RemoteControlComponent', () => {
       of({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
     );
     facade.setAdsVisible.and.returnValue(of({ ...baseState, adsVisible: false }));
+    facade.setFullscreenRequested.and.returnValue(of({ ...baseState, fullscreenRequested: true }));
     facade.navigate.and.returnValue(of({ ...baseState, navigationCommand: 'next', navigationCommandId: 'nav-1' }));
 
     snackBar = new MatSnackBarStub();
@@ -118,6 +120,7 @@ describe('RemoteControlComponent', () => {
     const text = pill.textContent;
     expect(text).toContain('Rotation');
     expect(text).toContain('Visible');
+    expect(text).toContain('Fullscreen Off');
     expect(text).toContain('Display online');
     expect(text).toMatch(/Updated/);
   });
@@ -293,6 +296,18 @@ describe('RemoteControlComponent', () => {
     expect(facade.setAdsVisible).toHaveBeenCalledWith(false);
     expect(snackBar.open).toHaveBeenCalledWith(
       'Ads are now hidden.',
+      'Dismiss',
+      jasmine.objectContaining({ duration: 3000 })
+    );
+  }));
+
+  it('toggles display fullscreen and shows feedback', fakeAsync(() => {
+    fixture.componentInstance.setFullscreenRequested(true);
+    tick();
+
+    expect(facade.setFullscreenRequested).toHaveBeenCalledWith(true);
+    expect(snackBar.open).toHaveBeenCalledWith(
+      'Fullscreen requested.',
       'Dismiss',
       jasmine.objectContaining({ duration: 3000 })
     );

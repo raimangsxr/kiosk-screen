@@ -80,6 +80,16 @@ type DisplayRenderableItem = Pick<
           <div class="fallback">Ads unavailable</div>
         </ng-template>
       </section>
+
+      <button
+        *ngIf="fullscreenPromptVisible"
+        type="button"
+        class="fullscreen-prompt"
+        (click)="enterFullscreenFromDisplay()"
+        data-testid="display-fullscreen-prompt"
+      >
+        Enter fullscreen
+      </button>
     </main>
   `,
   styleUrl: './display-screen.component.css',
@@ -125,6 +135,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private lastNavigationCommandId: string | null = null;
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
+  private lastFullscreenRequested: boolean | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -136,6 +147,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   currentContent: DisplayContentItem | null = null;
   contentRenderItems: DisplayContentItem[] = [];
   defaultTopDurationSeconds = 10;
+  fullscreenPromptVisible = false;
 
   get currentAd(): DisplayAdItem | null {
     if (!this.adsVisible) {
@@ -238,6 +250,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const previousDisplayAvailable = this.displayAvailable;
     this.state = state;
     this.defaultTopDurationSeconds = state.configuration.defaultTopDurationSeconds;
+    this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
 
     if (options.resetRotation) {
       this.rotation.initialize(state.topContent);
@@ -289,6 +302,46 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       }, durationMs - 1000);
     }
     this.contentTimer = setTimeout(() => this.advanceNow(), durationMs);
+  }
+
+  private applyFullscreenPreference(requested: boolean): void {
+    if (this.lastFullscreenRequested === requested) {
+      return;
+    }
+    this.lastFullscreenRequested = requested;
+    const documentRef = globalThis.document;
+    if (!documentRef) {
+      return;
+    }
+    if (requested && !documentRef.fullscreenElement) {
+      this.requestFullscreen();
+    }
+    if (!requested && documentRef.fullscreenElement) {
+      const exit = documentRef.exitFullscreen?.();
+      exit?.catch(() => undefined);
+    }
+    if (!requested) {
+      this.fullscreenPromptVisible = false;
+    }
+  }
+
+  enterFullscreenFromDisplay(): void {
+    this.requestFullscreen();
+  }
+
+  private requestFullscreen(): void {
+    const request = globalThis.document?.documentElement.requestFullscreen?.();
+    if (!request) {
+      this.fullscreenPromptVisible = true;
+      return;
+    }
+    request
+      .then(() => {
+        this.fullscreenPromptVisible = false;
+      })
+      .catch(() => {
+        this.fullscreenPromptVisible = true;
+      });
   }
 
   onVideoEnded(item: DisplayContentItem): void {

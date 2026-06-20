@@ -117,6 +117,7 @@ class RemoteControlStateSchema(CamelModel):
     content_mode: str = Field(alias="contentMode")
     selected_iframe_id: UUID | None = Field(default=None, alias="selectedIframeId")
     ads_visible: bool = Field(alias="adsVisible")
+    fullscreen_requested: bool = Field(default=False, alias="fullscreenRequested")
     navigation_command: str | None = Field(default=None, alias="navigationCommand")
     navigation_command_id: UUID | None = Field(default=None, alias="navigationCommandId")
     updated_at: datetime = Field(alias="updatedAt")
@@ -126,6 +127,7 @@ class RemoteControlStateRequest(CamelModel):
     content_mode: str = Field(alias="contentMode")
     selected_iframe_id: UUID | None = Field(default=None, alias="selectedIframeId")
     ads_visible: bool = Field(alias="adsVisible")
+    fullscreen_requested: bool = Field(default=False, alias="fullscreenRequested")
 
 
 class RemoteControlNavigationRequest(CamelModel):

@@ -99,6 +99,10 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
               <mat-icon matChipAvatar aria-hidden="true">{{ adsIcon() }}</mat-icon>
               Ads {{ adsLabel() }}
             </mat-chip>
+            <mat-chip class="remote-control__chip" [class.remote-control__chip--success]="fullscreenRequested()" [class.remote-control__chip--neutral]="!fullscreenRequested()">
+              <mat-icon matChipAvatar aria-hidden="true">{{ fullscreenIcon() }}</mat-icon>
+              Fullscreen {{ fullscreenLabel() }}
+            </mat-chip>
             <mat-chip class="remote-control__chip" [class.remote-control__chip--success]="displayOnline()" [class.remote-control__chip--warning]="displayOnline() === false" [class.remote-control__chip--neutral]="displayOnline() === null">
               <mat-icon matChipAvatar aria-hidden="true">sync</mat-icon>
               {{ displayLabel() }}
@@ -222,6 +226,25 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
             </mat-card-content>
           </mat-card>
         }
+
+        <mat-card appearance="outlined" class="remote-control__card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar aria-hidden="true">fullscreen</mat-icon>
+            <mat-card-title>Display fullscreen</mat-card-title>
+            <mat-card-subtitle>Ask the running kiosk display to enter or leave fullscreen.</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-slide-toggle
+              [checked]="fullscreenRequested()"
+              [disabled]="facade.saving()"
+              (change)="setFullscreenRequested($event.checked)"
+              aria-label="Display fullscreen"
+              data-testid="remote-control-fullscreen-toggle"
+            >
+              Fullscreen
+            </mat-slide-toggle>
+          </mat-card-content>
+        </mat-card>
 
         <mat-card appearance="outlined" class="remote-control__card">
           <mat-card-header>
@@ -468,6 +491,7 @@ export class RemoteControlComponent implements OnInit {
     () => this.facade.state()?.selectedIframeId ?? null
   );
   protected readonly adsVisible = computed(() => this.facade.state()?.adsVisible !== false);
+  protected readonly fullscreenRequested = computed(() => this.facade.state()?.fullscreenRequested === true);
   protected readonly displayOnline = computed<boolean | null>(() => {
     const active = this.facade.state()?.displaySessionActive;
     return active === undefined ? null : active;
@@ -477,6 +501,8 @@ export class RemoteControlComponent implements OnInit {
   protected readonly modeIcon = computed(() => (this.mode() === 'iframe' ? 'cast_connected' : 'loop'));
   protected readonly adsLabel = computed(() => (this.adsVisible() ? 'Visible' : 'Hidden'));
   protected readonly adsIcon = computed(() => (this.adsVisible() ? 'campaign' : 'visibility_off'));
+  protected readonly fullscreenLabel = computed(() => (this.fullscreenRequested() ? 'On' : 'Off'));
+  protected readonly fullscreenIcon = computed(() => (this.fullscreenRequested() ? 'fullscreen' : 'fullscreen_exit'));
   protected readonly displayLabel = computed(() => {
     const online = this.displayOnline();
     if (online === null) {
@@ -539,6 +565,14 @@ export class RemoteControlComponent implements OnInit {
     this.updateError.set(false);
     this.facade.setAdsVisible(visible).subscribe({
       next: () => this.notify(visible ? 'Ads are now visible.' : 'Ads are now hidden.'),
+      error: () => this.updateError.set(true)
+    });
+  }
+
+  setFullscreenRequested(requested: boolean): void {
+    this.updateError.set(false);
+    this.facade.setFullscreenRequested(requested).subscribe({
+      next: () => this.notify(requested ? 'Fullscreen requested.' : 'Fullscreen dismissed.'),
       error: () => this.updateError.set(true)
     });
   }

@@ -6,6 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 
+import { DirtyFormAware } from '../../shared/dirty-form.models';
+
 import { IframeFacade } from './iframe.facade';
 
 @Component({
@@ -34,12 +36,13 @@ import { IframeFacade } from './iframe.facade';
     </section>
   `,
 })
-export class IframeFormComponent implements OnInit {
+export class IframeFormComponent implements OnInit, DirtyFormAware {
   protected readonly facade = inject(IframeFacade);
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected iframeId: string | null = null;
+  private initialSnapshot = '';
 
   protected readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/)]],
@@ -48,9 +51,20 @@ export class IframeFormComponent implements OnInit {
   ngOnInit(): void {
     this.iframeId = this.route.snapshot.paramMap.get('id');
     this.facade.clearCurrent();
+    this.initialSnapshot = this.snapshot();
     if (this.iframeId) {
-      this.facade.load(this.iframeId).subscribe((item) => this.form.patchValue({ url: item.url }));
+      this.facade.load(this.iframeId).subscribe((item) => {
+        this.form.patchValue({ url: item.url });
+        this.initialSnapshot = this.snapshot();
+      });
     }
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (this.facade.saving()) {
+      return false;
+    }
+    return this.snapshot() !== this.initialSnapshot;
   }
 
   protected submit(): void {
@@ -59,7 +73,16 @@ export class IframeFormComponent implements OnInit {
       return;
     }
     this.facade.save({ url: this.form.controls.url.value.trim() }, this.iframeId ?? undefined).subscribe(() => {
+      this.markPristine();
       void this.router.navigate(['/admin/iframes']);
     });
+  }
+
+  private snapshot(): string {
+    return JSON.stringify({ url: this.form.controls.url.value });
+  }
+
+  private markPristine(): void {
+    this.initialSnapshot = this.snapshot();
   }
 }

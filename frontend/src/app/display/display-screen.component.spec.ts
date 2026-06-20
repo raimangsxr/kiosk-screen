@@ -101,6 +101,74 @@ describe('DisplayScreenComponent', () => {
     expect(third).not.toBe(first);
   });
 
+  it('requests browser fullscreen when remote control asks for it', () => {
+    const originalRequestFullscreen = document.documentElement.requestFullscreen;
+    const requestFullscreen = jasmine.createSpy('requestFullscreen').and.resolveTo();
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    const fixture = createComponent({
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        fullscreenRequested: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+    });
+
+    expect(requestFullscreen).toHaveBeenCalled();
+
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: originalRequestFullscreen,
+    });
+    fixture.destroy();
+  });
+
+  it('shows a local fullscreen prompt when the browser rejects the remote request', fakeAsync(() => {
+    const originalRequestFullscreen = document.documentElement.requestFullscreen;
+    const requestFullscreen = jasmine
+      .createSpy('requestFullscreen')
+      .and.returnValues(Promise.reject(new Error('activation required')), Promise.resolve());
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    const fixture = createComponent({
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        fullscreenRequested: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+    });
+    tick();
+    fixture.detectChanges();
+
+    const prompt = fixture.nativeElement.querySelector(
+      '[data-testid="display-fullscreen-prompt"]'
+    ) as HTMLButtonElement;
+    expect(prompt).not.toBeNull();
+
+    prompt.click();
+    tick();
+
+    expect(requestFullscreen).toHaveBeenCalledTimes(2);
+
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: originalRequestFullscreen,
+    });
+    fixture.destroy();
+  }));
+
   it('rotates top content using effective duration', fakeAsync(() => {
     const fixture = createComponent({
       ...readyState,

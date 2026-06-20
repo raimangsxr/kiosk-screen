@@ -58,6 +58,7 @@ export interface DisplayRemoteControlState {
   contentMode: 'loop' | 'iframe';
   selectedIframeId: string | null;
   adsVisible: boolean;
+  fullscreenRequested?: boolean;
   navigationCommand?: 'next' | 'previous' | null;
   navigationCommandId?: string | null;
   updatedAt: string;
@@ -103,6 +104,7 @@ function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState
     sameDisplayConfiguration(prev.configuration, curr.configuration) &&
     prev.remoteControl?.selectedIframeId === curr.remoteControl?.selectedIframeId &&
     prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
+    prev.remoteControl?.fullscreenRequested === curr.remoteControl?.fullscreenRequested &&
     prev.remoteControl?.navigationCommandId === curr.remoteControl?.navigationCommandId &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
   );

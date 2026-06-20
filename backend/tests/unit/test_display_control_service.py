@@ -57,6 +57,7 @@ def test_display_control_service_creates_default_loop_state_for_session(db_sessi
     assert state.content_mode == "loop"
     assert state.selected_iframe_id is None
     assert state.ads_visible is True
+    assert state.fullscreen_requested is False
 
 
 def test_display_control_service_updates_to_existing_iframe(db_session) -> None:
@@ -146,6 +147,35 @@ def test_display_control_service_records_ads_visibility_changes(db_session) -> N
     events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_ads_visibility_changed").all()
     assert len(events) == 1
     assert events[0].event_metadata == {"adsVisible": False}
+
+
+def test_display_control_service_updates_fullscreen_request(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    state = DisplayControlService(db_session).update_state(
+        result.organization.id,
+        session.id,
+        result.administrator.id,
+        content_mode="loop",
+        selected_iframe_id=None,
+        ads_visible=True,
+        fullscreen_requested=True,
+    )
+
+    assert state.fullscreen_requested is True
+    events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_fullscreen_changed").all()
+    assert len(events) == 1
+    assert events[0].event_metadata == {"fullscreenRequested": True}
 
 
 def test_display_control_service_issues_navigation_command_in_loop_mode(db_session) -> None:

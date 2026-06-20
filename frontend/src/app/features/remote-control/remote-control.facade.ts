@@ -53,7 +53,22 @@ export class RemoteControlFacade {
 
   setAdsVisible(adsVisible: boolean) {
     const current = this.stateSignal();
-    return this.update(current?.contentMode ?? 'loop', current?.selectedIframeId ?? null, adsVisible);
+    return this.update(
+      current?.contentMode ?? 'loop',
+      current?.selectedIframeId ?? null,
+      adsVisible,
+      current?.fullscreenRequested ?? false
+    );
+  }
+
+  setFullscreenRequested(fullscreenRequested: boolean) {
+    const current = this.stateSignal();
+    return this.update(
+      current?.contentMode ?? 'loop',
+      current?.selectedIframeId ?? null,
+      current?.adsVisible ?? true,
+      fullscreenRequested
+    );
   }
 
   navigate(command: RemoteControlNavigationCommand) {
@@ -73,14 +88,20 @@ export class RemoteControlFacade {
     );
   }
 
-  private update(contentMode: 'loop' | 'iframe', selectedIframeId: string | null, adsVisible?: boolean) {
+  private update(
+    contentMode: 'loop' | 'iframe',
+    selectedIframeId: string | null,
+    adsVisible?: boolean,
+    fullscreenRequested?: boolean
+  ) {
     const current = this.stateSignal();
     this.savingSignal.set(true);
     this.errorSignal.set(null);
     return this.api.updateState({
       contentMode,
       selectedIframeId,
-      adsVisible: adsVisible ?? current?.adsVisible ?? true
+      adsVisible: adsVisible ?? current?.adsVisible ?? true,
+      fullscreenRequested: fullscreenRequested ?? current?.fullscreenRequested ?? false
     }).pipe(
       tap((state) => {
         this.stateSignal.set(state);

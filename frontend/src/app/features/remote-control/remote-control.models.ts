@@ -11,6 +11,7 @@ export interface RemoteControlState {
   selectedIframeId: string | null;
   selectedIframe?: RemoteControlIframeOption | null;
   adsVisible: boolean;
+  fullscreenRequested: boolean;
   navigationCommand?: RemoteControlNavigationCommand | null;
   navigationCommandId?: string | null;
   updatedAt: string;
@@ -21,6 +22,7 @@ export interface RemoteControlUpdate {
   contentMode: RemoteControlContentMode;
   selectedIframeId: string | null;
   adsVisible: boolean;
+  fullscreenRequested: boolean;
 }
 
 export interface RemoteControlNavigationRequest {

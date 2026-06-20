@@ -179,6 +179,13 @@ The end-to-end flow for switching to an iframe:
 5. `DisplayScreenComponent.applyState` enters the iframe branch and mounts the `<iframe>` element.
 6. The rotation cursor is left untouched; if the operator switches back to "Rotation", the same `topContent` item is shown with a fresh timer.
 
+The end-to-end flow for fullscreen:
+
+1. Operator toggles "Display fullscreen" on `/admin/remote-control`.
+2. `RemoteControlFacade.setFullscreenRequested` calls `PUT /api/display/remote-control/state` with `fullscreenRequested`.
+3. `DisplayControlService.update_state` persists the flag on the active `display_control_states` row.
+4. Kiosk's next state update returns `remoteControl.fullscreenRequested`, and `DisplayScreenComponent` attempts the browser Fullscreen API call.
+
 The end-to-end flow for a video ending:
 
 1. Kiosk is showing a video Content item.

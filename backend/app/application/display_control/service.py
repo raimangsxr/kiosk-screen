@@ -56,6 +56,7 @@ class DisplayControlService:
             content_mode="loop",
             selected_iframe_id=None,
             ads_visible=True,
+            fullscreen_requested=False,
             updated_by_user_id=user_id,
         )
         self.session.add(state)
@@ -70,6 +71,7 @@ class DisplayControlService:
         content_mode: str,
         selected_iframe_id: str | None,
         ads_visible: bool,
+        fullscreen_requested: bool = False,
     ) -> DisplayControlState:
         display_session = self.latest_active_session(organization_id)
         if display_session is None:
@@ -81,6 +83,7 @@ class DisplayControlService:
             content_mode=content_mode,
             selected_iframe_id=selected_iframe_id,
             ads_visible=ads_visible,
+            fullscreen_requested=fullscreen_requested,
         )
 
     def update_state(
@@ -92,9 +95,11 @@ class DisplayControlService:
         content_mode: str,
         selected_iframe_id: str | None,
         ads_visible: bool,
+        fullscreen_requested: bool = False,
     ) -> DisplayControlState:
         state = self.ensure_default_state(organization_id, display_session_id, user_id)
         previous_ads_visible = state.ads_visible
+        previous_fullscreen_requested = state.fullscreen_requested
         if content_mode not in {"loop", "iframe"}:
             raise ValueError("Remote control mode must be loop or iframe.")
 
@@ -111,6 +116,7 @@ class DisplayControlService:
 
         state.content_mode = content_mode
         state.ads_visible = ads_visible
+        state.fullscreen_requested = fullscreen_requested
         state.updated_by_user_id = user_id
         if previous_ads_visible != ads_visible:
             self._record(
@@ -119,6 +125,14 @@ class DisplayControlService:
                 "remote_control_ads_visibility_changed",
                 "Remote control ads visibility changed",
                 metadata={"adsVisible": ads_visible},
+            )
+        if previous_fullscreen_requested != fullscreen_requested:
+            self._record(
+                organization_id,
+                user_id,
+                "remote_control_fullscreen_changed",
+                "Remote control fullscreen request changed",
+                metadata={"fullscreenRequested": fullscreen_requested},
             )
         self._record(organization_id, user_id, "remote_control_changed", "Remote control state changed")
         self.session.commit()

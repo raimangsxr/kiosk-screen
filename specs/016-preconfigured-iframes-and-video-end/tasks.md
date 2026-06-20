@@ -218,6 +218,7 @@ description: "Task list for feature 016 — preconfigured iframes and video play
 - [X] T071 Run `pytest backend/tests -k "iframe or display_control or content or readiness or display_events"` and ensure all tests pass (this includes T016, T017, T018, T019, T035, T036, T037, T053)
 - [X] T072 Run `npm --prefix frontend run test` and ensure all Karma specs pass (this includes the new iframe, remote-control, content-form, display-screen, display-config, display-rotation, and display-api specs from T020, T021, T031, T038, T039, T048, T049, T051, T054, T055)
 - [ ] T073 [P] Run a smoke walkthrough following `specs/016-preconfigured-iframes-and-video-end/quickstart.md` and record the result in the PR description
+- [X] T074 [P] Add remote-control fullscreen support: persist `fullscreenRequested` in `DisplayControlState`, expose it through the remote-control/display state contracts, add the remote-control toggle, have `/display` apply the browser Fullscreen API request, and validate with backend unit plus focused frontend Karma specs.
 
 ---
 

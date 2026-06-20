@@ -180,6 +180,7 @@ The display configuration form gains a new field `Video end delay (seconds)` tha
 
 - **FR-023**: All iframe admin endpoints MUST require the `content_manager` or `administrator` role. Other authenticated roles MUST receive HTTP 403.
 - **FR-024**: The remote control iframe selection MUST remain restricted to roles that already have remote-control access (`event_operator` and `administrator` per spec 006).
+- **FR-025**: The remote-control page MUST allow an operator to request fullscreen on the running display and clear that request. The display MUST attempt to apply the request on its next state update while tolerating browser-level Fullscreen API rejection.
 
 ### Traceability & Quality Requirements *(mandatory)*
 

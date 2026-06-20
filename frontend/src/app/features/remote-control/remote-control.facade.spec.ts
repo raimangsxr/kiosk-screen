@@ -9,6 +9,7 @@ const state = {
   selectedIframeId: null,
   selectedIframe: null,
   adsVisible: true,
+  fullscreenRequested: false,
   updatedAt: '2026-06-18T00:00:00Z',
   displaySessionActive: true
 };
@@ -50,7 +51,8 @@ describe('RemoteControlFacade', () => {
     expect(request.request.body).toEqual({
       contentMode: 'iframe',
       selectedIframeId: 'content-1',
-      adsVisible: true
+      adsVisible: true,
+      fullscreenRequested: false
     });
     request.flush({ ...state, contentMode: 'iframe', selectedIframeId: 'content-1' });
 
@@ -65,7 +67,8 @@ describe('RemoteControlFacade', () => {
     expect(request.request.body).toEqual({
       contentMode: 'loop',
       selectedIframeId: null,
-      adsVisible: true
+      adsVisible: true,
+      fullscreenRequested: false
     });
     request.flush(state);
 
@@ -87,7 +90,8 @@ describe('RemoteControlFacade', () => {
     expect(request.request.body).toEqual({
       contentMode: 'iframe',
       selectedIframeId: 'content-1',
-      adsVisible: false
+      adsVisible: false,
+      fullscreenRequested: false
     });
     request.flush({
       ...state,
@@ -99,6 +103,36 @@ describe('RemoteControlFacade', () => {
     expect(facade.state()?.contentMode).toBe('iframe');
     expect(facade.state()?.selectedIframeId).toBe('content-1');
     expect(facade.state()?.adsVisible).toBeFalse();
+  });
+
+  it('updates fullscreen while preserving mode and ads visibility', () => {
+    facade.setIframeMode('content-1').subscribe();
+    http.expectOne('/api/display/remote-control/state').flush({
+      ...state,
+      contentMode: 'iframe',
+      selectedIframeId: 'content-1',
+      adsVisible: false,
+      fullscreenRequested: false
+    });
+
+    facade.setFullscreenRequested(true).subscribe();
+
+    const request = http.expectOne('/api/display/remote-control/state');
+    expect(request.request.body).toEqual({
+      contentMode: 'iframe',
+      selectedIframeId: 'content-1',
+      adsVisible: false,
+      fullscreenRequested: true
+    });
+    request.flush({
+      ...state,
+      contentMode: 'iframe',
+      selectedIframeId: 'content-1',
+      adsVisible: false,
+      fullscreenRequested: true
+    });
+
+    expect(facade.state()?.fullscreenRequested).toBeTrue();
   });
 
   it('posts rotation navigation commands and updates state', () => {

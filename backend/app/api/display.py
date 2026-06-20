@@ -46,6 +46,7 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
         contentMode=state.content_mode,
         selectedIframeId=state.selected_iframe_id,
         adsVisible=state.ads_visible,
+        fullscreenRequested=state.fullscreen_requested,
         navigationCommand=state.navigation_command,
         navigationCommandId=state.navigation_command_id,
         updatedAt=state.updated_at,
@@ -195,6 +196,7 @@ def update_remote_control_state_route(
             content_mode=payload.content_mode,
             selected_iframe_id=str(payload.selected_iframe_id) if payload.selected_iframe_id else None,
             ads_visible=payload.ads_visible,
+            fullscreen_requested=payload.fullscreen_requested,
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
