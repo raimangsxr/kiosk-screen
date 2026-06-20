@@ -1,13 +1,11 @@
 from sqlalchemy.orm import Session
 
-from app.api.schemas import ApprovedEmbeddedDomainRequest, KioskConfigurationRequest, UserRequest
+from app.api.schemas import KioskConfigurationRequest, UserRequest
 from app.auth.service import hash_password
 from app.domain.display_events import create_display_event
 from app.domain.media import validate_rotation_animation
 from app.domain.roles import Role
 from app.repositories.events import DisplayEventRepository
-from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
-from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.role_assignment import RoleAssignment
 from app.repositories.models.user import User
@@ -41,6 +39,7 @@ class AdminService:
                 or payload.default_ad_animation_duration_milliseconds != configuration.default_ad_animation_duration_milliseconds
                 or payload.inline_ad_count != configuration.inline_ad_count
                 or payload.remote_control_polling_seconds != configuration.remote_control_polling_seconds
+                or payload.video_end_delay_seconds != configuration.video_end_delay_seconds
             ):
                 raise PermissionError("Content managers cannot change ad configuration.")
             if Role.ADVERTISING_MANAGER in roles and (
@@ -48,6 +47,7 @@ class AdminService:
                 or payload.default_top_rotation_animation != configuration.default_top_rotation_animation
                 or payload.default_top_animation_duration_milliseconds != configuration.default_top_animation_duration_milliseconds
                 or payload.remote_control_polling_seconds != configuration.remote_control_polling_seconds
+                or payload.video_end_delay_seconds != configuration.video_end_delay_seconds
             ):
                 raise PermissionError("Advertising managers cannot change main content configuration.")
         configuration.name = payload.name
@@ -59,52 +59,12 @@ class AdminService:
         configuration.default_ad_animation_duration_milliseconds = payload.default_ad_animation_duration_milliseconds
         configuration.inline_ad_count = payload.inline_ad_count
         configuration.remote_control_polling_seconds = payload.remote_control_polling_seconds
+        configuration.video_end_delay_seconds = payload.video_end_delay_seconds
         configuration.configured_event_duration_minutes = payload.configured_event_duration_minutes
         configuration.is_enabled = payload.is_enabled
         self._record(organization_id, user_id, "configuration_changed", "Display configuration changed")
         self.session.commit()
         return configuration
-
-    def list_domains(self, organization_id: str) -> list[ApprovedEmbeddedDomain]:
-        return list(self.session.query(ApprovedEmbeddedDomain).filter_by(organization_id=organization_id).order_by(ApprovedEmbeddedDomain.domain))
-
-    def create_domain(self, organization_id: str, user_id: str, payload: ApprovedEmbeddedDomainRequest) -> ApprovedEmbeddedDomain:
-        domain = ApprovedEmbeddedDomain(
-            organization_id=organization_id,
-            domain=payload.domain.lower(),
-            is_active=payload.is_active,
-            approved_by_user_id=user_id
-        )
-        self.session.add(domain)
-        self._record(organization_id, user_id, "domain_changed", "Approved domain changed")
-        self.session.commit()
-        return domain
-
-    def update_domain(self, organization_id: str, user_id: str, domain_id: str, payload: ApprovedEmbeddedDomainRequest) -> ApprovedEmbeddedDomain:
-        domain = self.session.query(ApprovedEmbeddedDomain).filter_by(organization_id=organization_id, id=domain_id).one_or_none()
-        if domain is None:
-            raise LookupError("Approved domain not found.")
-        domain.domain = payload.domain.lower()
-        domain.is_active = payload.is_active
-        domain.approved_by_user_id = user_id
-        self._record(organization_id, user_id, "domain_changed", "Approved domain changed")
-        self.session.commit()
-        return domain
-
-    def delete_domain(self, organization_id: str, user_id: str, domain_id: str) -> None:
-        domain = self.session.query(ApprovedEmbeddedDomain).filter_by(organization_id=organization_id, id=domain_id).one_or_none()
-        if domain is None:
-            raise LookupError("Approved domain not found.")
-        active_count = self.session.query(TopContentItem).filter_by(
-            organization_id=organization_id,
-            approved_domain_id=domain_id,
-            is_active=True
-        ).count()
-        if active_count:
-            raise ValueError("Approved domain has active iframe content. Deactivate the domain instead of deleting it.")
-        self.session.delete(domain)
-        self._record(organization_id, user_id, "domain_changed", "Approved domain removed")
-        self.session.commit()
 
     def list_users(self, organization_id: str) -> list[tuple[User, list[str]]]:
         users = self.session.query(User).filter_by(organization_id=organization_id).order_by(User.email).all()

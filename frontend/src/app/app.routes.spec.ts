@@ -23,7 +23,7 @@ describe('routes', () => {
     expect(childPaths).toContain('');
     expect(childPaths).toContain('content');
     expect(childPaths).toContain('ads');
-    expect(childPaths).toContain('domains');
+    expect(childPaths).toContain('iframes');
     expect(childPaths).toContain('configuration');
     expect(childPaths).toContain('remote-control');
     expect(childPaths).toContain('readiness');

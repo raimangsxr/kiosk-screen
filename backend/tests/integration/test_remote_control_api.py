@@ -22,13 +22,13 @@ def test_admin_reads_and_updates_remote_control_state(api_client: TestClient) ->
 
     updated = api_client.put(
         "/api/display/remote-control/state",
-        json={"contentMode": "loop", "selectedContentId": None, "adsVisible": True},
+        json={"contentMode": "loop", "selectedIframeId": None, "adsVisible": True},
     )
     assert updated.status_code == 200
     assert updated.json()["contentMode"] == "loop"
 
 
-def test_non_admin_cannot_read_or_update_remote_control_state(api_client: TestClient) -> None:
+def test_event_operator_can_read_and_update_remote_control_state(api_client: TestClient) -> None:
     login(api_client, "operator@example.com", "operator")
     opened = api_client.post("/api/display/open")
     assert opened.status_code == 200
@@ -36,11 +36,11 @@ def test_non_admin_cannot_read_or_update_remote_control_state(api_client: TestCl
     read = api_client.get("/api/display/remote-control/state")
     update = api_client.put(
         "/api/display/remote-control/state",
-        json={"contentMode": "loop", "selectedContentId": None, "adsVisible": True},
+        json={"contentMode": "loop", "selectedIframeId": None, "adsVisible": True},
     )
 
-    assert read.status_code == 403
-    assert update.status_code == 403
+    assert read.status_code == 200
+    assert update.status_code == 200
 
 
 def test_display_state_includes_remote_control_snapshot(api_client: TestClient) -> None:
@@ -62,13 +62,13 @@ def test_admin_can_hide_and_restore_ads_without_changing_content_mode(api_client
 
     hidden = api_client.put(
         "/api/display/remote-control/state",
-        json={"contentMode": "loop", "selectedContentId": None, "adsVisible": False},
+        json={"contentMode": "loop", "selectedIframeId": None, "adsVisible": False},
     )
     display_hidden = api_client.get("/api/display/state")
 
     restored = api_client.put(
         "/api/display/remote-control/state",
-        json={"contentMode": "loop", "selectedContentId": None, "adsVisible": True},
+        json={"contentMode": "loop", "selectedIframeId": None, "adsVisible": True},
     )
 
     assert hidden.status_code == 200

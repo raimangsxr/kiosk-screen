@@ -1,16 +1,16 @@
 from app.api.schemas import (
     AdItemSchema,
-    ApprovedEmbeddedDomainSchema,
     ContentItemSchema,
     DisplayEventSchema,
+    IframeSchema,
     KioskConfigurationSchema,
     MediaFileReferenceSchema,
     UserSchema,
 )
 from app.repositories.models.ad import ClientAdItem
-from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
+from app.repositories.models.iframe import Iframe
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
 from app.repositories.models.user import User
@@ -43,6 +43,7 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         defaultAdAnimationDurationMilliseconds=configuration.default_ad_animation_duration_milliseconds,
         inlineAdCount=configuration.inline_ad_count,
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
+        videoEndDelaySeconds=configuration.video_end_delay_seconds,
         configuredEventDurationMinutes=configuration.configured_event_duration_minutes,
         isEnabled=configuration.is_enabled
     )
@@ -100,8 +101,14 @@ def to_ad_schema(
     )
 
 
-def to_domain_schema(domain: ApprovedEmbeddedDomain) -> ApprovedEmbeddedDomainSchema:
-    return ApprovedEmbeddedDomainSchema(id=domain.id, domain=domain.domain, isActive=domain.is_active)
+def to_iframe_schema(iframe: Iframe) -> IframeSchema:
+    return IframeSchema(
+        id=iframe.id,
+        organizationId=iframe.organization_id,
+        url=iframe.url,
+        createdAt=iframe.created_at,
+        updatedAt=iframe.updated_at,
+    )
 
 
 def to_event_schema(event: DisplayEvent) -> DisplayEventSchema:

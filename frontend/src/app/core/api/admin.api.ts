@@ -4,12 +4,6 @@ import { Observable } from 'rxjs';
 
 import { RotationAnimation } from '../../shared/media-upload.models';
 
-export interface ApprovedDomain {
-  id: string;
-  domain: string;
-  isActive: boolean;
-}
-
 export interface UserRecord {
   id: string;
   email: string;
@@ -31,6 +25,7 @@ export interface KioskConfiguration {
   defaultAdAnimationDurationMilliseconds: number;
   inlineAdCount: number;
   remoteControlPollingSeconds: number;
+  videoEndDelaySeconds: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -38,22 +33,6 @@ export interface KioskConfiguration {
 @Injectable({ providedIn: 'root' })
 export class AdminApiService {
   private readonly http = inject(HttpClient);
-
-  listDomains(): Observable<ApprovedDomain[]> {
-    return this.http.get<ApprovedDomain[]>('/api/approved-domains', { withCredentials: true });
-  }
-
-  createDomain(payload: Omit<ApprovedDomain, 'id'>): Observable<ApprovedDomain> {
-    return this.http.post<ApprovedDomain>('/api/approved-domains', payload, { withCredentials: true });
-  }
-
-  updateDomain(id: string, payload: Omit<ApprovedDomain, 'id'>): Observable<ApprovedDomain> {
-    return this.http.put<ApprovedDomain>(`/api/approved-domains/${id}`, payload, { withCredentials: true });
-  }
-
-  deleteDomain(id: string): Observable<void> {
-    return this.http.delete<void>(`/api/approved-domains/${id}`, { withCredentials: true });
-  }
 
   getConfiguration(): Observable<KioskConfiguration> {
     return this.http.get<KioskConfiguration>('/api/display/configuration', { withCredentials: true });

@@ -10,7 +10,8 @@ import { AdListComponent } from './features/ads/ad-list.component';
 import { AdFormComponent } from './features/ads/ad-form.component';
 import { ReadinessComponent } from './features/readiness/readiness.component';
 import { AdminShellComponent } from './features/admin-shell/admin-shell.component';
-import { DomainListComponent, DomainFormComponent } from './features/domains/domains.api';
+import { IframeFormComponent } from './features/iframes/iframe-form.component';
+import { IframeListComponent } from './features/iframes/iframe-list.component';
 import { DisplayConfigComponent } from './features/display-config/display-config.component';
 import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
@@ -36,14 +37,14 @@ export const routes: Routes = [
       { path: 'content', component: ContentListComponent },
       { path: 'content/new', component: ContentFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'content/:id/edit', component: ContentFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'iframes', component: IframeListComponent },
+      { path: 'iframes/new', component: IframeFormComponent, canDeactivate: [dirtyFormGuard] },
+      { path: 'iframes/:id', component: IframeFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'ads', component: AdListComponent },
       { path: 'ads/new', component: AdFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'ads/:id/edit', component: AdFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'readiness', component: ReadinessComponent },
       { path: '', component: AdminDashboardComponent, pathMatch: 'full' },
-      { path: 'domains', component: DomainListComponent },
-      { path: 'domains/new', component: DomainFormComponent, canDeactivate: [dirtyFormGuard] },
-      { path: 'domains/:id/edit', component: DomainFormComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'configuration', component: DisplayConfigComponent },
       { path: 'remote-control', component: RemoteControlComponent },
       { path: 'users', component: UsersListComponent },

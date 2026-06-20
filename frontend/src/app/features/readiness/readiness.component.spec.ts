@@ -75,7 +75,7 @@ describe('ReadinessComponent (Material)', () => {
     const component = fixture.componentInstance;
     expect(component.resolveRoute('No content available')).toBe('/admin/content');
     expect(component.resolveRoute('Missing ad image')).toBe('/admin/ads');
-    expect(component.resolveRoute('No approved iframe domain')).toBe('/admin/domains');
+    expect(component.resolveRoute('Missing iframe')).toBe('/admin/iframes');
     expect(component.resolveRoute('Display configuration incomplete')).toBe('/admin/configuration');
     expect(component.resolveRoute('No user with role')).toBe('/admin/users');
     expect(component.resolveRoute('Unknown blocker')).toBe('/admin');

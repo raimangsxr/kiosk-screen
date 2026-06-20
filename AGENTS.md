@@ -2,7 +2,7 @@
 
 <!-- SPECKIT START -->
 Read feature context only when implementing, reviewing, or validating that
-feature. For feature 009, start with `specs/009-public-content-api/tasks.md`
+feature. For feature 016, start with `specs/016-preconfigured-iframes-and-video-end/tasks.md`
 and open `plan.md`, `spec.md`, or contracts only as needed for the active task.
 <!-- SPECKIT END -->
 

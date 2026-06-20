@@ -7,7 +7,7 @@ import { MediaFileReference, RotationAnimation } from '../../shared/media-upload
 export interface ContentItem {
   id: string;
   title: string;
-  contentType: 'photo' | 'video' | 'embedded_web';
+  contentType: 'photo' | 'video';
   sourceReference: string;
   mediaFile?: MediaFileReference | null;
   isActive: boolean;
@@ -32,10 +32,6 @@ export class ContentApiService {
 
   create(payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }): Observable<ContentItem> {
     return this.http.post<ContentItem>('/api/content', payload, { withCredentials: true });
-  }
-
-  createIframe(payload: Omit<ContentItem, 'id' | 'displayOrder'> & { displayOrder?: number }): Observable<ContentItem> {
-    return this.http.post<ContentItem>('/api/content/iframe', payload, { withCredentials: true });
   }
 
   get(id: string): Observable<ContentItem> {

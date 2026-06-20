@@ -1,49 +1,12 @@
-from urllib.parse import urlparse
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.embedded_domains import source_domain
 from app.domain.readiness import ReadinessInput, ReadinessResult, evaluate_readiness
 from app.repositories.models.ad import ClientAdItem
-from app.repositories.models.approved_domain import ApprovedEmbeddedDomain
 from app.repositories.models.content import TopContentItem
 from app.services.display_service import eligible_ads, eligible_top_content
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.services.media_storage_service import MediaStorageService
-
-
-def _approved_domain_hosts(session: Session, organization_id: str) -> set[str]:
-    return {
-        domain.domain for domain in session.scalars(
-            select(ApprovedEmbeddedDomain).where(
-                ApprovedEmbeddedDomain.organization_id == organization_id,
-                ApprovedEmbeddedDomain.is_active.is_(True)
-            )
-        )
-    }
-
-
-def _unapproved_embedded_domains(session: Session, organization_id: str) -> list[str]:
-    approved = {host.lower() for host in _approved_domain_hosts(session, organization_id)}
-    non_approved: set[str] = set()
-    items = session.scalars(
-        select(TopContentItem).where(
-            TopContentItem.organization_id == organization_id,
-            TopContentItem.is_active.is_(True),
-            TopContentItem.content_type == "embedded_web"
-        )
-    )
-    for item in items:
-        parsed = urlparse(item.source_reference)
-        if not parsed.scheme or not parsed.netloc:
-            non_approved.add("<unparseable-url>")
-            continue
-        host = source_domain(item.source_reference)
-        if host not in approved:
-            non_approved.add(host)
-    return sorted(non_approved)
-
 
 def _missing_media_sources(session: Session, organization_id: str) -> list[str]:
     storage = MediaStorageService(session)
@@ -102,7 +65,6 @@ class ReadinessService:
                 event_duration_minutes=configuration.configured_event_duration_minutes if configuration else None,
                 active_top_content_count=len(eligible_top_content(self.session, organization_id)) if configuration else 0,
                 active_ad_count=len(eligible_ads(self.session, organization_id)) if configuration else 0,
-                unapproved_embedded_domains=_unapproved_embedded_domains(self.session, organization_id) if configuration else [],
                 invalid_sources=_missing_media_sources(self.session, organization_id) if configuration else []
             )
         )

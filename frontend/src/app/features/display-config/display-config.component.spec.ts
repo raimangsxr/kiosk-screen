@@ -19,6 +19,7 @@ const configuration: KioskConfiguration = {
   defaultAdAnimationDurationMilliseconds: 300,
   inlineAdCount: 2,
   remoteControlPollingSeconds: 3,
+  videoEndDelaySeconds: 2,
   configuredEventDurationMinutes: 60,
   isEnabled: true
 };

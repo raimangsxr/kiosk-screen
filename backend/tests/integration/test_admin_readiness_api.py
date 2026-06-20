@@ -11,7 +11,7 @@ def _open_test_session(api_client: TestClient):
     return next(gen)
 
 
-def test_admin_readiness_configuration_domains_events_and_users(api_client: TestClient):
+def test_admin_readiness_configuration_iframes_events_and_users(api_client: TestClient):
     api_client.post("/api/auth/login", json={"email": "admin@example.com", "password": "admin"})
 
     assert api_client.get("/api/readiness").status_code == 200
@@ -28,14 +28,14 @@ def test_admin_readiness_configuration_domains_events_and_users(api_client: Test
     assert updated.status_code == 200
     assert updated.json()["configuredEventDurationMinutes"] == 180
 
-    domain = api_client.post("/api/approved-domains", json={"domain": "example.org", "isActive": True})
-    assert domain.status_code == 201
-    domain_id = domain.json()["id"]
-    domain_updated = api_client.put(f"/api/approved-domains/{domain_id}", json={"domain": "example.org", "isActive": False})
-    assert domain_updated.status_code == 200
-    assert domain_updated.json()["isActive"] is False
-    assert api_client.delete(f"/api/approved-domains/{domain_id}").status_code == 204
-    assert api_client.get("/api/approved-domains").status_code == 200
+    iframe = api_client.post("/api/iframes", json={"url": "https://example.org"})
+    assert iframe.status_code == 201
+    iframe_id = iframe.json()["id"]
+    iframe_updated = api_client.put(f"/api/iframes/{iframe_id}", json={"url": "https://example.org/live"})
+    assert iframe_updated.status_code == 200
+    assert iframe_updated.json()["url"] == "https://example.org/live"
+    assert api_client.delete(f"/api/iframes/{iframe_id}").status_code == 204
+    assert api_client.get("/api/iframes").status_code == 200
     assert api_client.get("/api/events").status_code == 200
     assert api_client.get("/api/users").status_code == 200
 
@@ -49,34 +49,24 @@ def test_admin_readiness_configuration_domains_events_and_users(api_client: Test
     assert user.json()["roles"] == ["display_viewer"]
 
 
-def test_get_readiness_includes_unapproved_domain_blocker(api_client: TestClient):
+def test_content_api_rejects_embedded_web_and_readiness_has_no_domain_blocker(api_client: TestClient):
     api_client.post("/api/auth/login", json={"email": "admin@example.com", "password": "admin"})
 
     initial = api_client.get("/api/readiness").json()
     initial_blockers = list(initial["blockers"])
-    assert "Embedded domain is not approved: dashboard.example.com" not in initial_blockers
+    assert not any("Embedded domain is not approved" in blocker for blocker in initial_blockers)
 
-    domain = api_client.post("/api/approved-domains", json={"domain": "dashboard.example.com", "isActive": True}).json()
     iframe = api_client.post("/api/content", json={
         "title": "Dashboard widget",
         "contentType": "embedded_web",
         "sourceReference": "https://dashboard.example.com/widget",
-        "approvedDomainId": domain["id"],
         "isActive": True,
         "displayOrder": 5
     })
-    assert iframe.status_code == 201
-
-    after_create = api_client.get("/api/readiness").json()
-    assert "Embedded domain is not approved: dashboard.example.com" not in after_create["blockers"]
-
-    deactivated = api_client.put(f"/api/approved-domains/{domain['id']}", json={"domain": "dashboard.example.com", "isActive": False})
-    assert deactivated.status_code == 200
+    assert iframe.status_code == 400
 
     final = api_client.get("/api/readiness").json()
-    assert "Embedded domain is not approved: dashboard.example.com" in final["blockers"]
-    assert final["ready"] is False
-    assert len(final["blockers"]) > len(initial_blockers)
+    assert not any("Embedded domain is not approved" in blocker for blocker in final["blockers"])
 
 
 def test_get_readiness_includes_missing_media_warning(api_client: TestClient, tmp_path, monkeypatch):

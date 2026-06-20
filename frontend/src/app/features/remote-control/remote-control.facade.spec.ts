@@ -6,7 +6,7 @@ import { RemoteControlFacade } from './remote-control.facade';
 
 const state = {
   contentMode: 'loop',
-  selectedContentId: null,
+  selectedIframeId: null,
   selectedIframe: null,
   adsVisible: true,
   updatedAt: '2026-06-18T00:00:00Z',
@@ -34,7 +34,7 @@ describe('RemoteControlFacade', () => {
 
     http.expectOne('/api/display/remote-control/state').flush(state);
     http.expectOne('/api/display/remote-control/iframe-options').flush({
-      items: [{ id: 'content-1', title: 'Agenda', sourceReference: 'https://example.org/agenda', isActive: true }]
+      items: [{ id: 'content-1', organizationId: 'org-1', url: 'https://example.org/agenda', createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }]
     });
 
     expect(facade.state()?.contentMode).toBe('loop');
@@ -49,13 +49,13 @@ describe('RemoteControlFacade', () => {
     expect(request.request.method).toBe('PUT');
     expect(request.request.body).toEqual({
       contentMode: 'iframe',
-      selectedContentId: 'content-1',
+      selectedIframeId: 'content-1',
       adsVisible: true
     });
-    request.flush({ ...state, contentMode: 'iframe', selectedContentId: 'content-1' });
+    request.flush({ ...state, contentMode: 'iframe', selectedIframeId: 'content-1' });
 
     expect(facade.state()?.contentMode).toBe('iframe');
-    expect(facade.state()?.selectedContentId).toBe('content-1');
+    expect(facade.state()?.selectedIframeId).toBe('content-1');
   });
 
   it('returns to loop mode without a selected iframe', () => {
@@ -64,7 +64,7 @@ describe('RemoteControlFacade', () => {
     const request = http.expectOne('/api/display/remote-control/state');
     expect(request.request.body).toEqual({
       contentMode: 'loop',
-      selectedContentId: null,
+      selectedIframeId: null,
       adsVisible: true
     });
     request.flush(state);
@@ -77,7 +77,7 @@ describe('RemoteControlFacade', () => {
     http.expectOne('/api/display/remote-control/state').flush({
       ...state,
       contentMode: 'iframe',
-      selectedContentId: 'content-1',
+      selectedIframeId: 'content-1',
       adsVisible: true
     });
 
@@ -86,18 +86,18 @@ describe('RemoteControlFacade', () => {
     const request = http.expectOne('/api/display/remote-control/state');
     expect(request.request.body).toEqual({
       contentMode: 'iframe',
-      selectedContentId: 'content-1',
+      selectedIframeId: 'content-1',
       adsVisible: false
     });
     request.flush({
       ...state,
       contentMode: 'iframe',
-      selectedContentId: 'content-1',
+      selectedIframeId: 'content-1',
       adsVisible: false
     });
 
     expect(facade.state()?.contentMode).toBe('iframe');
-    expect(facade.state()?.selectedContentId).toBe('content-1');
+    expect(facade.state()?.selectedIframeId).toBe('content-1');
     expect(facade.state()?.adsVisible).toBeFalse();
   });
 

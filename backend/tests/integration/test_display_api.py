@@ -89,7 +89,7 @@ def test_new_display_session_starts_with_default_remote_control_state(client: Te
 
     assert second_open.status_code == 200
     assert second_open.json()["remoteControl"]["contentMode"] == "loop"
-    assert second_open.json()["remoteControl"]["selectedContentId"] is None
+    assert second_open.json()["remoteControl"]["selectedIframeId"] is None
     assert second_open.json()["remoteControl"]["adsVisible"] is True
     assert state.status_code == 200
     assert state.json()["remoteControl"]["adsVisible"] is True

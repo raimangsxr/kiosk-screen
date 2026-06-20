@@ -43,7 +43,7 @@ describe('AdminShellComponent', () => {
     const nav = fixture.nativeElement.querySelector('mat-nav-list');
 
     expect(nav?.getAttribute('aria-label')).toBe('Admin sections');
-    expect(text).toContain('Iframe domains');
+    expect(text).toContain('Iframes');
     expect(text).toContain('Content');
     expect(text).toContain('Users and roles');
     expect(text).toContain('Setup check');

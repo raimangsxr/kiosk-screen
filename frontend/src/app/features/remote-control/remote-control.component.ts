@@ -155,9 +155,9 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                 >
                   @for (option of facade.iframeOptions(); track option.id) {
                     <mat-radio-button [value]="option.id" class="remote-control__iframe-item">
-                      <span class="remote-control__iframe-title">{{ option.title }}</span>
+                      <span class="remote-control__iframe-title">{{ truncate(option.url, 32) }}</span>
                       <span class="remote-control__iframe-meta">
-                        <span class="remote-control__iframe-url">{{ truncate(option.sourceReference, 48) }}</span>
+                        <span class="remote-control__iframe-url">{{ truncate(option.url, 48) }}</span>
                         @if (option.id === selectedIframeId()) {
                           <span class="remote-control__iframe-badge" aria-label="Currently showing">
                             <mat-icon aria-hidden="true">check_circle</mat-icon>
@@ -173,11 +173,11 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
 
             @if (mode() === 'iframe' && !hasIframes()) {
               <div class="remote-control__iframe-empty" data-testid="remote-control-iframe-empty">
-                <p>No iframes configured. Add one in the admin content section.</p>
+                <p>No iframes configured. Add one in the iframe section.</p>
                 <a
                   mat-flat-button
                   color="primary"
-                  routerLink="/admin/content/new"
+                  routerLink="/admin/iframes/new"
                   class="remote-control__iframe-cta"
                 >
                   <mat-icon aria-hidden="true">add</mat-icon>
@@ -422,7 +422,7 @@ export class RemoteControlComponent implements OnInit {
   });
 
   protected readonly selectedIframeId = computed(
-    () => this.facade.state()?.selectedContentId ?? null
+    () => this.facade.state()?.selectedIframeId ?? null
   );
   protected readonly adsVisible = computed(() => this.facade.state()?.adsVisible !== false);
   protected readonly displayOnline = computed<boolean | null>(() => {
@@ -485,7 +485,7 @@ export class RemoteControlComponent implements OnInit {
     this.updateError.set(false);
     this.facade.setIframeMode(contentId).subscribe({
       next: () => {
-        const title = this.facade.iframeOptions().find((o) => o.id === contentId)?.title ?? '';
+        const title = this.facade.iframeOptions().find((o) => o.id === contentId)?.url ?? '';
         this.notify('Now showing: ' + title + '.');
       },
       error: () => this.updateError.set(true)

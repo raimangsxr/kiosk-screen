@@ -1,17 +1,13 @@
+import { IframeItem } from '../../core/api/iframe.api';
 import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 export type RemoteControlContentMode = 'loop' | 'iframe';
 
-export interface RemoteControlIframeOption {
-  id: string;
-  title: string;
-  sourceReference: string;
-  isActive: boolean;
-}
+export type RemoteControlIframeOption = IframeItem;
 
 export interface RemoteControlState {
   contentMode: RemoteControlContentMode;
-  selectedContentId: string | null;
+  selectedIframeId: string | null;
   selectedIframe?: RemoteControlIframeOption | null;
   adsVisible: boolean;
   updatedAt: string;
@@ -20,7 +16,7 @@ export interface RemoteControlState {
 
 export interface RemoteControlUpdate {
   contentMode: RemoteControlContentMode;
-  selectedContentId: string | null;
+  selectedIframeId: string | null;
   adsVisible: boolean;
 }
 
