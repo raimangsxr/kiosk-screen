@@ -4,8 +4,7 @@
   display: grid;
   grid-template-rows: 4fr 1fr;
   overflow: hidden;
-  background: #06161c;
-  color: #f8faf6;
+  color: #000;
 }
 
 .display-screen--ads-hidden {
@@ -18,10 +17,6 @@
   position: relative;
   display: grid;
   place-items: center;
-}
-
-.top-region {
-  background: #0d2f3a;
 }
 
 .ad-region {
@@ -47,15 +42,7 @@ iframe {
 .display-content-media {
   position: absolute;
   inset: 0;
-}
-
-.display-content-media--in {
   z-index: 2;
-}
-
-.display-content-media--out {
-  z-index: 1;
-  pointer-events: none;
 }
 
 .ad-region img {
@@ -94,40 +81,20 @@ iframe {
   animation-fill-mode: both;
 }
 
-.rotation-fade.display-content-media--in.animation-run-a,
 .rotation-fade.ad-animation-run-a {
   animation-name: kiosk-fade-in-a;
 }
 
-.rotation-fade.display-content-media--in.animation-run-b,
 .rotation-fade.ad-animation-run-b {
   animation-name: kiosk-fade-in-b;
 }
 
-.rotation-fade.display-content-media--out.animation-run-a {
-  animation-name: kiosk-fade-out-a;
-}
-
-.rotation-fade.display-content-media--out.animation-run-b {
-  animation-name: kiosk-fade-out-b;
-}
-
-.rotation-slide.display-content-media--in.animation-run-a,
 .rotation-slide.ad-animation-run-a {
   animation-name: kiosk-slide-in-a;
 }
 
-.rotation-slide.display-content-media--in.animation-run-b,
 .rotation-slide.ad-animation-run-b {
   animation-name: kiosk-slide-in-b;
-}
-
-.rotation-slide.display-content-media--out.animation-run-a {
-  animation-name: kiosk-slide-out-a;
-}
-
-.rotation-slide.display-content-media--out.animation-run-b {
-  animation-name: kiosk-slide-out-b;
 }
 
 @keyframes kiosk-fade-in-a {
@@ -140,16 +107,6 @@ iframe {
   to { opacity: 1; }
 }
 
-@keyframes kiosk-fade-out-a {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-@keyframes kiosk-fade-out-b {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
 @keyframes kiosk-slide-in-a {
   from { transform: translateX(16px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
@@ -158,30 +115,6 @@ iframe {
 @keyframes kiosk-slide-in-b {
   from { transform: translateX(16px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
-}
-
-@keyframes kiosk-slide-out-a {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(-16px); opacity: 0; }
-}
-
-@keyframes kiosk-slide-out-b {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(-16px); opacity: 0; }
-}
-
-.content-label {
-  position: absolute;
-  z-index: 3;
-  left: 32px;
-  bottom: 28px;
-  max-width: min(720px, 70vw);
-  padding: 12px 18px;
-  border-radius: 6px;
-  background: rgba(6, 22, 28, 0.76);
-  color: #f8faf6;
-  font-size: 32px;
-  font-weight: 800;
 }
 
 .fallback {

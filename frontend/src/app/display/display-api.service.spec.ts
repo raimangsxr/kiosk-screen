@@ -45,7 +45,7 @@ describe('DisplayApiService', () => {
     request.flush({});
   });
 
-  it('watchState polls the endpoint at the configured interval and only emits on id+order changes', fakeAsync(() => {
+  it('watchState polls the endpoint and emits when display-relevant state changes', fakeAsync(() => {
     const base: DisplayState = {
       configuration: {
         id: 'c1',
@@ -82,7 +82,7 @@ describe('DisplayApiService', () => {
     http.expectOne('/api/display/state').flush(base);
     expect(emissions.length).toBe(1);
 
-    // Third poll: state with same id+order (different object reference) → suppressed.
+    // Third poll: state with same display fingerprint (different object reference) -> suppressed.
     tick(2000);
     http.expectOne('/api/display/state').flush({
       ...base,
@@ -90,7 +90,19 @@ describe('DisplayApiService', () => {
     });
     expect(emissions.length).toBe(1);
 
-    // Fourth poll: a new content item → emission.
+    // Fourth poll: a display configuration field changes -> emission.
+    tick(2000);
+    http.expectOne('/api/display/state').flush({
+      ...base,
+      configuration: {
+        ...base.configuration,
+        defaultTopDurationSeconds: 12,
+      },
+    });
+    expect(emissions.length).toBe(2);
+    expect(emissions[1].configuration.defaultTopDurationSeconds).toBe(12);
+
+    // Fifth poll: a new content item -> emission.
     tick(2000);
     http.expectOne('/api/display/state').flush({
       ...base,
@@ -99,8 +111,8 @@ describe('DisplayApiService', () => {
         { id: 'b', title: 'B', contentType: 'photo', sourceReference: 'b.jpg', isActive: true, displayOrder: 2, durationSeconds: 5, effectiveDurationSeconds: 5, effectiveRotationAnimation: 'none' },
       ],
     });
-    expect(emissions.length).toBe(2);
-    expect(emissions[1].topContent.length).toBe(2);
+    expect(emissions.length).toBe(3);
+    expect(emissions[2].topContent.length).toBe(2);
 
     // Clean up: unsubscribe so the timer stops firing and http.verify() passes.
     sub.unsubscribe();

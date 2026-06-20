@@ -81,6 +81,40 @@ def test_admin_can_hide_and_restore_ads_without_changing_content_mode(api_client
     assert restored.json()["adsVisible"] is True
 
 
+def test_admin_can_issue_rotation_navigation_command(api_client: TestClient) -> None:
+    login(api_client, "admin@example.com", "admin")
+    opened = api_client.post("/api/display/open")
+    assert opened.status_code == 200
+
+    command = api_client.post("/api/display/remote-control/navigation", json={"command": "next"})
+    state = api_client.get("/api/display/state")
+
+    assert command.status_code == 200
+    assert command.json()["navigationCommand"] == "next"
+    assert command.json()["navigationCommandId"] is not None
+    assert state.status_code == 200
+    assert state.json()["remoteControl"]["navigationCommand"] == "next"
+    assert state.json()["remoteControl"]["navigationCommandId"] == command.json()["navigationCommandId"]
+
+
+def test_navigation_command_requires_rotation_mode(api_client: TestClient) -> None:
+    login(api_client, "admin@example.com", "admin")
+    opened = api_client.post("/api/display/open")
+    assert opened.status_code == 200
+
+    iframe = api_client.post("/api/iframes", json={"url": "https://example.org/agenda"})
+    assert iframe.status_code == 201
+    selected = api_client.put(
+        "/api/display/remote-control/state",
+        json={"contentMode": "iframe", "selectedIframeId": iframe.json()["id"], "adsVisible": True},
+    )
+    assert selected.status_code == 200
+
+    command = api_client.post("/api/display/remote-control/navigation", json={"command": "next"})
+
+    assert command.status_code == 400
+
+
 def test_display_state_reflects_configuration_update_without_reopening_display(api_client: TestClient) -> None:
     login(api_client, "admin@example.com", "admin")
     opened = api_client.post("/api/display/open")

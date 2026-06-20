@@ -58,6 +58,8 @@ export interface DisplayRemoteControlState {
   contentMode: 'loop' | 'iframe';
   selectedIframeId: string | null;
   adsVisible: boolean;
+  navigationCommand?: 'next' | 'previous' | null;
+  navigationCommandId?: string | null;
   updatedAt: string;
 }
 
@@ -98,13 +100,34 @@ function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState
   return (
     sameIdsAndOrder(prev.topContent, curr.topContent) &&
     sameIdsAndOrder(prev.ads, curr.ads) &&
-    prev.configuration.isEnabled === curr.configuration.isEnabled &&
-    prev.configuration.inlineAdCount === curr.configuration.inlineAdCount &&
-    prev.configuration.remoteControlPollingSeconds === curr.configuration.remoteControlPollingSeconds &&
-    prev.configuration.videoEndDelaySeconds === curr.configuration.videoEndDelaySeconds &&
+    sameDisplayConfiguration(prev.configuration, curr.configuration) &&
     prev.remoteControl?.selectedIframeId === curr.remoteControl?.selectedIframeId &&
     prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
+    prev.remoteControl?.navigationCommandId === curr.remoteControl?.navigationCommandId &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
+  );
+}
+
+function sameDisplayConfiguration(
+  prev: DisplayKioskConfiguration,
+  curr: DisplayKioskConfiguration,
+): boolean {
+  return (
+    prev.id === curr.id &&
+    prev.name === curr.name &&
+    prev.topRegionRatio === curr.topRegionRatio &&
+    prev.bottomRegionRatio === curr.bottomRegionRatio &&
+    prev.defaultTopDurationSeconds === curr.defaultTopDurationSeconds &&
+    prev.defaultAdDurationSeconds === curr.defaultAdDurationSeconds &&
+    prev.defaultTopRotationAnimation === curr.defaultTopRotationAnimation &&
+    prev.defaultAdRotationAnimation === curr.defaultAdRotationAnimation &&
+    prev.defaultTopAnimationDurationMilliseconds === curr.defaultTopAnimationDurationMilliseconds &&
+    prev.defaultAdAnimationDurationMilliseconds === curr.defaultAdAnimationDurationMilliseconds &&
+    prev.inlineAdCount === curr.inlineAdCount &&
+    prev.remoteControlPollingSeconds === curr.remoteControlPollingSeconds &&
+    prev.videoEndDelaySeconds === curr.videoEndDelaySeconds &&
+    prev.configuredEventDurationMinutes === curr.configuredEventDurationMinutes &&
+    prev.isEnabled === curr.isEnabled
   );
 }
 

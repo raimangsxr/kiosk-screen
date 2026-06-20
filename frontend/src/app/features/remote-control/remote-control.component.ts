@@ -126,7 +126,7 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                 [disabled]="facade.saving()"
                 data-testid="remote-control-mode-group"
               >
-                <mat-radio-button value="rotation" class="remote-control__radio">
+                <mat-radio-button value="loop" class="remote-control__radio">
                   <span class="remote-control__radio-title">Rotation</span>
                   <span class="remote-control__radio-hint">Cycle through all approved content.</span>
                 </mat-radio-button>
@@ -187,6 +187,41 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
             }
           </mat-card-content>
         </mat-card>
+
+        @if (mode() === 'loop') {
+          <mat-card appearance="outlined" class="remote-control__card">
+            <mat-card-header>
+              <mat-icon mat-card-avatar aria-hidden="true">skip_next</mat-icon>
+              <mat-card-title>Rotation navigation</mat-card-title>
+              <mat-card-subtitle>Move the running rotation and restart the item timer.</mat-card-subtitle>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="remote-control__navigation" aria-label="Rotation navigation">
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="facade.saving()"
+                  (click)="navigateRotation('previous')"
+                  data-testid="remote-control-previous"
+                >
+                  <mat-icon aria-hidden="true">skip_previous</mat-icon>
+                  Previous
+                </button>
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  [disabled]="facade.saving()"
+                  (click)="navigateRotation('next')"
+                  data-testid="remote-control-next"
+                >
+                  <mat-icon aria-hidden="true">skip_next</mat-icon>
+                  Next
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        }
 
         <mat-card appearance="outlined" class="remote-control__card">
           <mat-card-header>
@@ -385,6 +420,14 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
         justify-self: start;
         min-height: var(--app-touch-target);
       }
+      .remote-control__navigation {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .remote-control__navigation button {
+        min-height: var(--app-touch-target);
+      }
       .remote-control__retry {
         display: flex;
         justify-content: flex-start;
@@ -496,6 +539,14 @@ export class RemoteControlComponent implements OnInit {
     this.updateError.set(false);
     this.facade.setAdsVisible(visible).subscribe({
       next: () => this.notify(visible ? 'Ads are now visible.' : 'Ads are now hidden.'),
+      error: () => this.updateError.set(true)
+    });
+  }
+
+  navigateRotation(command: 'next' | 'previous'): void {
+    this.updateError.set(false);
+    this.facade.navigate(command).subscribe({
+      next: () => this.notify(command === 'next' ? 'Skipped to next content.' : 'Returned to previous content.'),
       error: () => this.updateError.set(true)
     });
   }

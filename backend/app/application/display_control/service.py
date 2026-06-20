@@ -1,5 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from uuid import uuid4
 
 from app.domain.display_events import create_display_event
 from app.repositories.base import utc_now
@@ -129,6 +130,32 @@ class DisplayControlService:
                 select(Iframe).where(Iframe.organization_id == organization_id).order_by(Iframe.created_at.asc())
             )
         )
+
+    def issue_navigation_command(
+        self,
+        organization_id: str,
+        user_id: str,
+        *,
+        command: str,
+    ) -> DisplayControlState:
+        if command not in {"next", "previous"}:
+            raise ValueError("Navigation command must be next or previous.")
+        state = self.get_state_for_active_session(organization_id)
+        if state.content_mode != "loop":
+            raise ValueError("Navigation commands require rotation mode.")
+
+        state.navigation_command = command
+        state.navigation_command_id = str(uuid4())
+        state.updated_by_user_id = user_id
+        self._record(
+            organization_id,
+            user_id,
+            "remote_control_navigation_changed",
+            "Remote control navigation command changed",
+            metadata={"command": command, "commandId": state.navigation_command_id},
+        )
+        self.session.commit()
+        return state
 
     def selected_iframe(self, state: DisplayControlState) -> Iframe | None:
         if state.content_mode != "iframe" or state.selected_iframe_id is None:

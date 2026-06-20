@@ -6,6 +6,7 @@ from app.api.schemas import (
     DisplayStateSchema,
     RemoteControlAdminStateSchema,
     RemoteControlIframeOptionsSchema,
+    RemoteControlNavigationRequest,
     RemoteControlStateRequest,
     RemoteControlStateSchema,
 )
@@ -45,6 +46,8 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
         contentMode=state.content_mode,
         selectedIframeId=state.selected_iframe_id,
         adsVisible=state.ads_visible,
+        navigationCommand=state.navigation_command,
+        navigationCommandId=state.navigation_command_id,
         updatedAt=state.updated_at,
     )
 
@@ -58,6 +61,8 @@ def to_remote_control_admin_schema(
         selectedIframeId=state.selected_iframe_id,
         selectedIframe=to_iframe_schema(selected_iframe) if selected_iframe else None,
         adsVisible=state.ads_visible,
+        navigationCommand=state.navigation_command,
+        navigationCommandId=state.navigation_command_id,
         updatedAt=state.updated_at,
         displaySessionActive=True,
     )
@@ -190,6 +195,27 @@ def update_remote_control_state_route(
             content_mode=payload.content_mode,
             selected_iframe_id=str(payload.selected_iframe_id) if payload.selected_iframe_id else None,
             ads_visible=payload.ads_visible,
+        )
+        return to_remote_control_admin_schema(state, service.selected_iframe(state))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/remote-control/navigation", response_model=RemoteControlAdminStateSchema)
+def remote_control_navigation_route(
+    payload: RemoteControlNavigationRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> RemoteControlAdminStateSchema:
+    ensure_remote_control_admin(user, session)
+    try:
+        service = DisplayControlService(session)
+        state = service.issue_navigation_command(
+            user.organization_id,
+            user.id,
+            command=payload.command,
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:

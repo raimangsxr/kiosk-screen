@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
+import { animate, style, transition, trigger } from '@angular/animations';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
+import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { DisplayRotationService } from './display-rotation.service';
 
 type DisplayRenderableItem = Pick<
@@ -26,51 +28,34 @@ type DisplayRenderableItem = Pick<
       <section class="top-region" aria-label="Main content">
         <iframe
           *ngIf="displayAvailable && iframeUrl() as url"
-          [src]="safeUrl(url)"
+          [src]="safeIframeUrl(url)"
           title="Pinned iframe"
-          class="display-content-media display-content-media--in"
+          class="display-content-media"
           data-testid="display-iframe"
           frameborder="0"
           allowfullscreen
         ></iframe>
         <ng-container *ngIf="displayAvailable && !iframeUrl() && currentContent">
-          <img
-            *ngIf="outgoingContent?.contentType === 'photo'"
-            [src]="mediaSource(outgoingContent!)"
-            [alt]="outgoingContent!.title"
-            [class]="contentAnimationClass(outgoingContent!, 'out')"
-            [style.animation-duration.ms]="animationDurationMs(outgoingContent!)"
-            aria-hidden="true"
-          />
-          <video
-            *ngIf="outgoingContent?.contentType === 'video'"
-            [src]="mediaSource(outgoingContent!)"
-            muted
-            autoplay
-            playsinline
-            [class]="contentAnimationClass(outgoingContent!, 'out')"
-            [style.animation-duration.ms]="animationDurationMs(outgoingContent!)"
-            aria-hidden="true"
-          ></video>
-          <img
-            *ngIf="currentContent.contentType === 'photo'"
-            [src]="mediaSource(currentContent)"
-            [alt]="currentContent.title"
-            [class]="contentAnimationClass(currentContent, 'in')"
-            [style.animation-duration.ms]="animationDurationMs(currentContent)"
-            data-testid="display-content"
-          />
-          <video
-            *ngIf="currentContent.contentType === 'video'"
-            [src]="mediaSource(currentContent)"
-            muted
-            autoplay
-            playsinline
-            (ended)="onVideoEnded(currentContent)"
-            [class]="contentAnimationClass(currentContent, 'in')"
-            [style.animation-duration.ms]="animationDurationMs(currentContent)"
-            data-testid="display-content"
-          ></video>
+          <ng-container *ngFor="let content of contentRenderItems; trackBy: trackContent" [ngSwitch]="content.contentType">
+            <img
+              *ngSwitchCase="'photo'"
+              [src]="mediaSource(content)"
+              class="display-content-media"
+              [@contentTransition]="contentTransition(content)"
+              data-testid="display-content"
+            />
+            <video
+              *ngSwitchCase="'video'"
+              [src]="mediaSource(content)"
+              muted
+              autoplay
+              playsinline
+              (ended)="onVideoEnded(content)"
+              class="display-content-media"
+              [@contentTransition]="contentTransition(content)"
+              data-testid="display-content"
+            ></video>
+          </ng-container>
           <div class="content-label">{{ currentContent.title }}</div>
         </ng-container>
         <ng-template [ngIf]="!displayAvailable || (!iframeUrl() && !currentContent)">
@@ -89,7 +74,6 @@ type DisplayRenderableItem = Pick<
               [class]="adAnimationClass(ad)"
               [style.animation-duration.ms]="animationDurationMs(ad)"
             />
-            <figcaption>{{ ad.advertiser ?? 'Ad' }}</figcaption>
           </figure>
         </ng-container>
         <ng-template #adFallback>
@@ -99,9 +83,32 @@ type DisplayRenderableItem = Pick<
     </main>
   `,
   styleUrl: './display-screen.component.css',
+  animations: [
+    trigger('contentTransition', [
+      transition(':enter', [
+        style({ opacity: 0, transform: '{{enterTransform}}', zIndex: 2 }),
+        animate(
+          '{{duration}}ms {{easing}}',
+          style({ opacity: 1, transform: 'translateX(0)', zIndex: 2 }),
+        ),
+      ], {
+        params: { duration: 300, easing: 'ease-out', enterTransform: 'translateX(0)' },
+      }),
+      transition(':leave', [
+        style({ opacity: 1, transform: 'translateX(0)', zIndex: 1, pointerEvents: 'none' }),
+        animate(
+          '{{duration}}ms {{easing}}',
+          style({ opacity: 0, transform: '{{leaveTransform}}', zIndex: 1, pointerEvents: 'none' }),
+        ),
+      ], {
+        params: { duration: 300, easing: 'ease-out', leaveTransform: 'translateX(0)' },
+      }),
+    ]),
+  ],
 })
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
+  private readonly displaySync = inject(DisplayControlSyncService);
   private readonly rotation = inject(DisplayRotationService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
@@ -110,12 +117,14 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private adTimer: ReturnType<typeof setTimeout> | null = null;
   private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollSub: Subscription | null = null;
+  private syncSub: Subscription | null = null;
   private currentPollIntervalMs = 0;
   private adIndex = 0;
-  private contentAnimationRun = 0;
   private adAnimationRun = 0;
   private currentContentRenderSignature = '';
-  private transitionTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastNavigationCommandId: string | null = null;
+  private cachedIframeUrl: string | null = null;
+  private cachedSafeIframeUrl: SafeResourceUrl | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -125,7 +134,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   state: DisplayState | null = null;
   currentContent: DisplayContentItem | null = null;
-  outgoingContent: DisplayContentItem | null = null;
+  contentRenderItems: DisplayContentItem[] = [];
   defaultTopDurationSeconds = 10;
 
   get currentAd(): DisplayAdItem | null {
@@ -162,6 +171,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       this.applyState(state, { resetRotation: true });
       this.startPolling();
     });
+    this.syncSub = this.displaySync.changes$.subscribe(() => this.pollNow());
   }
 
   ngOnDestroy(): void {
@@ -169,6 +179,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.clearTimers();
     this.pollSub?.unsubscribe();
     this.pollSub = null;
+    this.syncSub?.unsubscribe();
+    this.syncSub = null;
     this.rotation.reset();
   }
 
@@ -180,12 +192,25 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return `rotation-${item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none'}`;
   }
 
-  contentAnimationClass(item: DisplayRenderableItem, direction: 'in' | 'out'): string {
-    return `${this.animationClass(item)} display-content-media display-content-media--${direction} animation-run-${this.contentAnimationRun % 2 === 0 ? 'a' : 'b'}`;
-  }
-
   adAnimationClass(item: DisplayRenderableItem): string {
     return `${this.animationClass(item)} ad-animation-run-${this.adAnimationRun % 2 === 0 ? 'a' : 'b'}`;
+  }
+
+  contentTransition(item: DisplayContentItem): {
+    value: string;
+    params: { duration: number; easing: string; enterTransform: string; leaveTransform: string };
+  } {
+    const animation = item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none';
+    const duration = animation === 'none' ? 0 : (this.animationDurationMs(item) ?? 300);
+    return {
+      value: this.contentRenderKey(item),
+      params: {
+        duration,
+        easing: animation === 'fade' ? 'ease-in' : 'ease-out',
+        enterTransform: animation === 'slide' ? 'translateX(16px)' : 'translateX(0)',
+        leaveTransform: animation === 'slide' ? 'translateX(-16px)' : 'translateX(0)',
+      },
+    };
   }
 
   animationDurationMs(item: DisplayRenderableItem): number | null {
@@ -199,8 +224,12 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return null;
   }
 
-  safeUrl(url: string): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  safeIframeUrl(url: string): SafeResourceUrl {
+    if (this.cachedIframeUrl !== url || this.cachedSafeIframeUrl === null) {
+      this.cachedIframeUrl = url;
+      this.cachedSafeIframeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
+    }
+    return this.cachedSafeIframeUrl;
   }
 
   private applyState(state: DisplayState, options: { resetRotation: boolean; preserveContentTimer?: boolean }): void {
@@ -214,6 +243,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       this.rotation.initialize(state.topContent);
       this.setCurrentContent(this.rotation.getFullState()[0] ?? null);
       this.adIndex = 0;
+      this.lastNavigationCommandId = state.remoteControl?.navigationCommandId ?? null;
     } else {
       this.rotation.applyPollState(state.topContent);
       this.setCurrentContent(this.currentContent);
@@ -223,6 +253,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
         !state.topContent.find((item) => item.id === previousContent.id)
       ) {
         this.advanceNow();
+        return;
+      }
+      if (this.applyNavigationCommand()) {
+        this.scheduleNextAd();
+        this.reconfigurePollingIfNeeded();
         return;
       }
     }
@@ -265,6 +300,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.contentTimer = setTimeout(() => this.advanceNow(), delaySeconds * 1000);
   }
 
+  readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
+
   private scheduleNextAd(): void {
     if (this.adTimer) {
       clearTimeout(this.adTimer);
@@ -297,6 +334,36 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.scheduleTransition(this.durationOfCurrent());
   }
 
+  private previousNow(): void {
+    if (!this.displayAvailable || this.state?.remoteControl?.contentMode === 'iframe') {
+      return;
+    }
+    this.setCurrentContent(this.rotation.pickPrevious());
+    if (this.currentContent === null && this.state && this.state.topContent.length > 0) {
+      this.rotation.initialize(this.state.topContent);
+      this.setCurrentContent(this.rotation.pickPrevious());
+    }
+    this.scheduleTransition(this.durationOfCurrent());
+  }
+
+  private applyNavigationCommand(): boolean {
+    const commandId = this.state?.remoteControl?.navigationCommandId ?? null;
+    const command = this.state?.remoteControl?.navigationCommand ?? null;
+    if (!commandId || commandId === this.lastNavigationCommandId || this.state?.remoteControl?.contentMode !== 'loop') {
+      return false;
+    }
+    this.lastNavigationCommandId = commandId;
+    if (command === 'next') {
+      this.advanceNow();
+      return true;
+    }
+    if (command === 'previous') {
+      this.previousNow();
+      return true;
+    }
+    return false;
+  }
+
   private durationOfCurrent(): number {
     if (this.currentContent === null) {
       return this.defaultTopDurationSeconds * 1000;
@@ -313,6 +380,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.currentPollIntervalMs = this.pollIntervalMs();
     this.pollSub = this.api.watchState(this.currentPollIntervalMs).subscribe((pollState) => {
       this.applyState(pollState, { resetRotation: false, preserveContentTimer: true });
+    });
+  }
+
+  private pollNow(): void {
+    if (this.state === null) {
+      return;
+    }
+    this.api.getState().subscribe((state) => {
+      this.applyState(state, { resetRotation: false, preserveContentTimer: true });
     });
   }
 
@@ -339,7 +415,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   private clearTimers(): void {
     this.clearContentTimers();
-    this.clearTransitionTimer();
     if (this.adTimer) {
       clearTimeout(this.adTimer);
       this.adTimer = null;
@@ -347,29 +422,21 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   private setCurrentContent(item: DisplayContentItem | null): void {
-    const nextSignature = item
-      ? `${item.id}|${item.sourceReference}|${item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none'}`
-      : '';
+    const nextSignature = item ? this.contentRenderKey(item) : '';
     if (nextSignature !== this.currentContentRenderSignature) {
-      const previousContent = this.currentContent;
-      this.contentAnimationRun += 1;
       this.currentContentRenderSignature = nextSignature;
-      this.clearTransitionTimer();
-      this.outgoingContent = previousContent && item ? previousContent : null;
-      if (this.outgoingContent && item) {
-        this.transitionTimer = setTimeout(() => {
-          this.outgoingContent = null;
-          this.transitionTimer = null;
-        }, this.animationDurationMs(item) ?? 300);
-      }
     }
     this.currentContent = item;
+    this.contentRenderItems = item ? [item] : [];
   }
 
-  private clearTransitionTimer(): void {
-    if (this.transitionTimer) {
-      clearTimeout(this.transitionTimer);
-      this.transitionTimer = null;
-    }
+  private contentRenderKey(item: DisplayContentItem): string {
+    return [
+      item.id,
+      this.mediaSource(item),
+      item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
+      item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? 'default',
+      item.contentType,
+    ].join('|');
   }
 }

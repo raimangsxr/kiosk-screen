@@ -116,6 +116,22 @@ export class DisplayRotationService {
     return next;
   }
 
+  pickPrevious(defaultItem: DisplayContentItem | null = null): DisplayContentItem | null {
+    if (this.fullState.length === 0) {
+      this.currentItemId = null;
+      return defaultItem;
+    }
+    const anchorId = this.currentItemId ?? this.baseAnchorId;
+    const anchorIndex = anchorId
+      ? this.fullState.findIndex((i) => i.id === anchorId)
+      : 0;
+    const previousIndex = anchorIndex <= 0 ? this.fullState.length - 1 : anchorIndex - 1;
+    const previous = this.fullState[previousIndex];
+    this.currentItemId = previous.id;
+    this.baseAnchorId = previous.id;
+    return previous;
+  }
+
   getCurrentItemId(): string | null {
     return this.currentItemId;
   }

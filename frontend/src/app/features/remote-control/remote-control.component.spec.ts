@@ -48,7 +48,7 @@ function buildFacade(overrides: {
 } = {}) {
   return jasmine.createSpyObj<RemoteControlFacade>(
     'RemoteControlFacade',
-    ['refresh', 'setLoopMode', 'setIframeMode', 'setAdsVisible'],
+    ['refresh', 'setLoopMode', 'setIframeMode', 'setAdsVisible', 'navigate'],
     {
       state: (overrides.state ?? signal(baseState)).asReadonly(),
       iframeOptions: (overrides.iframeOptions ?? signal([iframeOption])).asReadonly(),
@@ -91,6 +91,7 @@ describe('RemoteControlComponent', () => {
       of({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
     );
     facade.setAdsVisible.and.returnValue(of({ ...baseState, adsVisible: false }));
+    facade.navigate.and.returnValue(of({ ...baseState, navigationCommand: 'next', navigationCommandId: 'nav-1' }));
 
     snackBar = new MatSnackBarStub();
     await configureTestBed(facade, snackBar);
@@ -292,6 +293,47 @@ describe('RemoteControlComponent', () => {
     expect(facade.setAdsVisible).toHaveBeenCalledWith(false);
     expect(snackBar.open).toHaveBeenCalledWith(
       'Ads are now hidden.',
+      'Dismiss',
+      jasmine.objectContaining({ duration: 3000 })
+    );
+  }));
+
+  it('renders rotation navigation buttons only in loop mode', async () => {
+    expect(fixture.nativeElement.querySelector('[data-testid="remote-control-previous"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="remote-control-next"]')).not.toBeNull();
+
+    const customFacade = buildFacade({
+      state: signal({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
+    });
+    customFacade.refresh.and.returnValue(of({ state: baseState, options: { items: [iframeOption] } }));
+    customFacade.setLoopMode.and.returnValue(of(baseState));
+    customFacade.setIframeMode.and.returnValue(of(baseState));
+    customFacade.setAdsVisible.and.returnValue(of(baseState));
+    customFacade.navigate.and.returnValue(of(baseState));
+
+    await configureTestBed(customFacade, new MatSnackBarStub());
+    const customFixture = TestBed.createComponent(RemoteControlComponent);
+    customFixture.detectChanges();
+
+    expect(customFixture.nativeElement.querySelector('[data-testid="remote-control-previous"]')).toBeNull();
+    expect(customFixture.nativeElement.querySelector('[data-testid="remote-control-next"]')).toBeNull();
+  });
+
+  it('issues rotation navigation commands and shows feedback', fakeAsync(() => {
+    fixture.componentInstance.navigateRotation('next');
+    tick();
+    expect(facade.navigate).toHaveBeenCalledWith('next');
+    expect(snackBar.open).toHaveBeenCalledWith(
+      'Skipped to next content.',
+      'Dismiss',
+      jasmine.objectContaining({ duration: 3000 })
+    );
+
+    fixture.componentInstance.navigateRotation('previous');
+    tick();
+    expect(facade.navigate).toHaveBeenCalledWith('previous');
+    expect(snackBar.open).toHaveBeenCalledWith(
+      'Returned to previous content.',
       'Dismiss',
       jasmine.objectContaining({ duration: 3000 })
     );

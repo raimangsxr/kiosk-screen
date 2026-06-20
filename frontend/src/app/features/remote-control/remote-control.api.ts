@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import {
   RemoteControlIframeOptionsResponse,
+  RemoteControlNavigationRequest,
   RemoteControlState,
   RemoteControlUpdate
 } from './remote-control.models';
@@ -18,6 +19,12 @@ export class RemoteControlApi {
 
   updateState(payload: RemoteControlUpdate): Observable<RemoteControlState> {
     return this.http.put<RemoteControlState>('/api/display/remote-control/state', payload, { withCredentials: true });
+  }
+
+  navigate(payload: RemoteControlNavigationRequest): Observable<RemoteControlState> {
+    return this.http.post<RemoteControlState>('/api/display/remote-control/navigation', payload, {
+      withCredentials: true
+    });
   }
 
   listIframeOptions(): Observable<RemoteControlIframeOptionsResponse> {
