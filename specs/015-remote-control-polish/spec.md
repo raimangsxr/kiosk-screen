@@ -22,33 +22,37 @@ es posible volver a hall."
 - Q: When the kiosk has no active iframes, what should the Iframe option
   show? → A: The "Iframe" radio is rendered disabled with helper text
   "No iframes configured. Add one in the admin content section." plus a
-  primary action linking to `/admin/content/new`. The user can still pick
-  Rotation.
+  primary action linking to `/admin/content/new`. The user can still
+  pick Rotation.
 - Q: When the operator hides ads, do we need a confirm dialog? → A: No.
   Hiding ads is reversible in one toggle and the operator can immediately
-  restore it. A snackbar confirming the change is enough. The spec does not
-  add a confirm dialog.
+  restore it. A snackbar confirming the change is enough. The spec does
+  not add a confirm dialog.
 - Q: When the API is offline and the initial load fails, what does the
-  page show? → A: The toolbar, page header, and an `app-admin-state` error
-  block with a retry button. The mode/ads controls are not rendered until
-  the load succeeds.
+  page show? → A: The page header and an `app-admin-state` error block
+  with a retry button. The mode/ads controls are not rendered until the
+  load succeeds. No local toolbar is rendered.
 - Q: After an action succeeds, when does the snackbar appear relative to
   the API call? → A: The snackbar appears immediately on `next` from the
   facade observable. It is not shown on the optimistic state; it is shown
   when the backend confirms. On error, no snackbar; the inline
   `app-admin-state` block is rendered instead.
+- Q: Who owns the navigation chrome (toolbar, back link, user menu)? → A:
+  The surrounding admin shell (already deployed per spec 011) owns
+  navigation. The remote-control page is responsible for the page content
+  only and does not render a local toolbar, back button, or user menu.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Switch the kiosk mode from a clean, mobile-first layout (Priority: P1)
 
 An operator who is on a phone, on a tablet, or on a desktop opens the
-remote-control page. The page renders a sticky top toolbar (with a back
-button to the hall), the page header, a status pill summarizing the
-current state (mode + ads visibility + last update), and a content-mode
-card with two clearly labelled options: **Rotation** (cycle through all
-approved content) and **Iframe** (lock the display on a single approved
-iframe). Picking a mode updates the kiosk immediately.
+remote-control page. The page renders the page header, a status pill
+summarizing the current state (mode + ads visibility + last update), and
+a content-mode card with two clearly labelled options: **Rotation**
+(cycle through all approved content) and **Iframe** (lock the display
+on a single approved iframe). Picking a mode updates the kiosk
+immediately. Navigation is provided by the surrounding admin shell.
 
 **Why this priority**: The current layout mixes a single button, a
 dropdown, and a free-text list in the same card. The operator cannot tell
@@ -56,20 +60,22 @@ at a glance what the kiosk is doing or how to change it. This is the
 biggest reported pain and the foundation every other story depends on.
 
 **Independent Test**: Can be tested by signing in, navigating to
-`/remote-control`, and confirming that the page renders the toolbar, the
-status pill, the Rotation/Iframe radio group, and the Ads card on any
-viewport from 360×640 to 1280×800. Picking each radio fires the
+`/remote-control`, and confirming that the page renders the page header,
+the status pill, the Rotation/Iframe radio group, and the Ads card on
+any viewport from 360×640 to 1280×800. Picking each radio fires the
 corresponding facade call.
 
 **Acceptance Scenarios**:
 
 1. **Given** the operator is on `/remote-control`, **When** the page
-   loads, **Then** a sticky toolbar at the top shows a back button, the
-   "Kiosk Screen" brand, and the user menu; the page header sits below
-   it.
+   loads, **Then** the page header (eyebrow "Administration", title
+   "Remote control") renders, followed by the status pill, the
+   content-mode card, and the ads card. No local toolbar or back link
+   is rendered by the page itself.
 2. **Given** the state has loaded, **When** the operator looks at the
    status pill, **Then** it shows the current content mode (Rotation or
-   Iframe), the ads visibility (Visible or Hidden), and a human-readable
+   Iframe), the ads visibility (Visible or Hidden), the display session
+   state ("Display online" or "Display offline"), and a human-readable
    "Updated <time>" string.
 3. **Given** the operator picks "Rotation", **When** the change succeeds,
    **Then** a snackbar appears with the text "Switched to rotation
@@ -80,8 +86,7 @@ corresponding facade call.
    `/admin/content/new`.
 5. **Given** the operator is on a 360×640 viewport, **When** the page
    renders, **Then** all controls are reachable with the thumb without
-   horizontal scrolling, the toolbar remains sticky, and the radio
-   options are stacked vertically.
+   horizontal scrolling and the radio options are stacked vertically.
 
 ---
 
@@ -163,39 +168,6 @@ that a snackbar appears with the expected text and disappears after
 
 ---
 
-### User Story 4 - Return to the hall from the remote-control page (Priority: P2)
-
-An operator on the remote-control page can navigate back to the hall
-with one tap or click, from any viewport, without using the browser
-back button.
-
-**Why this priority**: The user reported that there is no way to return
-to the hall from `/remote-control`. The page renders inside the
-`AdminShellComponent` on desktop, but on mobile the sidenav is in
-"over" mode and the toolbar is not visible; on any viewport there is no
-dedicated back affordance. A back button is the smallest change that
-closes the gap.
-
-**Independent Test**: Can be tested by signing in, navigating to
-`/remote-control` from the hall, and confirming that a back button in
-the top toolbar navigates to `/hall` on every viewport. The button must
-be the first focusable element on the page so it works with screen
-readers and keyboard navigation.
-
-**Acceptance Scenarios**:
-
-1. **Given** the operator is on `/remote-control`, **When** the page
-   renders, **Then** a back button is the first interactive element in
-   the toolbar, with an accessible label "Back to hall".
-2. **Given** the operator activates the back button (click, tap, or
-   Enter key), **When** the navigation resolves, **Then** the URL is
-   `/hall` and the remote-control page is no longer rendered.
-3. **Given** the operator is using a screen reader, **When** the page
-   loads, **Then** the back button is announced before any other
-   control.
-
----
-
 ## Edge Cases
 
 - **No iframes configured**: the Iframe radio is disabled and shows a
@@ -210,9 +182,9 @@ readers and keyboard navigation.
   The page renders normally but the status pill includes a "Display
   offline" chip so the operator knows the kiosk is not currently
   polling.
-- **Network failure on initial load**: the page renders the toolbar and
-  the page header plus an `app-admin-state` error block with a retry
-  button. The mode/ads controls are not rendered.
+- **Network failure on initial load**: the page renders the page
+  header plus an `app-admin-state` error block with a retry button.
+  The mode/ads controls are not rendered.
 - **Optimistic feedback**: actions are not optimistic. The snackbar
   appears only when the backend confirms. On failure, the snackbar is
   not shown and the inline error is rendered.
@@ -232,11 +204,13 @@ readers and keyboard navigation.
 
 ### Functional Requirements
 
-- **FR-001**: The remote-control page MUST render a sticky top toolbar
-  on every viewport, containing a back button, the "Kiosk Screen"
-  brand, and the user menu.
-- **FR-002**: The back button in the toolbar MUST navigate to `/hall`
-  and MUST be the first focusable element on the page.
+- **FR-001**: The remote-control page MUST NOT render its own
+  toolbar, back button, or user menu. The surrounding admin shell
+  owns navigation. The page renders the `<app-page-header>` with
+  eyebrow "Administration" and title "Remote control", followed by
+  the content cards.
+- **FR-002**: (Intentionally reserved; navigation is provided by the
+  admin shell and is not the responsibility of this page.)
 - **FR-003**: The page MUST render a status pill below the page
   header that shows: the current content mode ("Rotation" or
   "Iframe"), the ads visibility ("Visible" or "Hidden"), the display
@@ -247,8 +221,9 @@ readers and keyboard navigation.
   mode MUST be the selected radio.
 - **FR-005**: When the Iframe radio is selected and at least one
   iframe is configured, the page MUST show a list of one radio item
-  per active iframe, each with the iframe title and a shortened
-  source URL (truncated to 48 characters with an ellipsis).
+  per active iframe, each with the iframe title, a shortened source
+  URL (truncated to 48 characters with an ellipsis), and a
+  "Currently showing" badge on the currently-selected iframe.
 - **FR-006**: When no iframes are configured, the Iframe radio MUST
   be disabled and the page MUST show helper text "No iframes
   configured. Add one in the admin content section." plus a primary
@@ -267,8 +242,8 @@ readers and keyboard navigation.
   group, the iframe list, and the ads toggle MUST be disabled and the
   status pill MUST show a "Saving…" suffix.
 - **FR-011**: The layout MUST be mobile-first: at viewport widths
-  ≤ 599.98px the toolbar, page header, status pill, and all cards
-  render in a single column with no horizontal scrolling. At widths
+  ≤ 599.98px the page header, status pill, and all cards render in
+  a single column with no horizontal scrolling. At widths
   ≥ 600px the content uses the standard `var(--app-page-max)` width
   and the cards may render side-by-side.
 - **FR-012**: Every interactive control MUST meet the minimum touch
@@ -276,11 +251,10 @@ readers and keyboard navigation.
 - **FR-013**: The status pill and the cards MUST use the existing
   Material 3 surface and on-surface tokens (no new colors). Buttons
   and toggles MUST use the existing Material 3 `mat-button`,
-  `mat-icon-button`, `mat-slide-toggle`, `mat-radio`, and `mat-card`
-  components.
+  `mat-slide-toggle`, `mat-radio`, and `mat-card` components.
 - **FR-014**: On initial-load failure, the page MUST render the
-  toolbar, the page header, and an `app-admin-state` error block with
-  a retry action. The mode/ads controls MUST NOT be rendered.
+  page header and an `app-admin-state` error block with a retry
+  action. The mode/ads controls MUST NOT be rendered.
 - **FR-015**: Errors during a save MUST be surfaced as an inline
   `app-admin-state` error block. A snackbar MUST NOT be shown for
   failed actions.
@@ -288,8 +262,8 @@ readers and keyboard navigation.
   theming (`mat.theme`, `--mat-sys-*` tokens) and MUST NOT introduce
   new colors, fonts, or icon fonts.
 - **FR-017**: The page MUST NOT add a new icon font. Existing Material
-  icons (`cast_connected`, `arrow_back`, `loop`, `check_circle`,
-  `campaign`, `visibility_off`, etc.) MUST be reused.
+  icons (`cast_connected`, `loop`, `check_circle`, `campaign`,
+  `visibility_off`, etc.) MUST be reused.
 
 ### Traceability & Quality Requirements *(mandatory)*
 
@@ -304,10 +278,11 @@ readers and keyboard navigation.
   introduced.
 - **TQ-004**: Security, observability, and accessibility
   considerations MUST be captured as requirements, assumptions, or
-  out-of-scope decisions. Accessibility: the back button is the first
-  focusable element and has an accessible label; the radio group uses
-  a fieldset/legend for screen readers; the snackbar uses
-  `role="status"`; the status pill uses `aria-live="polite"`.
+  out-of-scope decisions. Accessibility: the radio group uses a
+  fieldset/legend for screen readers; the snackbar uses
+  `role="status"`; the status pill uses `aria-live="polite"`; the
+  iframe list uses a nested `fieldset` with its own legend; the
+  "Currently showing" badge uses `aria-label` for screen readers.
 - **TQ-005**: Speculative or future-scope behavior MUST be listed as
   out of scope rather than implemented implicitly.
 
@@ -336,23 +311,22 @@ readers and keyboard navigation.
 - **SC-002**: The page renders without horizontal scrolling at every
   viewport from 360×640 to 1920×1080. Verified by visual inspection
   in Chrome DevTools.
-- **SC-003**: The back button is the first focusable element on the
-  page. Verified by a unit test that calls `fixture.debugElement.query(
-  By.css(':focus') )` after `Tab` and asserts the focused element is
-  the back button.
+- **SC-003**: (Intentionally reserved; navigation is provided by the
+  admin shell and is not tested at this level.)
 - **SC-004**: When no iframes are configured, the Iframe radio is
   disabled and a primary action linking to `/admin/content/new` is
   visible. Verified by a unit test that sets `iframeOptions` to `[]`
   and asserts the disabled state and the link.
-- **SC-005**: On initial-load failure, only the toolbar, the page
-  header, and the error block are rendered. Verified by a unit test
-  that returns an error from `facade.refresh()` and asserts the
+- **SC-005**: On initial-load failure, only the page header and the
+  error block are rendered (no local toolbar). Verified by a unit
+  test that returns an error from `facade.refresh()` and asserts the
   mode/ads controls are not in the DOM.
 - **SC-006**: 100% of existing frontend tests pass after the spec;
-  new tests cover the toolbar back button, the radio selection, the
-  iframe list rendering, the snackbar emission per action, the
-  empty-iframes disabled state, the error-on-load state, the
-  in-progress disabled state, and the status pill labels.
+  new tests cover the radio selection, the iframe list rendering with
+  the "Currently showing" badge, the snackbar emission per action,
+  the empty-iframes disabled state, the error-on-load state, the
+  in-progress disabled state, the status pill labels, and the
+  absence of a local toolbar / hall link.
 - **SC-007**: `npm --prefix frontend run build` succeeds with no
   errors or warnings introduced by the spec.
 - **SC-008**: The page uses only existing `--mat-sys-*` tokens and
@@ -376,16 +350,13 @@ readers and keyboard navigation.
 - The snackbar uses the global `MatSnackBar` provider (already
   available via `provideAnimationsAsync` in `app.config.ts`). No
   custom snackbar component is introduced.
-- The "Kiosk Screen" brand in the new toolbar reuses the exact
-  brand lockup from `hall.component.ts:26-32` to keep visual
-  consistency.
-- The toolbar is rendered inside the remote-control component, not
-  inside `AdminShellComponent`. The remote-control route stays a
-  top-level route (`/remote-control`) and is not moved inside the
-  admin shell.
-- The user menu in the new toolbar reuses the existing
-  `UserMenuComponent`. The avatar centering fix from spec 011 is
-  already applied and is not changed here.
+- The surrounding admin shell (already deployed per spec 011) owns
+  the navigation chrome (toolbar, sidenav, user menu, back link).
+  The remote-control page is responsible for the page content only
+  and renders no local navigation chrome of its own.
+- The remote-control route stays a top-level route (`/remote-control`)
+  and is not moved inside the `AdminShellComponent`. The hall tile
+  and the admin sidenav entry (from spec 011) are the entry points.
 - The spec does not introduce a new i18n key, route, or
   translation. All copy is in English, matching the rest of the
   admin UI.
@@ -396,8 +367,8 @@ readers and keyboard navigation.
   introducing new backend fields.
 - Renaming the route path `/remote-control` or moving the
   remote-control page inside the `AdminShellComponent`.
-- A new shared `app-remote-toolbar` component reused by other
-  pages. The toolbar is inlined in the remote-control component.
+- Rendering a local toolbar, back button, or user menu inside the
+  remote-control page. Navigation is provided by the admin shell.
 - A relative-time pipe or shared utility. The relative time helper
   is a private function in the component.
 - A different toast/snackbar component (e.g. custom MDC snackbar).

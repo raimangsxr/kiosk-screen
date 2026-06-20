@@ -4,6 +4,13 @@ This research document captures the decisions made for the rewrite of the
 remote-control admin page (`/remote-control`). It is the output of
 Phase 0 of the implementation plan.
 
+> **Note (2026-06-20)**: The original plan included a local `mat-toolbar`
+> on the remote-control page. The user clarified that the surrounding
+> admin shell (already deployed per spec 011) owns the navigation chrome
+> (toolbar, back link, user menu), so the page no longer renders any
+> navigation chrome of its own. The page header eyebrow was also changed
+> from "Hall" to "Administration" to match the admin context.
+
 ## Decision 1: Use the existing `mat-radio-group` for the mode choice
 
 - **Decision**: Render the Rotation / Iframe choice as a `mat-radio-group`

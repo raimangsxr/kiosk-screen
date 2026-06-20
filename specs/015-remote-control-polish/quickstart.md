@@ -13,21 +13,23 @@
 
 1. **Open the remote-control page**.
    - Sign in as `admin@example.com` / `admin`.
-   - From the hall (`/hall`), tap or click "Open remote control".
-   - You land on `/remote-control`.
+   - From the hall (`/hall`), tap or click "Open remote control",
+     or open the admin sidenav and tap "Remote control" (the
+     sidenav entry was added by spec 011).
+   - You land on `/remote-control`. The surrounding admin shell
+     provides the toolbar, back link, and user menu.
 
 2. **Inspect the new layout**.
-   - The sticky top toolbar shows a back button (left), the
-     "Kiosk Screen" brand (center-left), and the user menu
-     (right).
-   - Below the toolbar, the page header reads "Remote control"
-     with the "Hall" eyebrow.
+   - The page header reads "Remote control" with the
+     "Administration" eyebrow.
    - The status pill is the first thing below the page header.
      It shows the current mode (Rotation / Iframe), the ads
      visibility (Visible / Hidden), the display session state
      (online / offline), and "Updated <time>".
    - The content-mode card has two radio buttons: Rotation and
-     Iframe. The active mode is preselected.
+     Iframe. The active mode is preselected. The Iframe radio
+     shows a "Currently showing" badge on the iframe that is
+     currently live on the display.
    - The ads card has a "Show ads" toggle, preselected according
      to the current state.
 
@@ -51,7 +53,9 @@
      visible.".
 
 5. **Return to the hall**.
-   - Tap the back button in the top toolbar. You land on `/hall`.
+   - Use the surrounding admin shell's toolbar (back link) or
+     the sidenav. You land on `/hall` or `/admin` depending on
+     where the admin shell was reached from.
 
 ## Validation matrix
 

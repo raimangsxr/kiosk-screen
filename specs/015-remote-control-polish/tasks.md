@@ -275,46 +275,6 @@ emits a snackbar, and no snackbar is shown on error.
 
 ---
 
-## Phase 6: User Story 4 - Return to the hall from the remote-control page (Priority: P2)
-
-**Goal**: A back button in the top toolbar navigates to `/hall` on
-every viewport, is the first focusable element on the page, and has
-an accessible label "Back to hall".
-
-**Independent Test**: Sign in, open `/remote-control`, press Tab
-from a fresh page load, and confirm the focus ring lands on the
-back button. Activate the back button (click, tap, or Enter key) and
-confirm the URL is `/hall`.
-
-### Tests for User Story 4 ⚠️
-
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
-
-- [ ] T018 [P] [US4] Update
-      `frontend/src/app/features/remote-control/remote-control.component.spec.ts`
-      to assert: the back button is rendered with `aria-label="Back
-      to hall"`; the back button is the first focusable element on
-      the page (verified by querying for the first `mat-icon-button`
-      in the toolbar); the back button has `routerLink="/hall"`.
-
-### Implementation for User Story 4
-
-- [ ] T019 [US4] Verify the back button implementation added in
-      T004 satisfies US4: rendered as the first `mat-icon-button`
-      inside the `mat-toolbar`, with `aria-label="Back to hall"`
-      and `routerLink="/hall"`. If any of those is missing in T004,
-      add the missing piece here. (depends on T004)
-
-- [ ] T020 [US4] Verify the back button is reachable by keyboard on
-      viewports 360×640 and 1280×800, that the focus ring is visible,
-      that activating the button navigates to `/hall`, and that the
-      remote-control page is no longer rendered. (depends on T019)
-
-**Checkpoint**: US4 is fully testable; the back button is the
-first focusable element and navigates to `/hall`.
-
----
-
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 **Purpose**: Improvements that affect multiple user stories.
@@ -328,9 +288,10 @@ first focusable element and navigates to `/hall`.
       the rewrite.
 
 - [ ] T023 [P] Run `git diff main -- frontend/src/app/features/remote-control/`
-      and confirm the diff contains no new color, no new font, and
-      no new icon font registration. The only new imports are
-      `MatSnackBar`, `MatSnackBarModule`, `MatToolbarModule`,
+      and confirm the diff contains no new color, no new font, no
+      new icon font registration, and no local navigation chrome
+      (no `mat-toolbar`, no `UserMenuComponent`). The only new
+      imports are `MatSnackBar`, `MatSnackBarModule`,
       `MatRadioModule`, and `MatChipsModule`.
 
 - [ ] T024 Run the validation matrix from
@@ -340,9 +301,9 @@ first focusable element and navigates to `/hall`.
 
 - [ ] T025 Re-read
       `specs/015-remote-control-polish/spec.md` and confirm every
-      acceptance scenario in US1, US2, US3, and US4 is implemented.
-      Update the spec to mark acceptance scenarios as "verified" if
-      a checklist field is added in a future amend.
+      acceptance scenario in US1, US2, and US3 is implemented. Note
+      that navigation chrome (toolbar, back link) is provided by
+      the surrounding admin shell, not by the remote-control page.
 
 ---
 
@@ -353,11 +314,17 @@ first focusable element and navigates to `/hall`.
 - **Setup (Phase 1)**: No dependencies — can start immediately.
 - **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS
   all user stories.
-- **User Stories (Phase 3-6)**: All depend on Foundational phase
+- **User Stories (Phase 3-5)**: All depend on Foundational phase
   completion. User stories can then proceed in priority order
-  (US1 → US2 → US3 → US4) or in parallel (different parts of the
-  same component file; coordination recommended).
-- **Polish (Phase 7)**: Depends on all user stories being complete.
+  (US1 → US2 → US3) or in parallel (different parts of the same
+  component file; coordination recommended).
+- **Polish (Phase 6)**: Depends on all user stories being complete.
+
+> Navigation chrome (toolbar, back link, user menu) is **not** the
+> responsibility of the remote-control page. The surrounding admin
+> shell (already deployed per spec 011) owns it. The original Phase 6
+> for "back to hall" was removed when the user clarified that the
+> admin shell handles navigation.
 
 ### User Story Dependencies
 
@@ -368,10 +335,6 @@ first focusable element and navigates to `/hall`.
   by US1.
 - **User Story 3 (P2)**: Can start after US2 (Phase 4) — wires the
   snackbar on the actions defined by US1 and US2.
-- **User Story 4 (P2)**: Can start after US1 (Phase 3) — verifies
-  the back button that was added as part of US1. The implementation
-  of the back button lives in US1 (T004); US4 is a verification
-  phase plus any small fix.
 
 ### Within Each User Story
 
@@ -383,9 +346,9 @@ first focusable element and navigates to `/hall`.
 
 ### Parallel Opportunities
 
-- All test tasks in a user story phase (T003, T009, T014, T018) are
+- All test tasks in a user story phase (T003, T009, T014) are
   marked [P] and can run in parallel.
-- All Polish tasks marked [P] (T021, T022, T023) can run in parallel
+- All Polish tasks marked [P] (T018, T019, T020) can run in parallel
   after all user stories are complete.
 - T001 in Phase 1 is independent of any other task and can be run
   in parallel with the existing main branch.
@@ -394,34 +357,22 @@ first focusable element and navigates to `/hall`.
 
 ## Implementation Strategy
 
-### MVP First (User Story 1 + US4)
+### MVP First (User Story 1)
 
 1. Complete Phase 1: Setup.
 2. Complete Phase 2: Foundational.
-3. Complete Phase 3: User Story 1 (layout + radio group).
-4. Complete Phase 6: User Story 4 (back button verification).
-5. **STOP and VALIDATE**: Test the layout on 360×640 and 1280×800.
+3. Complete Phase 3: User Story 1 (layout + radio group + status pill).
+4. **STOP and VALIDATE**: Test the layout on 360×640 and 1280×800.
    The page is functional enough to navigate the kiosk mode.
 
 ### Incremental Delivery
 
 1. Complete Setup + Foundational → Foundation ready.
-2. Add US1 (layout + radio group) → Test independently → Demo.
-3. Add US2 (iframe list + empty state) → Test independently → Demo.
-4. Add US3 (snackbar) → Test independently → Demo.
-5. Add US4 (back button verification) → Test independently → Demo.
-6. Polish (Phase 7) → Final validation.
-
-### Parallel Team Strategy
-
-With a single developer (the case for this small feature):
-
-1. Run T001 in parallel with reading the plan.
-2. Run T003 (US1 test) in parallel with T002 (imports).
-3. Once T004 is in progress, T005, T006, T007 can be drafted but
-   must be applied to the same file sequentially.
-4. After US1 lands, US2, US3, and US4 can be sequenced by
-   priority.
+2. Add US1 (layout + radio group + status pill) → Test → Demo.
+3. Add US2 (iframe list + empty state + "Currently showing" badge)
+   → Test → Demo.
+4. Add US3 (snackbar) → Test → Demo.
+5. Polish (Phase 6) → Final validation.
 
 ---
 

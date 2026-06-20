@@ -8,13 +8,13 @@
 
 ## Summary
 
-Rewrite the `/remote-control` admin page so the operator can run a kiosk from a phone or a desktop without ambiguity. The new layout is mobile-first and built on existing Angular Material 3 components: a sticky top toolbar with a back button to the hall, a status pill that summarizes the current state, a content-mode card with a `mat-radio-group` (Rotation / Iframe), an iframe list rendered as `mat-radio-button` cards (title + shortened source URL), and an ads card with a `mat-slide-toggle`. Every successful action emits a `MatSnackBar` (3 s, "Dismiss" action). The technical approach is a single-component rewrite of `remote-control.component.ts`; the `RemoteControlFacade`, `RemoteControlApi`, backend endpoints, and route paths are unchanged.
+Rewrite the `/remote-control` admin page so the operator can run a kiosk from a phone or a desktop without ambiguity. The new layout is mobile-first and built on existing Angular Material 3 components: a page header, a status pill that summarizes the current state, a content-mode card with a `mat-radio-group` (Rotation / Iframe), an iframe list rendered as `mat-radio-button` cards (title + shortened source URL + "Currently showing" badge), and an ads card with a `mat-slide-toggle`. Every successful action emits a `MatSnackBar` (3 s, "Dismiss" action). The technical approach is a single-component rewrite of `remote-control.component.ts`; the `RemoteControlFacade`, `RemoteControlApi`, backend endpoints, and route paths are unchanged. Navigation chrome (toolbar, back link, user menu) is provided by the surrounding admin shell, not by this page.
 
 ## Technical Context
 
 **Language/Version**: TypeScript with Angular 20.3.x and TypeScript 5.8 for the frontend. No backend changes.
 
-**Primary Dependencies**: Angular standalone components, Angular Material 20.2 (cards, buttons, icons, snack-bar, radio, slide-toggle, toolbar), RxJS, Angular Router, Angular CDK, Jasmine/Karma.
+**Primary Dependencies**: Angular standalone components, Angular Material 20.2 (cards, buttons, icons, snack-bar, radio, slide-toggle), RxJS, Angular Router, Angular CDK, Jasmine/Karma.
 
 **Storage**: N/A. The remote-control state already lives in the backend and is consumed through the existing facade signals.
 
@@ -26,7 +26,7 @@ Rewrite the `/remote-control` admin page so the operator can run a kiosk from a 
 
 **Performance Goals**: No new perf goals. The page is a thin write-through control panel; backend polling remains the source of truth.
 
-**Constraints**: Mobile-first (≤ 599.98 px), reuse existing `--mat-sys-*` tokens, reuse existing Material icons, no new icon font, no new shared UI component, no `date-fns` or other time library. The "Kiosk Screen" brand lockup reuses the markup from `hall.component.ts:26-32`.
+**Constraints**: Mobile-first (≤ 599.98 px), reuse existing `--mat-sys-*` tokens, reuse existing Material icons, no new icon font, no new shared UI component, no `date-fns` or other time library. The page does not render a local toolbar; navigation is provided by the surrounding admin shell.
 
 **Scale/Scope**: One component file, one test file, zero backend changes, zero route changes, zero facade changes.
 
@@ -40,7 +40,7 @@ Rewrite the `/remote-control` admin page so the operator can run a kiosk from a 
 - **Simplicity**: PASS. A single component rewrite is the smallest change that satisfies the spec. No new abstractions, no new dependencies, no new files beyond tests.
 - **Contracts**: PASS. The only "contract" touched is the existing Angular Material control surface (radio group, slide toggle, snackbar). The backend HTTP contract is unchanged and is documented in `specs/006-remote-control-display/contracts/`.
 - **Testing**: PASS. New component tests cover all four user stories; existing facade and API tests remain valid.
-- **Security, observability, accessibility**: PASS. Administrator-only access is enforced by the existing `sessionGuard` on `/remote-control` and is not changed. Accessibility: the back button is the first focusable element with `aria-label="Back to hall"`; the radio group uses a `fieldset`/`legend` for screen readers; the status pill uses `aria-live="polite"`; the snackbar uses `MatSnackBar` defaults which expose `role="status"`.
+- **Security, observability, accessibility**: PASS. Administrator-only access is enforced by the existing `sessionGuard` on `/remote-control` and is not changed. Accessibility: the radio group uses a `fieldset`/`legend` for screen readers; the nested iframe list uses its own `fieldset`/`legend`; the status pill uses `aria-live="polite"`; the "Currently showing" badge uses an `aria-label`; the snackbar uses `MatSnackBar` defaults which expose `role="status"`.
 - **No speculative scope**: PASS. The "Out of Scope" section in the spec lists 10 excluded items (no backend changes, no new shared components, no confirm dialog, no WebSocket, etc.).
 - **Conflict handling**: PASS. Implementation must stop if the rewrite requires a backend change, a new dependency, a route move, or a new shared component, and must update the spec/plan before proceeding.
 
