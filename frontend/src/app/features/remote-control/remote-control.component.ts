@@ -17,11 +17,9 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatToolbarModule } from '@angular/material/toolbar';
 
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
-import { UserMenuComponent } from '../../core/layout/user-menu.component';
 import { RemoteControlFacade } from './remote-control.facade';
 import { RemoteControlContentMode } from './remote-control.models';
 
@@ -42,34 +40,13 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
     MatRadioModule,
     MatSlideToggleModule,
     MatSnackBarModule,
-    MatToolbarModule,
     AdminStateComponent,
-    PageHeaderComponent,
-    UserMenuComponent
+    PageHeaderComponent
   ],
   template: `
-    <mat-toolbar class="remote-control__toolbar">
-      <a
-        mat-icon-button
-        routerLink="/hall"
-        aria-label="Back to hall"
-        class="remote-control__back"
-        data-testid="remote-control-back"
-      >
-        <mat-icon aria-hidden="true">arrow_back</mat-icon>
-      </a>
-      <mat-icon aria-hidden="true" class="remote-control__brand-icon">tv</mat-icon>
-      <div class="remote-control__brand">
-        <p class="remote-control__brand-eyebrow">Kiosk Screen</p>
-        <h2 class="remote-control__brand-title">Remote control</h2>
-      </div>
-      <span class="remote-control__spacer"></span>
-      <app-user-menu />
-    </mat-toolbar>
-
     <main class="remote-control app-page" aria-label="Remote control">
       <app-page-header
-        eyebrow="Hall"
+        eyebrow="Administration"
         title="Remote control"
         description="Control what the running kiosk shows in the content region and whether the ad region is visible."
       />
@@ -238,51 +215,6 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
         display: block;
         min-height: 100vh;
         background: var(--mat-sys-surface-container-lowest);
-      }
-      .remote-control__toolbar {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-height: var(--app-touch-target);
-        padding: 0 8px;
-        background: var(--mat-sys-surface-container);
-        color: var(--mat-sys-on-surface);
-        border-bottom: 1px solid var(--mat-sys-outline-variant);
-      }
-      .remote-control__back {
-        min-width: var(--app-touch-target);
-        min-height: var(--app-touch-target);
-      }
-      .remote-control__brand-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-        color: var(--mat-sys-primary);
-        margin-left: 4px;
-      }
-      .remote-control__brand {
-        display: grid;
-        gap: 0;
-        line-height: 1.1;
-      }
-      .remote-control__brand-eyebrow {
-        margin: 0;
-        font: var(--mat-sys-label-small);
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--mat-sys-primary);
-      }
-      .remote-control__brand-title {
-        margin: 0;
-        font: var(--mat-sys-title-small);
-        letter-spacing: var(--mat-sys-title-small-tracking);
-      }
-      .remote-control__spacer {
-        flex: 1;
       }
       .remote-control {
         display: grid;
@@ -461,12 +393,6 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
         min-height: var(--app-touch-target);
       }
       @media (max-width: 599.98px) {
-        .remote-control__toolbar {
-          padding: 0 4px;
-        }
-        .remote-control__brand-eyebrow {
-          display: none;
-        }
         .remote-control__status-updated {
           margin-left: 0;
           width: 100%;

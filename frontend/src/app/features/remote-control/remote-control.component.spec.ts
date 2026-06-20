@@ -98,24 +98,15 @@ describe('RemoteControlComponent', () => {
     fixture.detectChanges();
   });
 
-  it('renders the toolbar with the Kiosk Screen brand and a back button as the first focusable element', () => {
-    const toolbar = fixture.nativeElement.querySelector('mat-toolbar');
-    expect(toolbar).not.toBeNull();
-    expect(toolbar.textContent).toContain('Kiosk Screen');
-
-    const backLink = fixture.nativeElement.querySelector(
-      'mat-toolbar a[mat-icon-button]'
-    ) as HTMLAnchorElement;
-    expect(backLink).not.toBeNull();
-    expect(backLink.getAttribute('aria-label')).toBe('Back to hall');
-    expect(backLink.getAttribute('href')).toBe('/hall');
+  it('does not render a local toolbar because admin shell owns navigation', () => {
+    expect(fixture.nativeElement.querySelector('mat-toolbar')).toBeNull();
   });
 
-  it('renders the page header with the Hall eyebrow and the Remote control title', () => {
+  it('renders the page header with the Administration eyebrow and the Remote control title', () => {
     const header = fixture.nativeElement.querySelector('app-page-header');
     expect(header).not.toBeNull();
     const text = header.textContent;
-    expect(text).toContain('Hall');
+    expect(text).toContain('Administration');
     expect(text).toContain('Remote control');
   });
 
@@ -315,11 +306,8 @@ describe('RemoteControlComponent', () => {
     expect(snackBar.open).not.toHaveBeenCalled();
   }));
 
-  it('exposes a routerLink to /hall on the back button', () => {
-    const backLink = fixture.nativeElement.querySelector(
-      'mat-toolbar a[mat-icon-button]'
-    ) as HTMLAnchorElement;
-    expect(backLink).not.toBeNull();
-    expect(backLink.getAttribute('href')).toBe('/hall');
+  it('does not expose a local hall link because admin shell provides it', () => {
+    const hallLink = fixture.nativeElement.querySelector('a[href="/hall"]');
+    expect(hallLink).toBeNull();
   });
 });
