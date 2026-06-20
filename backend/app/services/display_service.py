@@ -11,6 +11,7 @@ from app.repositories.events import DisplayEventRepository
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
+from app.repositories.models.iframe import Iframe
 from app.repositories.models.operator_session import OperatorSession
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.base import utc_now
@@ -24,7 +25,7 @@ class DisplayState:
     ads: list[ClientAdItem]
     fallback_active: bool
     remote_control: DisplayControlState | None = None
-    selected_iframe: TopContentItem | None = None
+    selected_iframe: Iframe | None = None
 
 
 def eligible_top_content(session: Session, organization_id: str, now: datetime | None = None) -> list[TopContentItem]:
@@ -70,6 +71,18 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
     try:
         remote_control = control_service.get_state_for_active_session(organization_id)
         selected_iframe = control_service.selected_iframe(remote_control)
+        if remote_control.content_mode == "iframe" and remote_control.selected_iframe_id and selected_iframe is None:
+            remote_control.content_mode = "loop"
+            remote_control.selected_iframe_id = None
+            DisplayEventRepository(session).record(
+                create_display_event(
+                    organization_id=organization_id,
+                    event_type="remote_control_iframe_deleted",
+                    severity="info",
+                    message="Selected iframe was unavailable; display returned to rotation.",
+                )
+            )
+            session.commit()
     except LookupError:
         pass
     return DisplayState(

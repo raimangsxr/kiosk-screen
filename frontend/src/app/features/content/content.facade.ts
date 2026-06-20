@@ -71,23 +71,6 @@ export class ContentFacade {
     );
   }
 
-  saveIframe(payload: ContentItemRequest, id?: string) {
-    this.savingState.set(true);
-    this.errorState.set(null);
-    const request = id ? this.api.update(id, payload) : this.api.createIframe(payload);
-    return request.pipe(
-      tap(() => {
-        this.savingState.set(false);
-        this.refresh().subscribe();
-      }),
-      catchError((error: unknown) => {
-        this.errorState.set(adaptApiError(error));
-        this.savingState.set(false);
-        return throwError(() => error);
-      })
-    );
-  }
-
   upload(payload: ContentItemRequest, file: File, id?: string) {
     this.savingState.set(true);
     this.errorState.set(null);

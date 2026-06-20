@@ -102,14 +102,6 @@ describe('ContentFacade', () => {
     httpController.expectOne('/api/content').flush([buildItem()]);
   });
 
-  it('saveIframe posts to /api/content/iframe for new items', () => {
-    facade.saveIframe({ title: 'Sponsor page', contentType: 'embedded_web', sourceReference: 'https://example.com/embed', mediaFile: null, displayOrder: 2, isActive: true }).subscribe();
-    const post = httpController.expectOne('/api/content/iframe');
-    expect(post.request.method).toBe('POST');
-    post.flush(buildItem({ contentType: 'embedded_web' }));
-    httpController.expectOne('/api/content').flush([buildItem({ contentType: 'embedded_web' })]);
-  });
-
   it('upload posts multipart FormData to /api/content/upload', () => {
     const file = new File(['binary'], 'agenda.jpg', { type: 'image/jpeg' });
     facade.upload({ title: 'Agenda', contentType: 'photo', sourceReference: '', mediaFile: null, displayOrder: 1, isActive: true }, file).subscribe();

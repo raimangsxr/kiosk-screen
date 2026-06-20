@@ -219,8 +219,8 @@ export class AdminShellComponent implements OnInit {
     if (route.startsWith('/admin/ads')) {
       return 'campaign';
     }
-    if (route.startsWith('/admin/domains')) {
-      return 'public';
+    if (route.startsWith('/admin/iframes')) {
+      return 'web_asset';
     }
     if (route.startsWith('/admin/configuration')) {
       return 'tune';

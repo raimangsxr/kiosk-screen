@@ -1,6 +1,4 @@
 from datetime import datetime
-from uuid import UUID
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +8,6 @@ from app.auth.dependencies import CurrentUser, get_current_user, require_roles
 from app.domain.roles import CONTENT_MANAGEMENT_ROLES
 from app.repositories.session import get_session
 from app.services.content_service import ContentService
-from app.shared.errors.application_errors import ApplicationError
 
 router = APIRouter(prefix="/content", tags=["Top Content"])
 
@@ -30,17 +27,6 @@ def create_content(
         return to_content_schema(ContentService(session).create(user.organization_id, user.id, payload))
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-
-@router.post("/iframe", response_model=ContentItemSchema, status_code=status.HTTP_201_CREATED)
-def create_iframe_content(
-    payload: ContentItemRequest,
-    user: CurrentUser = Depends(require_roles(CONTENT_MANAGEMENT_ROLES)),
-    session: Session = Depends(get_session)
-) -> ContentItemSchema:
-    if payload.content_type != "embedded_web":
-        payload.content_type = "embedded_web"
-    return create_content(payload, user, session)
 
 
 @router.post("/upload", response_model=ContentItemSchema, status_code=status.HTTP_201_CREATED)

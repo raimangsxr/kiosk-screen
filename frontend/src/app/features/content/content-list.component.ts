@@ -47,7 +47,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
       emptyTitle="No content yet"
-      emptyMessage="Add photos, videos, or iframe content for the top region."
+      emptyMessage="Add photos or videos for the top region."
       emptyActionLabel="Add content"
       emptyActionRoute="/admin/content/new"
       emptyIcon="photo_library"
@@ -316,8 +316,6 @@ export class ContentListComponent implements OnInit {
         return 'Photo';
       case 'video':
         return 'Video';
-      case 'embedded_web':
-        return 'Iframe';
       default:
         return type;
     }
@@ -326,9 +324,6 @@ export class ContentListComponent implements OnInit {
   protected mediaLabel(item: ContentItem): string {
     if (item.mediaFile) {
       return item.mediaFile.originalFilename;
-    }
-    if (item.contentType === 'embedded_web') {
-      return 'Iframe';
     }
     return 'External source';
   }

@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, distinctUntilChanged, shareReplay, switchMap, timer } from 'rxjs';
 
 import { MediaFileReference, RotationAnimation } from '../../shared/media-upload.models';
+import { IframeItem } from './iframe.api';
 
 export interface DisplayKioskConfiguration {
   id: string;
@@ -17,6 +18,7 @@ export interface DisplayKioskConfiguration {
   defaultAdAnimationDurationMilliseconds?: number;
   inlineAdCount?: number;
   remoteControlPollingSeconds?: number;
+  videoEndDelaySeconds?: number;
   configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
@@ -24,7 +26,7 @@ export interface DisplayKioskConfiguration {
 export interface DisplayContentItem {
   id: string;
   title: string;
-  contentType: 'photo' | 'video' | 'embedded_web';
+  contentType: 'photo' | 'video';
   sourceReference: string;
   mediaFile?: MediaFileReference | null;
   isActive: boolean;
@@ -54,7 +56,7 @@ export interface DisplayAdItem {
 
 export interface DisplayRemoteControlState {
   contentMode: 'loop' | 'iframe';
-  selectedContentId: string | null;
+  selectedIframeId: string | null;
   adsVisible: boolean;
   updatedAt: string;
 }
@@ -64,7 +66,7 @@ export interface DisplayState {
   topContent: DisplayContentItem[];
   ads: DisplayAdItem[];
   remoteControl?: DisplayRemoteControlState;
-  selectedIframe?: DisplayContentItem | null;
+  selectedIframe?: IframeItem | null;
   fallbackActive: boolean;
 }
 
@@ -99,8 +101,8 @@ function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState
     prev.configuration.isEnabled === curr.configuration.isEnabled &&
     prev.configuration.inlineAdCount === curr.configuration.inlineAdCount &&
     prev.configuration.remoteControlPollingSeconds === curr.configuration.remoteControlPollingSeconds &&
-    prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
-    prev.remoteControl?.selectedContentId === curr.remoteControl?.selectedContentId &&
+    prev.configuration.videoEndDelaySeconds === curr.configuration.videoEndDelaySeconds &&
+    prev.remoteControl?.selectedIframeId === curr.remoteControl?.selectedIframeId &&
     prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
   );

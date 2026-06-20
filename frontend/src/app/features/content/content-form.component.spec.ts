@@ -70,11 +70,10 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
 
   beforeEach(async () => {
     api = jasmine.createSpyObj<ContentApiService>('ContentApiService', [
-      'list', 'get', 'create', 'createIframe', 'update', 'upload'
+      'list', 'get', 'create', 'update', 'upload'
     ]);
     api.list.and.returnValue(of([buildItem()]));
     api.create.and.returnValue(of(buildItem()));
-    api.createIframe.and.returnValue(of(buildItem({ contentType: 'embedded_web' })));
     api.update.and.returnValue(of(buildItem()));
     api.upload.and.returnValue(of(buildItem()));
     api.get.and.returnValue(of(buildItem()));
@@ -152,18 +151,12 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     expect(api.list).toHaveBeenCalledTimes(1);
   });
 
-  it('submits embedded_web content to the iframe endpoint', () => {
+  it('does not render the embedded iframe content type', () => {
     const fixture = TestBed.createComponent(ContentFormComponent);
     fixture.componentInstance.ngOnInit();
-    const form = fixture.componentInstance['form']!;
-    form.controls.title.setValue('Sponsor');
-    form.controls.contentType.setValue('embedded_web');
-    form.controls.sourceReference.setValue('https://example.com/embed');
-    form.controls.displayOrder.setValue(3);
-    fixture.componentInstance.submit();
-    expect(api.createIframe).toHaveBeenCalled();
-    expect(api.createIframe.calls.mostRecent().args[0].title).toBe('example.com');
-    expect(api.create).not.toHaveBeenCalled();
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).not.toContain('Embedded web');
   });
 
   it('refuses to save a photo or video without a file or source on create', () => {

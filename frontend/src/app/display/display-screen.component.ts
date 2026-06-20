@@ -24,7 +24,16 @@ type DisplayRenderableItem = Pick<
   template: `
     <main class="display-screen" [class.display-screen--ads-hidden]="!adsVisible" aria-label="Kiosk display">
       <section class="top-region" aria-label="Main content">
-        <ng-container *ngIf="displayAvailable && currentContent; else contentFallback">
+        <iframe
+          *ngIf="displayAvailable && iframeUrl() as url"
+          [src]="safeUrl(url)"
+          title="Pinned iframe"
+          class="display-content-media display-content-media--in"
+          data-testid="display-iframe"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
+        <ng-container *ngIf="displayAvailable && !iframeUrl() && currentContent">
           <img
             *ngIf="outgoingContent?.contentType === 'photo'"
             [src]="mediaSource(outgoingContent!)"
@@ -38,19 +47,11 @@ type DisplayRenderableItem = Pick<
             [src]="mediaSource(outgoingContent!)"
             muted
             autoplay
-            loop
+            playsinline
             [class]="contentAnimationClass(outgoingContent!, 'out')"
             [style.animation-duration.ms]="animationDurationMs(outgoingContent!)"
             aria-hidden="true"
           ></video>
-          <iframe
-            *ngIf="outgoingContent?.contentType === 'embedded_web'"
-            [src]="iframeSource(outgoingContent!)"
-            [title]="outgoingContent!.title"
-            [class]="contentAnimationClass(outgoingContent!, 'out')"
-            [style.animation-duration.ms]="animationDurationMs(outgoingContent!)"
-            aria-hidden="true"
-          ></iframe>
           <img
             *ngIf="currentContent.contentType === 'photo'"
             [src]="mediaSource(currentContent)"
@@ -64,22 +65,15 @@ type DisplayRenderableItem = Pick<
             [src]="mediaSource(currentContent)"
             muted
             autoplay
-            loop
+            playsinline
+            (ended)="onVideoEnded(currentContent)"
             [class]="contentAnimationClass(currentContent, 'in')"
             [style.animation-duration.ms]="animationDurationMs(currentContent)"
             data-testid="display-content"
           ></video>
-          <iframe
-            *ngIf="currentContent.contentType === 'embedded_web'"
-            [src]="iframeSource(currentContent)"
-            [title]="currentContent.title"
-            [class]="contentAnimationClass(currentContent, 'in')"
-            [style.animation-duration.ms]="animationDurationMs(currentContent)"
-            data-testid="display-content"
-          ></iframe>
           <div class="content-label">{{ currentContent.title }}</div>
         </ng-container>
-        <ng-template #contentFallback>
+        <ng-template [ngIf]="!displayAvailable || (!iframeUrl() && !currentContent)">
           <div class="fallback" data-testid="display-fallback">
             {{ displayAvailable ? 'Content unavailable' : 'Display unavailable' }}
           </div>
@@ -198,8 +192,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? null;
   }
 
-  iframeSource(item: DisplayContentItem): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(item.sourceReference);
+  iframeUrl(): string | null {
+    if (this.state?.remoteControl?.contentMode === 'iframe') {
+      return this.state.selectedIframe?.url ?? null;
+    }
+    return null;
+  }
+
+  safeUrl(url: string): SafeResourceUrl {
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   }
 
   private applyState(state: DisplayState, options: { resetRotation: boolean; preserveContentTimer?: boolean }): void {
@@ -211,11 +212,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
     if (options.resetRotation) {
       this.rotation.initialize(state.topContent);
-      this.setCurrentContent(this.remoteSelectedContent() ?? this.rotation.getFullState()[0] ?? null);
+      this.setCurrentContent(this.rotation.getFullState()[0] ?? null);
       this.adIndex = 0;
     } else {
       this.rotation.applyPollState(state.topContent);
-      this.setCurrentContent(this.remoteSelectedContent() ?? this.currentContent);
+      this.setCurrentContent(this.currentContent);
       if (
         previousContent &&
         state.remoteControl?.contentMode !== 'iframe' &&
@@ -235,19 +236,12 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.reconfigurePollingIfNeeded();
   }
 
-  private remoteSelectedContent(): DisplayContentItem | null {
-    if (!this.displayAvailable) {
-      return null;
-    }
-    if (this.state?.remoteControl?.contentMode === 'iframe') {
-      return this.state.selectedIframe ?? null;
-    }
-    return null;
-  }
-
   private scheduleTransition(durationMs: number): void {
     this.clearContentTimers();
     if (!this.displayAvailable || this.state?.remoteControl?.contentMode === 'iframe') {
+      return;
+    }
+    if (this.currentContent?.contentType === 'video') {
       return;
     }
     if (durationMs > 1000) {
@@ -260,6 +254,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       }, durationMs - 1000);
     }
     this.contentTimer = setTimeout(() => this.advanceNow(), durationMs);
+  }
+
+  onVideoEnded(item: DisplayContentItem): void {
+    if (item.id !== this.currentContent?.id || this.state?.remoteControl?.contentMode === 'iframe') {
+      return;
+    }
+    this.clearContentTimers();
+    const delaySeconds = this.state?.configuration.videoEndDelaySeconds ?? 2;
+    this.contentTimer = setTimeout(() => this.advanceNow(), delaySeconds * 1000);
   }
 
   private scheduleNextAd(): void {

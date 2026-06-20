@@ -1,6 +1,4 @@
-import pytest
-
-from app.api.schemas import ApprovedEmbeddedDomainRequest, ContentItemRequest, KioskConfigurationRequest, UserRequest
+from app.api.schemas import ContentItemRequest, KioskConfigurationRequest, UserRequest
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.media import MediaFileReference
 from app.repositories.base import new_id
@@ -8,19 +6,6 @@ from app.services.admin_service import AdminService
 from app.services.content_service import ContentService
 from app.services.bootstrap_service import bootstrap_mvp_data
 from app.services.readiness_service import ReadinessService, _missing_media_sources
-
-
-def _insert_iframe(db_session, organization_id: str, title: str, source_reference: str, is_active: bool, display_order: int) -> None:
-    db_session.add(TopContentItem(
-        id=new_id(),
-        organization_id=organization_id,
-        title=title,
-        content_type="embedded_web",
-        source_reference=source_reference,
-        approved_domain_id=None,
-        is_active=is_active,
-        display_order=display_order,
-    ))
 
 
 def _insert_content_with_missing_media(db_session, organization_id: str, title: str, display_order: int) -> None:
@@ -54,62 +39,6 @@ def test_readiness_service_reports_ready_seed_data(db_session):
     report = ReadinessService(db_session).evaluate(result.organization.id)
 
     assert report.ready is True
-
-
-def test_readiness_service_reports_unapproved_iframe(db_session):
-    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    db_session.commit()
-    admin_service = AdminService(db_session)
-    domain = admin_service.create_domain(
-        result.organization.id,
-        result.administrator.id,
-        ApprovedEmbeddedDomainRequest(domain="approved.example.org", isActive=True)
-    )
-    ContentService(db_session).create(
-        result.organization.id,
-        result.administrator.id,
-        ContentItemRequest(
-            title="Approved iframe",
-            contentType="embedded_web",
-            sourceReference="https://approved.example.org/dashboard",
-            approvedDomainId=domain.id,
-            isActive=True,
-            displayOrder=10
-        )
-    )
-    _insert_iframe(db_session, result.organization.id, "Unapproved iframe",
-                   "https://unapproved.example.org/dashboard", is_active=True, display_order=11)
-    db_session.commit()
-
-    report = ReadinessService(db_session).evaluate(result.organization.id)
-
-    assert "Embedded domain is not approved: unapproved.example.org" in report.blockers
-    assert "Embedded domain is not approved: approved.example.org" not in report.blockers
-    assert report.ready is False
-
-
-def test_readiness_service_skips_inactive_iframe(db_session):
-    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    db_session.commit()
-    _insert_iframe(db_session, result.organization.id, "Inactive iframe",
-                   "https://inactive.example.org/dashboard", is_active=False, display_order=10)
-    db_session.commit()
-
-    report = ReadinessService(db_session).evaluate(result.organization.id)
-
-    assert "Embedded domain is not approved: inactive.example.org" not in report.blockers
-
-
-def test_readiness_service_reports_unparseable_url_as_placeholder(db_session):
-    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    db_session.commit()
-    _insert_iframe(db_session, result.organization.id, "Broken iframe",
-                   "not a url at all", is_active=True, display_order=10)
-    db_session.commit()
-
-    report = ReadinessService(db_session).evaluate(result.organization.id)
-
-    assert "Embedded domain is not approved: <unparseable-url>" in report.blockers
 
 
 def test_readiness_service_reports_missing_media(db_session, tmp_path, monkeypatch):
@@ -187,7 +116,7 @@ def test_readiness_helper_directly_returns_empty_when_no_media(db_session, tmp_p
     assert warnings == []
 
 
-def test_admin_service_updates_configuration_domains_and_users(db_session):
+def test_admin_service_updates_configuration_and_users(db_session):
     result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
     db_session.commit()
     service = AdminService(db_session)
@@ -203,7 +132,6 @@ def test_admin_service_updates_configuration_domains_and_users(db_session):
             isEnabled=True
         )
     )
-    domain = service.create_domain(result.organization.id, result.administrator.id, ApprovedEmbeddedDomainRequest(domain="example.org", isActive=True))
     user, roles = service.create_user(
         result.organization.id,
         result.administrator.id,
@@ -211,31 +139,5 @@ def test_admin_service_updates_configuration_domains_and_users(db_session):
     )
 
     assert config.name == "Updated"
-    assert domain.domain == "example.org"
     assert user.organization_id == result.organization.id
     assert roles == ["display_viewer"]
-
-
-def test_admin_service_updates_domain_and_blocks_delete_with_active_iframe(db_session):
-    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
-    db_session.commit()
-    service = AdminService(db_session)
-    domain = service.create_domain(result.organization.id, result.administrator.id, ApprovedEmbeddedDomainRequest(domain="example.org", isActive=True))
-    ContentService(db_session).create(
-        result.organization.id,
-        result.administrator.id,
-        ContentItemRequest(
-            title="Dashboard",
-            contentType="embedded_web",
-            sourceReference="https://example.org/dashboard",
-            approvedDomainId=domain.id,
-            isActive=True,
-            displayOrder=10
-        )
-    )
-
-    updated = service.update_domain(result.organization.id, result.administrator.id, domain.id, ApprovedEmbeddedDomainRequest(domain="example.org", isActive=False))
-
-    assert updated.is_active is False
-    with pytest.raises(ValueError):
-        service.delete_domain(result.organization.id, result.administrator.id, domain.id)

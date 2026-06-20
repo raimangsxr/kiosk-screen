@@ -161,8 +161,8 @@ export class ReadinessComponent implements OnInit {
     if (lower.includes('ad')) {
       return '/admin/ads';
     }
-    if (lower.includes('domain') || lower.includes('iframe') || lower.includes('embedded')) {
-      return '/admin/domains';
+    if (lower.includes('iframe') || lower.includes('embedded')) {
+      return '/admin/iframes';
     }
     if (lower.includes('configuration') || lower.includes('display')) {
       return '/admin/configuration';

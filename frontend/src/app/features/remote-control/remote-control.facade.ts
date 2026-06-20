@@ -45,22 +45,22 @@ export class RemoteControlFacade {
     return this.update('loop', null);
   }
 
-  setIframeMode(contentId: string) {
-    return this.update('iframe', contentId);
+  setIframeMode(iframeId: string) {
+    return this.update('iframe', iframeId);
   }
 
   setAdsVisible(adsVisible: boolean) {
     const current = this.stateSignal();
-    return this.update(current?.contentMode ?? 'loop', current?.selectedContentId ?? null, adsVisible);
+    return this.update(current?.contentMode ?? 'loop', current?.selectedIframeId ?? null, adsVisible);
   }
 
-  private update(contentMode: 'loop' | 'iframe', selectedContentId: string | null, adsVisible?: boolean) {
+  private update(contentMode: 'loop' | 'iframe', selectedIframeId: string | null, adsVisible?: boolean) {
     const current = this.stateSignal();
     this.savingSignal.set(true);
     this.errorSignal.set(null);
     return this.api.updateState({
       contentMode,
-      selectedContentId,
+      selectedIframeId,
       adsVisible: adsVisible ?? current?.adsVisible ?? true
     }).pipe(
       tap((state) => {

@@ -30,7 +30,7 @@ import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
-type ContentType = 'photo' | 'video' | 'embedded_web';
+type ContentType = 'photo' | 'video';
 
 interface ContentFormValue {
   title: string;
@@ -93,41 +93,24 @@ interface ContentFormValue {
             <mat-select formControlName="contentType" required>
               <mat-option value="photo">Photo</mat-option>
               <mat-option value="video">Video</mat-option>
-              <mat-option value="embedded_web">Embedded web (iframe)</mat-option>
             </mat-select>
             <mat-error *ngIf="form.controls.contentType.hasError('required')">Type is required.</mat-error>
           </mat-form-field>
         </div>
 
-        @if (form.controls.contentType.value === 'embedded_web') {
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Iframe source URL</mat-label>
-            <input
-              matInput
-              formControlName="sourceReference"
-              placeholder="https://example.com/embed"
-              autocomplete="off"
-            />
-            <mat-hint>Must be on an approved domain allow-list.</mat-hint>
-            <mat-error *ngIf="form.controls.sourceReference.hasError('required')">
-              Iframe source is required.
-            </mat-error>
-          </mat-form-field>
-        } @else {
-          <div class="content-form__file">
-            <span class="content-form__file-label">Upload file</span>
-            <app-file-input
-              [accept]="fileAccept()"
-              [buttonLabel]="fileButtonLabel()"
-              [ariaLabel]="fileLabel()"
-              [existingFileName]="existingMediaName()"
-              [multiple]="!contentId()"
-              [showPreview]="isPhoto()"
-              (fileSelected)="onFileSelected($event)"
-              (filesSelected)="onFilesSelected($event)"
-            />
-          </div>
-        }
+        <div class="content-form__file">
+          <span class="content-form__file-label">Upload file</span>
+          <app-file-input
+            [accept]="fileAccept()"
+            [buttonLabel]="fileButtonLabel()"
+            [ariaLabel]="fileLabel()"
+            [existingFileName]="existingMediaName()"
+            [multiple]="!contentId()"
+            [showPreview]="isPhoto()"
+            (fileSelected)="onFileSelected($event)"
+            (filesSelected)="onFilesSelected($event)"
+          />
+        </div>
 
         <div class="content-form__row" *ngIf="contentId()">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -385,9 +368,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     const id = this.contentId() || undefined;
 
     let request$: Observable<unknown>;
-    if (value.contentType === 'embedded_web') {
-      request$ = this.facade.saveIframe(payload, id);
-    } else if (!id && uploadFiles.length > 1) {
+    if (!id && uploadFiles.length > 1) {
       request$ = this.facade.uploadMany(
         (file) => ({
           ...payload,
@@ -430,14 +411,6 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       isActive: this.fb.nonNullable.control(true)
     });
 
-    this.form.controls.contentType.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((type) => {
-      const source = this.form?.controls.sourceReference;
-      if (!source) {
-        return;
-      }
-      source.setValidators(type === 'embedded_web' ? [Validators.required] : []);
-      source.updateValueAndValidity();
-    });
   }
 
   private populate(item: ContentItem): void {

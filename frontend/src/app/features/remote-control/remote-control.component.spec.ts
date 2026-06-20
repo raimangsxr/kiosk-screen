@@ -18,7 +18,7 @@ class MatSnackBarStub {
 
 const baseState: RemoteControlState = {
   contentMode: 'loop',
-  selectedContentId: null,
+  selectedIframeId: null,
   selectedIframe: null,
   adsVisible: true,
   updatedAt: '2026-06-18T00:00:00Z',
@@ -27,9 +27,10 @@ const baseState: RemoteControlState = {
 
 const iframeOption = {
   id: 'content-1',
-  title: 'Agenda',
-  sourceReference: 'https://example.org/agenda',
-  isActive: true
+  organizationId: 'org-1',
+  url: 'https://example.org/agenda',
+  createdAt: '2026-06-18T00:00:00Z',
+  updatedAt: '2026-06-18T00:00:00Z'
 };
 
 const loadError: ApplicationErrorContract = {
@@ -87,7 +88,7 @@ describe('RemoteControlComponent', () => {
     facade.refresh.and.returnValue(of({ state: baseState, options: { items: [iframeOption] } }));
     facade.setLoopMode.and.returnValue(of(baseState));
     facade.setIframeMode.and.returnValue(
-      of({ ...baseState, contentMode: 'iframe', selectedContentId: 'content-1' })
+      of({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
     );
     facade.setAdsVisible.and.returnValue(of({ ...baseState, adsVisible: false }));
 
@@ -135,12 +136,12 @@ describe('RemoteControlComponent', () => {
 
   it('renders the iframe list as a sibling radio group when iframe mode is selected', async () => {
     const customFacade = buildFacade({
-      state: signal({ ...baseState, contentMode: 'iframe', selectedContentId: 'content-1' })
+      state: signal({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
     });
     customFacade.refresh.and.returnValue(of({ state: baseState, options: { items: [iframeOption] } }));
     customFacade.setLoopMode.and.returnValue(of(baseState));
     customFacade.setIframeMode.and.returnValue(
-      of({ ...baseState, contentMode: 'iframe', selectedContentId: 'content-1' })
+      of({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-1' })
     );
     customFacade.setAdsVisible.and.returnValue(of({ ...baseState, adsVisible: false }));
 
@@ -152,7 +153,7 @@ describe('RemoteControlComponent', () => {
     expect(iframeList).not.toBeNull();
     const iframeRadios = iframeList.querySelectorAll('mat-radio-button');
     expect(iframeRadios.length).toBe(1);
-    expect(iframeRadios[0].textContent).toContain('Agenda');
+    expect(iframeRadios[0].textContent).toContain('https://example.org/agenda');
     expect(iframeRadios[0].textContent).toContain('https://example.org/agenda');
     expect(iframeRadios[0].textContent).toContain('Currently showing');
   });
@@ -181,7 +182,7 @@ describe('RemoteControlComponent', () => {
     const empty = customFixture.nativeElement.querySelector('.remote-control__iframe-empty');
     expect(empty).not.toBeNull();
     expect(empty.textContent).toContain('No iframes configured');
-    const cta = empty.querySelector('a[href="/admin/content/new"]') as HTMLAnchorElement;
+    const cta = empty.querySelector('a[href="/admin/iframes/new"]') as HTMLAnchorElement;
     expect(cta).not.toBeNull();
   });
 
@@ -189,9 +190,9 @@ describe('RemoteControlComponent', () => {
     const longUrl =
       'https://example.org/this/is/a/very/long/path/that/exceeds/the/forty/eight/character/limit';
     const customFacade = buildFacade({
-      state: signal({ ...baseState, contentMode: 'iframe', selectedContentId: 'content-2' }),
+      state: signal({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-2' }),
       iframeOptions: signal([
-        { id: 'content-2', title: 'Long URL', sourceReference: longUrl, isActive: true }
+        { id: 'content-2', organizationId: 'org-1', url: longUrl, createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }
       ])
     });
     customFacade.refresh.and.returnValue(of({ state: baseState, options: { items: [iframeOption] } }));
@@ -260,13 +261,13 @@ describe('RemoteControlComponent', () => {
     );
   }));
 
-  it('emits a snackbar with "Now showing: <title>." after a successful setIframeMode', fakeAsync(() => {
+  it('emits a snackbar with the selected iframe URL after a successful setIframeMode', fakeAsync(() => {
     fixture.componentInstance.selectIframe('content-1');
     tick();
 
     expect(facade.setIframeMode).toHaveBeenCalledWith('content-1');
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Now showing: Agenda.',
+      'Now showing: https://example.org/agenda.',
       'Dismiss',
       jasmine.objectContaining({ duration: 3000 })
     );

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.mappers import to_ad_schema, to_configuration_schema, to_content_schema
+from app.api.mappers import to_ad_schema, to_configuration_schema, to_content_schema, to_iframe_schema
 from app.api.schemas import (
     DisplayStateSchema,
     RemoteControlAdminStateSchema,
@@ -10,7 +10,7 @@ from app.api.schemas import (
     RemoteControlStateSchema,
 )
 from app.auth.dependencies import CurrentUser, get_current_user
-from app.domain.roles import ADMIN_ROLES
+from app.domain.roles import REMOTE_CONTROL_ROLES
 from app.domain.display_events import create_display_event
 from app.repositories.events import DisplayEventRepository
 from app.repositories.session import get_session
@@ -18,13 +18,13 @@ from app.services.display_service import DisplayState, get_display_state, open_d
 from app.domain.rotation import resolve_effective_rotation
 from app.application.display_control.service import DisplayControlService
 from app.repositories.models.display_control_state import DisplayControlState
-from app.repositories.models.content import TopContentItem
+from app.repositories.models.iframe import Iframe
 
 router = APIRouter(prefix="/display", tags=["Display"])
 
 
 def ensure_remote_control_admin(user: CurrentUser, session: Session) -> None:
-    if not set(user.roles).intersection({role.value for role in ADMIN_ROLES}):
+    if not set(user.roles).intersection({role.value for role in REMOTE_CONTROL_ROLES}):
         DisplayEventRepository(session).record(
             create_display_event(
                 organization_id=user.organization_id,
@@ -35,7 +35,7 @@ def ensure_remote_control_admin(user: CurrentUser, session: Session) -> None:
             )
         )
         session.commit()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Remote control role required.")
 
 
 def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControlStateSchema | None:
@@ -43,7 +43,7 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
         return None
     return RemoteControlStateSchema(
         contentMode=state.content_mode,
-        selectedContentId=state.selected_content_id,
+        selectedIframeId=state.selected_iframe_id,
         adsVisible=state.ads_visible,
         updatedAt=state.updated_at,
     )
@@ -51,12 +51,12 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
 
 def to_remote_control_admin_schema(
     state: DisplayControlState,
-    selected_iframe: TopContentItem | None = None,
+    selected_iframe: Iframe | None = None,
 ) -> RemoteControlAdminStateSchema:
     return RemoteControlAdminStateSchema(
         contentMode=state.content_mode,
-        selectedContentId=state.selected_content_id,
-        selectedIframe=to_content_schema(selected_iframe) if selected_iframe else None,
+        selectedIframeId=state.selected_iframe_id,
+        selectedIframe=to_iframe_schema(selected_iframe) if selected_iframe else None,
         adsVisible=state.ads_visible,
         updatedAt=state.updated_at,
         displaySessionActive=True,
@@ -127,7 +127,7 @@ def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
             for item in state.ads
         ],
         remoteControl=to_remote_control_schema(state.remote_control),
-        selectedIframe=to_content_schema(state.selected_iframe) if state.selected_iframe else None,
+        selectedIframe=to_iframe_schema(state.selected_iframe) if state.selected_iframe else None,
         fallbackActive=state.fallback_active
     )
 
@@ -188,7 +188,7 @@ def update_remote_control_state_route(
             user.organization_id,
             user.id,
             content_mode=payload.content_mode,
-            selected_content_id=str(payload.selected_content_id) if payload.selected_content_id else None,
+            selected_iframe_id=str(payload.selected_iframe_id) if payload.selected_iframe_id else None,
             ads_visible=payload.ads_visible,
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
@@ -205,4 +205,4 @@ def remote_control_iframe_options_route(
 ) -> RemoteControlIframeOptionsSchema:
     ensure_remote_control_admin(user, session)
     items = DisplayControlService(session).list_iframe_options(user.organization_id)
-    return RemoteControlIframeOptionsSchema(items=[to_content_schema(item) for item in items])
+    return RemoteControlIframeOptionsSchema(items=[to_iframe_schema(item) for item in items])

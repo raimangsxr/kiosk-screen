@@ -20,7 +20,7 @@ class TopContentItem(IdMixin, TimestampMixin, Base):
     source_reference: Mapped[str] = mapped_column(String(1024), nullable=False)
     media_file_id: Mapped[str | None] = mapped_column(ForeignKey("media_file_references.id"), nullable=True)
     media_file: Mapped[object | None] = relationship("MediaFileReference")
-    approved_domain_id: Mapped[str | None] = mapped_column(ForeignKey("approved_embedded_domains.id"), nullable=True)
+    approved_domain_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     display_order: Mapped[int] = mapped_column(Integer, nullable=False)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
