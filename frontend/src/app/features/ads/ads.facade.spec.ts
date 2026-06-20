@@ -98,6 +98,28 @@ describe('AdsFacade', () => {
     httpController.expectOne('/api/ads').flush([buildAd()]);
   });
 
+  it('uploadMany uploads files sequentially and refreshes once', () => {
+    const files = [
+      new File(['one'], 'one.jpg', { type: 'image/jpeg' }),
+      new File(['two'], 'two.jpg', { type: 'image/jpeg' })
+    ];
+
+    facade.uploadMany({ sourceReference: '', isActive: true, advertiser: 'Sponsor' }, files).subscribe();
+
+    const first = httpController.expectOne('/api/ads/upload');
+    expect(first.request.method).toBe('POST');
+    expect((first.request.body as FormData).get('advertiser')).toBe('Sponsor');
+    first.flush(buildAd({ id: 'ad-1' }));
+
+    const second = httpController.expectOne('/api/ads/upload');
+    expect(second.request.method).toBe('POST');
+    second.flush(buildAd({ id: 'ad-2' }));
+
+    httpController.expectOne('/api/ads').flush([buildAd(), buildAd({ id: 'ad-2' })]);
+    expect(facade.saving()).toBeFalse();
+    expect(facade.ads().length).toBe(2);
+  });
+
   it('save updates without file when id is provided', () => {
     facade.save({ sourceReference: 'x', isActive: true, displayOrder: 1, advertiser: 'Sponsor' }, 'ad-1').subscribe();
     const put = httpController.expectOne('/api/ads/ad-1');

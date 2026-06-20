@@ -77,13 +77,12 @@ export interface DataListRefreshAction {
         />
 
         @if (ready()) {
-          @if (isHandset()) {
-            <div class="data-list__cards">
-              <ng-container *ngTemplateOutlet="cardsTpl ?? null" />
-            </div>
-          } @else {
-            <div class="data-list__table">
-              <ng-container *ngTemplateOutlet="tableTpl ?? null" />
+          <div class="data-list__table" [class.data-list__table--responsive]="cardsTpl">
+            <ng-container *ngTemplateOutlet="tableTpl ?? null" />
+          </div>
+          @if (cardsTpl) {
+            <div class="data-list__cards data-list__cards--responsive">
+              <ng-container *ngTemplateOutlet="cardsTpl" />
             </div>
           }
         }
@@ -109,6 +108,7 @@ export interface DataListRefreshAction {
       }
       .data-list__card {
         margin-top: 8px;
+        min-width: 0;
       }
       .data-list__actions {
         display: flex;
@@ -124,22 +124,34 @@ export interface DataListRefreshAction {
       .data-list__content {
         display: block;
         padding: 0;
+        min-width: 0;
+        container-type: inline-size;
       }
       .data-list__table {
         display: block;
         width: 100%;
+        min-width: 0;
         overflow-x: auto;
       }
       .data-list__cards {
-        display: grid;
+        display: none;
         gap: 12px;
         padding: 4px 16px 16px;
+        min-width: 0;
       }
       .data-list__fab {
         position: fixed;
         right: 16px;
         bottom: 16px;
         z-index: 5;
+      }
+      @container (max-width: 760px) {
+        .data-list__table--responsive {
+          display: none;
+        }
+        .data-list__cards--responsive {
+          display: grid;
+        }
       }
     `
   ]

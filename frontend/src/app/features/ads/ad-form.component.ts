@@ -18,7 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 
 import { AdsFacade } from './ads.facade';
 import { AdItem, AdPayload } from '../../core/api/ads.api';
@@ -106,8 +106,10 @@ interface AdFormValue {
               buttonLabel="Choose image"
               ariaLabel="Choose an image file to upload"
               [existingFileName]="existingMediaName()"
+              [multiple]="!adId()"
               [showPreview]="true"
               (fileSelected)="onFileSelected($event)"
+              (filesSelected)="onFilesSelected($event)"
             />
           </div>
 
@@ -242,6 +244,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected readonly saveError = signal<{ code: string; message: string; category: string } | null>(null);
   protected readonly loadError = signal<{ code: string; message: string; category: string } | null>(null);
   protected readonly selectedFile = signal<File | null>(null);
+  protected readonly selectedFiles = signal<readonly File[]>([]);
   protected readonly existingMedia = signal<string | null>(null);
 
   protected form: FormGroup<{
@@ -303,13 +306,19 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     this.selectedFile.set(file);
   }
 
+  protected onFilesSelected(files: File[]): void {
+    this.selectedFiles.set(files);
+    this.selectedFile.set(files[0] ?? null);
+  }
+
   submit(): void {
     if (!this.form || this.form.invalid) {
       this.form?.markAllAsTouched();
       return;
     }
     const value = this.form.value as AdFormValue;
-    const hasFile = !!this.selectedFile();
+    const uploadFiles = this.filesToUpload();
+    const hasFile = uploadFiles.length > 0;
     const hasSource = value.sourceReference.trim().length > 0;
     const isCreate = !this.adId();
 
@@ -336,8 +345,11 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
 
     this.saveError.set(null);
     const id = this.adId() || undefined;
-    this.facade
-      .save(payload, id, hasFile ? this.selectedFile() : null)
+    const request$: Observable<unknown> = isCreate && uploadFiles.length > 1
+      ? this.facade.uploadMany({ ...payload, displayOrder: undefined }, uploadFiles)
+      : this.facade.save(payload, id, hasFile ? uploadFiles[0] : null);
+
+    request$
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
@@ -399,7 +411,16 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       rotationAnimation: v.rotationAnimation,
       animationDurationMilliseconds: v.animationDurationMilliseconds,
       isActive: v.isActive,
-      selectedFile: this.selectedFile()?.name ?? ''
+      selectedFile: this.filesToUpload().map((file) => file.name).join(',')
     });
+  }
+
+  private filesToUpload(): readonly File[] {
+    const files = this.selectedFiles();
+    if (files.length) {
+      return files;
+    }
+    const file = this.selectedFile();
+    return file ? [file] : [];
   }
 }

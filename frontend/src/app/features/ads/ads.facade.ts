@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, of, tap, throwError } from 'rxjs';
+import { catchError, concatMap, from, of, tap, throwError, toArray } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { AdItem, AdPayload, AdsApiService } from '../../core/api/ads.api';
@@ -65,6 +65,24 @@ export class AdsFacade {
         ? this.api.updateAd(id, payload)
         : this.api.createAd(payload);
     return request.pipe(
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  uploadMany(payload: AdPayload, files: readonly File[]) {
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return from(files).pipe(
+      concatMap((file) => this.api.uploadAd(payload, file)),
+      toArray(),
       tap(() => {
         this.savingState.set(false);
         this.refresh().subscribe();

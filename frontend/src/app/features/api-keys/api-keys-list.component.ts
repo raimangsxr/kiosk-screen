@@ -130,12 +130,82 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
         </table>
       </ng-template>
+
+      <ng-template #dataListCards>
+        @for (key of facade.keys(); track key.id) {
+          <mat-card appearance="outlined" class="api-keys-list__card-item">
+            <mat-card-content>
+              <div class="api-keys-list__card-header">
+                <h3 class="api-keys-list__card-title">{{ key.label }}</h3>
+                <app-status-chip
+                  [label]="key.isActive ? 'Active' : 'Revoked'"
+                  [kind]="key.isActive ? 'success' : 'neutral'"
+                />
+              </div>
+
+              <dl class="api-keys-list__card-meta">
+                <div>
+                  <dt>Prefix</dt>
+                  <dd><code>{{ key.keyPrefix }}</code></dd>
+                </div>
+                <div>
+                  <dt>Created</dt>
+                  <dd>{{ key.createdAt | date: 'short' }}</dd>
+                </div>
+                <div>
+                  <dt>Last rotated</dt>
+                  <dd>{{ key.lastRotatedAt ? (key.lastRotatedAt | date: 'short') : 'Never' }}</dd>
+                </div>
+                <div>
+                  <dt>Last used</dt>
+                  <dd>{{ key.lastUsedAt ? (key.lastUsedAt | date: 'short') : 'Never' }}</dd>
+                </div>
+              </dl>
+            </mat-card-content>
+
+            <mat-card-actions class="app-card-actions api-keys-list__card-actions">
+              <button
+                mat-button
+                type="button"
+                (click)="onRotate(key.id, key.label)"
+                [disabled]="!key.isActive || facade.saving()"
+                data-testid="rotate-key"
+              >
+                <mat-icon>autorenew</mat-icon>
+                Rotate
+              </button>
+              <button
+                mat-button
+                color="warn"
+                type="button"
+                (click)="onRevoke(key.id, key.label)"
+                [disabled]="!key.isActive || facade.saving()"
+                data-testid="revoke-key"
+              >
+                <mat-icon>block</mat-icon>
+                Revoke
+              </button>
+              <button
+                mat-button
+                type="button"
+                (click)="onDelete(key.id, key.label)"
+                [disabled]="key.isActive || facade.saving()"
+                data-testid="delete-key"
+              >
+                <mat-icon>delete_outline</mat-icon>
+                Delete
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        }
+      </ng-template>
     </app-data-list>
   `,
   styles: [
     `
       .api-keys-list__table {
         width: 100%;
+        min-width: 880px;
       }
       .api-keys-list__never {
         color: var(--mat-sys-on-surface-variant);
@@ -154,6 +224,59 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         border-radius: var(--mat-sys-corner-extra-small);
         background: var(--mat-sys-surface-container);
         color: var(--mat-sys-on-surface);
+      }
+      .api-keys-list__card-item {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        background: var(--mat-sys-surface);
+      }
+      .api-keys-list__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+      }
+      .api-keys-list__card-title {
+        margin: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
+      }
+      .api-keys-list__card-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+        gap: 12px;
+        margin: 16px 0 0;
+        min-width: 0;
+      }
+      .api-keys-list__card-meta div {
+        min-width: 0;
+      }
+      .api-keys-list__card-meta dt {
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-label-small);
+        letter-spacing: var(--mat-sys-label-small-tracking);
+      }
+      .api-keys-list__card-meta dd {
+        margin: 3px 0 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        color: var(--mat-sys-on-surface);
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
+      }
+      .api-keys-list__card-meta code {
+        padding: 2px 6px;
+        border-radius: var(--mat-sys-corner-extra-small);
+        background: var(--mat-sys-surface-container);
+      }
+      .api-keys-list__card-actions {
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 0 16px 12px;
       }
     `,
   ],

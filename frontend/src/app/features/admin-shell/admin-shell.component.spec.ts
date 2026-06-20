@@ -16,6 +16,7 @@ const stubRoutes: Routes = [
     component: AdminShellComponent,
     children: [
       { path: '', component: StubPageComponent },
+      { path: 'remote-control', component: StubPageComponent },
       { path: 'users', component: StubPageComponent }
     ]
   }
@@ -47,7 +48,13 @@ describe('AdminShellComponent', () => {
     expect(text).toContain('Users and roles');
     expect(text).toContain('Setup check');
     expect(text).toContain('Remote control');
+    expect(text).toContain('Back to hall');
     expect(text).toContain('Enter kiosk mode');
+
+    const hallLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
+      .find((link) => link.getAttribute('href') === '/hall');
+    expect(hallLink).toBeTruthy();
+    expect(hallLink?.textContent).toContain('Back to hall');
 
     const kioskLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
       .find((link) => link.getAttribute('href') === '/display');
@@ -55,7 +62,7 @@ describe('AdminShellComponent', () => {
     expect(kioskLink?.textContent).toContain('Enter kiosk mode');
 
     const remoteLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
-      .find((link) => link.getAttribute('href') === '/remote-control');
+      .find((link) => link.getAttribute('href') === '/admin/remote-control');
     expect(remoteLink).toBeTruthy();
     expect(remoteLink?.textContent).toContain('Remote control');
   });
@@ -85,5 +92,9 @@ describe('AdminShellComponent', () => {
     await router.navigateByUrl('/admin/users');
     fixture.detectChanges();
     expect(fixture.componentInstance['toolbarTitle']()).toBe('Users and roles');
+
+    await router.navigateByUrl('/admin/remote-control');
+    fixture.detectChanges();
+    expect(fixture.componentInstance['toolbarTitle']()).toBe('Remote control');
   });
 });

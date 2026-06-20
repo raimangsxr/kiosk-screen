@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, of, tap, throwError } from 'rxjs';
+import { catchError, concatMap, from, of, tap, throwError, toArray } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { ContentApiService, ContentItem, ContentItemRequest } from '../../core/api/content.api';
@@ -93,6 +93,24 @@ export class ContentFacade {
     this.errorState.set(null);
     const request = id ? this.api.update(id, payload) : this.api.upload(payload, file);
     return request.pipe(
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  uploadMany(payloadForFile: (file: File) => ContentItemRequest, files: readonly File[]) {
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return from(files).pipe(
+      concatMap((file) => this.api.upload(payloadForFile(file), file)),
+      toArray(),
       tap(() => {
         this.savingState.set(false);
         this.refresh().subscribe();

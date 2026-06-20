@@ -120,6 +120,31 @@ describe('ContentFacade', () => {
     httpController.expectOne('/api/content').flush([buildItem()]);
   });
 
+  it('uploadMany uploads files sequentially and refreshes once', () => {
+    const files = [
+      new File(['one'], 'one.jpg', { type: 'image/jpeg' }),
+      new File(['two'], 'two.jpg', { type: 'image/jpeg' })
+    ];
+
+    facade.uploadMany(
+      (file) => ({ title: file.name, contentType: 'photo', sourceReference: '', mediaFile: null, isActive: true }),
+      files
+    ).subscribe();
+
+    const first = httpController.expectOne('/api/content/upload');
+    expect(first.request.method).toBe('POST');
+    expect((first.request.body as FormData).get('title')).toBe('one.jpg');
+    first.flush(buildItem({ id: 'item-1' }));
+
+    const second = httpController.expectOne('/api/content/upload');
+    expect((second.request.body as FormData).get('title')).toBe('two.jpg');
+    second.flush(buildItem({ id: 'item-2' }));
+
+    httpController.expectOne('/api/content').flush([buildItem(), buildItem({ id: 'item-2' })]);
+    expect(facade.saving()).toBeFalse();
+    expect(facade.items().length).toBe(2);
+  });
+
   it('remove issues DELETE and refreshes the list', () => {
     facade.remove('item-1').subscribe();
     const del = httpController.expectOne('/api/content/item-1');

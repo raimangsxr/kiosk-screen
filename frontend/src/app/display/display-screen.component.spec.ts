@@ -1,4 +1,4 @@
-import { of } from 'rxjs';
+import { Subject, of } from 'rxjs';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 
@@ -104,6 +104,44 @@ describe('DisplayScreenComponent', () => {
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
   }));
 
+  it('does not postpone rotation when the pre-transition poll returns state', fakeAsync(() => {
+    const state = {
+      ...readyState,
+      topContent: [
+        { ...readyState.topContent[0], title: 'First', durationSeconds: 2, effectiveDurationSeconds: 2 },
+        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 2, effectiveDurationSeconds: 2 }
+      ]
+    };
+    const poll$ = new Subject<DisplayState>();
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(state),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(state),
+          }
+        },
+        provideRouter([])
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('First');
+
+    tick(1000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.title).toBe('First');
+
+    tick(1000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+  }));
+
   it('does not rotate content with a single item', fakeAsync(() => {
     const fixture = createComponent(readyState);
 
@@ -193,6 +231,64 @@ describe('DisplayScreenComponent', () => {
 
     expect(fixture.componentInstance.animationClass(readyState.topContent[0])).toBe(expected);
   });
+
+  it('changes the animation name when content advances so CSS restarts', fakeAsync(() => {
+    const fixture = createComponent({
+      ...readyState,
+      topContent: [
+        {
+          ...readyState.topContent[0],
+          title: 'First',
+          durationSeconds: 1,
+          effectiveDurationSeconds: 1,
+          effectiveRotationAnimation: 'fade',
+          effectiveAnimationDurationMilliseconds: 450
+        },
+        {
+          ...readyState.topContent[0],
+          id: 'content-2',
+          title: 'Second',
+          displayOrder: 2,
+          durationSeconds: 1,
+          effectiveDurationSeconds: 1,
+          effectiveRotationAnimation: 'fade',
+          effectiveAnimationDurationMilliseconds: 450
+        }
+      ]
+    });
+
+    const first = fixture.componentInstance.currentContent!;
+    expect(fixture.componentInstance.animationClass(first)).toBe('rotation-fade');
+    const firstAnimationClass = fixture.componentInstance.contentAnimationClass(first, 'in');
+    expect(fixture.componentInstance.animationDurationMs(first)).toBe(450);
+
+    tick(1000);
+    fixture.detectChanges();
+
+    const second = fixture.componentInstance.currentContent!;
+    expect(fixture.componentInstance.animationClass(second)).toBe('rotation-fade');
+    expect(fixture.componentInstance.contentAnimationClass(second, 'in')).not.toBe(firstAnimationClass);
+  }));
+
+  it('changes the ad animation class when the ad strip rotates', fakeAsync(() => {
+    const fixture = createComponent({
+      ...readyState,
+      ads: [
+        { ...readyState.ads[0], id: 'ad-1', durationSeconds: 1, effectiveDurationSeconds: 1, effectiveRotationAnimation: 'slide' },
+        { ...readyState.ads[0], id: 'ad-2', displayOrder: 2, durationSeconds: 1, effectiveDurationSeconds: 1, effectiveRotationAnimation: 'slide' }
+      ]
+    });
+
+    const firstAd = fixture.componentInstance.currentAd!;
+    const firstAnimationClass = fixture.componentInstance.adAnimationClass(firstAd);
+
+    tick(1000);
+    fixture.detectChanges();
+
+    const secondAd = fixture.componentInstance.currentAd!;
+    expect(secondAd.id).toBe('ad-2');
+    expect(fixture.componentInstance.adAnimationClass(secondAd)).not.toBe(firstAnimationClass);
+  }));
 
   // ---- Spec 009 US3 tests ----------------------------------------------------
 

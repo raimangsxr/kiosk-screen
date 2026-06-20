@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, computed, input, output, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,6 +25,7 @@ import { MatIconModule } from '@angular/material/icon';
         #picker
         type="file"
         [accept]="accept()"
+        [multiple]="multiple()"
         [hidden]="true"
         (change)="onFileSelected($event)"
         [attr.aria-label]="ariaLabel()"
@@ -86,14 +87,18 @@ import { MatIconModule } from '@angular/material/icon';
   ]
 })
 export class FileInputComponent {
+  private readonly picker = viewChild<ElementRef<HTMLInputElement>>('picker');
+
   readonly accept = input<string>('');
   readonly buttonLabel = input<string>('Choose file');
   readonly ariaLabel = input<string>('Choose file');
   readonly disabled = input<boolean>(false);
   readonly existingFileName = input<string | null>(null);
+  readonly multiple = input<boolean>(false);
   readonly showPreview = input<boolean>(false);
 
   readonly fileSelected = output<File>();
+  readonly filesSelected = output<File[]>();
 
   protected readonly selectedFileName = signal<string | null>(null);
   private readonly previewObjectUrl = signal<string | null>(null);
@@ -101,22 +106,23 @@ export class FileInputComponent {
   protected readonly previewUrl = computed(() => this.previewObjectUrl());
 
   protected triggerPicker(): void {
-    const input = (this as unknown as { picker?: HTMLInputElement }).picker;
-    input?.click();
+    this.picker()?.nativeElement.click();
   }
 
   protected onFileSelected(event: Event): void {
     const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (!file) {
+    const files = Array.from(target.files ?? []);
+    const file = files[0];
+    if (!file || !files.length) {
       return;
     }
     this.revokePreview();
-    this.selectedFileName.set(file.name);
+    this.selectedFileName.set(files.length === 1 ? file.name : `${files.length} files selected`);
     if (this.showPreview() && file.type.startsWith('image/')) {
       this.previewObjectUrl.set(URL.createObjectURL(file));
     }
     this.fileSelected.emit(file);
+    this.filesSelected.emit(files);
   }
 
   private revokePreview(): void {
