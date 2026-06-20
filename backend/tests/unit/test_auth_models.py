@@ -24,8 +24,7 @@ def test_role_assignment_and_operator_session_models(db_session):
     db_session.flush()
     config = KioskDisplayConfiguration(
         organization_id=organization.id,
-        name="Main",
-        configured_event_duration_minutes=120
+        name="Main"
     )
     db_session.add(config)
     db_session.flush()
@@ -42,4 +41,3 @@ def test_role_assignment_and_operator_session_models(db_session):
 
     assert role.role == "event_operator"
     assert session.valid_until > session.created_at
-

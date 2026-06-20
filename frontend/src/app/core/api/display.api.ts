@@ -19,7 +19,6 @@ export interface DisplayKioskConfiguration {
   inlineAdCount?: number;
   remoteControlPollingSeconds?: number;
   videoEndDelaySeconds?: number;
-  configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
 
@@ -128,7 +127,6 @@ function sameDisplayConfiguration(
     prev.inlineAdCount === curr.inlineAdCount &&
     prev.remoteControlPollingSeconds === curr.remoteControlPollingSeconds &&
     prev.videoEndDelaySeconds === curr.videoEndDelaySeconds &&
-    prev.configuredEventDurationMinutes === curr.configuredEventDurationMinutes &&
     prev.isEnabled === curr.isEnabled
   );
 }

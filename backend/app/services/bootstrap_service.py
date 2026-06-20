@@ -8,6 +8,7 @@ from app.config import Settings
 from app.domain.roles import Role
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
+from app.repositories.models.event_configuration import EventConfiguration
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.organization import Organization
 from app.repositories.models.role_assignment import RoleAssignment
@@ -20,6 +21,7 @@ class BootstrapResult:
     administrator: User
     operator: User
     configuration: KioskDisplayConfiguration
+    event_configuration: EventConfiguration
     top_content: TopContentItem
     ad: ClientAdItem
 
@@ -64,7 +66,13 @@ def bootstrap_mvp_data(
         bottom_region_ratio=1,
         default_top_duration_seconds=15,
         default_ad_duration_seconds=10,
-        configured_event_duration_minutes=240
+    )
+    event_configuration = EventConfiguration(
+        organization_id=organization.id,
+        event_name="",
+        organizer_name="",
+        organizer_logo_media_id=None,
+        event_duration_minutes=240,
     )
     top_content = TopContentItem(
         organization_id=organization.id,
@@ -77,7 +85,7 @@ def bootstrap_mvp_data(
         created_by_user_id=administrator.id,
         updated_by_user_id=administrator.id
     )
-    session.add_all([configuration, top_content])
+    session.add_all([configuration, event_configuration, top_content])
     session.flush()
 
     ad = ClientAdItem(
@@ -93,7 +101,7 @@ def bootstrap_mvp_data(
     session.add(ad)
     session.flush()
 
-    return BootstrapResult(organization, administrator, operator, configuration, top_content, ad)
+    return BootstrapResult(organization, administrator, operator, configuration, event_configuration, top_content, ad)
 
 
 def ensure_mvp_bootstrap_data(session: Session, settings: Settings) -> bool:

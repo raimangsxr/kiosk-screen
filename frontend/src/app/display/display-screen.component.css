@@ -2,7 +2,7 @@
   width: 100vw;
   height: 100vh;
   display: grid;
-  grid-template-rows: 4fr 1fr;
+  grid-template-rows: 4fr 0.8fr;
   overflow: hidden;
   color: #000;
 }
@@ -21,13 +21,90 @@
 
 .ad-region {
   grid-auto-flow: column;
+  grid-template-columns: max-content;
   grid-auto-columns: minmax(120px, 1fr);
   gap: 28px;
   padding: 18px 36px;
   background: #f2b84a;
-  color: #102832;
+  color: hsl(198, 52%, 13%);
   font-size: 32px;
   font-weight: 800;
+}
+
+.ad-region__title {
+    font-size: 14px;
+    position: absolute;
+    bottom: 140px;
+    left: 10px;
+    z-index: 3;
+    max-width: min(70vw, 680px);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: #fff;
+    color: #f2b84a;
+    pointer-events: none;
+}
+
+.branding-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  max-width: min(70vw, 680px);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 68%);
+  color: #fff;
+  font: 700 20px/1.2 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.branding-overlay__logo {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  width: auto;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 15px;
+  opacity: 0.4;
+}
+
+.branding-overlay__event-name {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  height: 80px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0px 20px;
+  border-radius: 10px;
+  background: #fff;
+  color: #000;
+  font: 700 40px/1.2 roboto;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.ad-region__title {
+  margin: 0 16px 0 0;
+  align-self: center;
+  white-space: nowrap;
+  color: #102832;
+  font: 900 22px/1 system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  pointer-events: none;
 }
 
 img,
@@ -149,6 +226,21 @@ iframe {
     gap: 16px;
     padding: 12px 18px;
     font-size: 22px;
+  }
+
+  .branding-overlay {
+    top: 10px;
+    left: 10px;
+    max-width: calc(100vw - 20px);
+    min-height: 36px;
+    gap: 7px;
+    padding: 6px 10px;
+    font-size: 15px;
+  }
+
+  .branding-overlay__logo {
+    height: 26px;
+    max-width: 84px;
   }
 
   .content-label,

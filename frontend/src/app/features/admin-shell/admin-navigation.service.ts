@@ -9,6 +9,7 @@ export class AdminNavigationService {
     { label: 'Content', route: '/admin/content', summary: 'Photos and videos for the top region' },
     { label: 'Iframes', route: '/admin/iframes', summary: 'Pinned web views for remote control' },
     { label: 'Ads', route: '/admin/ads', summary: 'Client ads for the bottom region' },
+    { label: 'Event', route: '/admin/event', summary: 'Organizer, event name, logo, and duration' },
     { label: 'Display configuration', route: '/admin/configuration', summary: 'Rotation, animation, and kiosk defaults' },
     { label: 'Setup check', route: '/admin/readiness', summary: 'Pre-flight checks for the kiosk' },
     { label: 'Remote control', route: '/admin/remote-control', summary: 'Switch kiosk content mode and ad visibility' },
@@ -21,6 +22,7 @@ export class AdminNavigationService {
     { label: 'Add iframe', route: '/admin/iframes/new', description: 'Create a pinned web view.' },
     { label: 'Add ad', route: '/admin/ads/new', description: 'Upload a client image ad.' },
     { label: 'Open remote control', route: '/admin/remote-control', description: 'Switch kiosk mode and ad visibility.' },
+    { label: 'Edit event', route: '/admin/event', description: 'Set organizer, event name, logo, and duration.' },
     { label: 'Configure display', route: '/admin/configuration', description: 'Set timing, animations, and inline ad count.' },
     { label: 'Manage users', route: '/admin/users', description: 'Create users and assign existing roles.' }
   ];

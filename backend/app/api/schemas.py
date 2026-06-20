@@ -59,7 +59,6 @@ class KioskConfigurationSchema(CamelModel):
     inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
     remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     video_end_delay_seconds: int = Field(default=2, alias="videoEndDelaySeconds", ge=0, le=30)
-    configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
 
 
@@ -74,8 +73,30 @@ class KioskConfigurationRequest(CamelModel):
     inline_ad_count: int = Field(default=1, alias="inlineAdCount", ge=1)
     remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     video_end_delay_seconds: int = Field(default=2, alias="videoEndDelaySeconds", ge=0, le=30)
-    configured_event_duration_minutes: int = Field(alias="configuredEventDurationMinutes", ge=1)
     is_enabled: bool = Field(alias="isEnabled")
+
+
+class EventConfigurationSchema(CamelModel):
+    id: UUID
+    organization_id: UUID = Field(alias="organizationId")
+    event_name: str = Field(alias="eventName")
+    organizer_name: str = Field(alias="organizerName")
+    organizer_logo_media_file: MediaFileReferenceSchema | None = Field(default=None, alias="organizerLogoMediaFile")
+    event_duration_minutes: int = Field(alias="eventDurationMinutes", ge=1, le=1440)
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+
+
+class EventConfigurationRequest(CamelModel):
+    event_name: str = Field(default="", alias="eventName", max_length=255)
+    organizer_name: str = Field(default="", alias="organizerName", max_length=255)
+    event_duration_minutes: int = Field(default=240, alias="eventDurationMinutes", ge=1, le=1440)
+
+
+class EventBrandingSchema(CamelModel):
+    event_name: str = Field(default="", alias="eventName")
+    organizer_name: str = Field(default="", alias="organizerName")
+    organizer_logo_url: str | None = Field(default=None, alias="organizerLogoUrl")
 
 
 class IframeSchema(CamelModel):

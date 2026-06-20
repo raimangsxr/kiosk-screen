@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
+from app.repositories.models.event_configuration import EventConfiguration
 from app.repositories.models.media import MediaFileReference
 
 
@@ -38,7 +39,13 @@ class MediaRepository:
                 ClientAdItem.media_file_id == media_id
             )
         ) or 0
-        return int(content_count) + int(ad_count)
+        event_config_count = self.session.scalar(
+            select(func.count()).select_from(EventConfiguration).where(
+                EventConfiguration.organization_id == organization_id,
+                EventConfiguration.organizer_logo_media_id == media_id
+            )
+        ) or 0
+        return int(content_count) + int(ad_count) + int(event_config_count)
 
     def delete_if_unreferenced(self, media: MediaFileReference) -> bool:
         if self.reference_count(media.organization_id, media.id) > 0:

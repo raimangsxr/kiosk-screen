@@ -45,7 +45,7 @@ def test_open_display_records_event_and_operator_session(db_session):
     assert state.fallback_active is False
     assert events[0].event_type == "display_opened"
     assert operator_session.valid_until.replace(tzinfo=timezone.utc) >= (
-        now + timedelta(minutes=result.configuration.configured_event_duration_minutes)
+        now + timedelta(minutes=result.event_configuration.event_duration_minutes)
     )
 
 

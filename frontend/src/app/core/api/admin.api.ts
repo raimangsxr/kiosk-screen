@@ -26,7 +26,6 @@ export interface KioskConfiguration {
   inlineAdCount: number;
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
-  configuredEventDurationMinutes: number;
   isEnabled: boolean;
 }
 

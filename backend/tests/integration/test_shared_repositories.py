@@ -25,8 +25,7 @@ def test_shared_repositories_store_and_load_foundation_entities(db_session):
     configuration = ConfigurationRepository(db_session).add(
         KioskDisplayConfiguration(
             organization_id=organization.id,
-            name="Main",
-            configured_event_duration_minutes=120
+            name="Main"
         )
     )
     DisplayEventRepository(db_session).record(
@@ -39,4 +38,3 @@ def test_shared_repositories_store_and_load_foundation_entities(db_session):
     assert users.list_roles(user.id) == ["administrator"]
     assert ConfigurationRepository(db_session).get_for_organization(organization.id).id == configuration.id
     assert len(DisplayEventRepository(db_session).list_recent(organization.id)) == 1
-
