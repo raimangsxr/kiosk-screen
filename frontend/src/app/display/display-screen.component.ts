@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
+import { EventBrandingService } from '../core/event-branding.service';
 import { DisplayRotationService } from './display-rotation.service';
 
 type DisplayRenderableItem = Pick<
@@ -63,9 +64,31 @@ type DisplayRenderableItem = Pick<
             {{ displayAvailable ? 'Content unavailable' : 'Display unavailable' }}
           </div>
         </ng-template>
+        <div
+          *ngIf="hasBranding()"
+          aria-label="Organizer and event branding"
+        >
+          <ng-container *ngIf="branding().organizerLogoUrl as logoUrl">
+              <img
+                *ngIf="logoVisible(logoUrl)"
+                [src]="logoUrl"
+                alt=""
+                class="branding-overlay__logo"
+                (error)="hideBrokenLogo(logoUrl)"
+              />
+          </ng-container>
+          <!--<span *ngIf="branding().organizerName" class="branding-overlay__text">
+            {{ branding().organizerName }}
+          </span>-->
+          <!--<span *ngIf="showBrandingSeparator()" class="branding-overlay__separator" aria-hidden="true">•</span>-->
+          <span *ngIf="branding().eventName" class="branding-overlay__event-name">
+            {{ branding().eventName }}
+          </span>
+        </div>
       </section>
 
-      <section *ngIf="adsVisible" class="ad-region" aria-label="Client ads">
+      <div class="ad-region__title">Patrocinadores del evento</div>
+      <section *ngIf="adsVisible" class="ad-region" aria-label="Patrocinadores del evento">
         <ng-container *ngIf="visibleAds.length; else adFallback">
           <figure *ngFor="let ad of visibleAds">
             <img
@@ -118,6 +141,7 @@ type DisplayRenderableItem = Pick<
 })
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
+  private readonly eventBranding = inject(EventBrandingService);
   private readonly displaySync = inject(DisplayControlSyncService);
   private readonly rotation = inject(DisplayRotationService);
   private readonly router = inject(Router);
@@ -136,6 +160,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
   private lastFullscreenRequested: boolean | null = null;
+  private hiddenLogoUrl: string | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -148,6 +173,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   contentRenderItems: DisplayContentItem[] = [];
   defaultTopDurationSeconds = 10;
   fullscreenPromptVisible = false;
+  readonly branding = this.eventBranding.branding;
 
   get currentAd(): DisplayAdItem | null {
     if (!this.adsVisible) {
@@ -179,6 +205,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
+    this.eventBranding.refresh().subscribe();
     this.api.openDisplay().subscribe((state) => {
       this.applyState(state, { resetRotation: true });
       this.startPolling();
@@ -244,6 +271,25 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return this.cachedSafeIframeUrl;
   }
 
+  hasBranding(): boolean {
+    const branding = this.branding();
+    return Boolean(branding.eventName || branding.organizerName || branding.organizerLogoUrl);
+  }
+
+  showBrandingSeparator(): boolean {
+    const branding = this.branding();
+    const pieces = [branding.organizerLogoUrl, branding.organizerName, branding.eventName].filter(Boolean).length;
+    return pieces >= 2 && Boolean(branding.organizerName && branding.eventName);
+  }
+
+  logoVisible(url: string): boolean {
+    return this.hiddenLogoUrl !== url;
+  }
+
+  hideBrokenLogo(url: string | null): void {
+    this.hiddenLogoUrl = url;
+  }
+
   private applyState(state: DisplayState, options: { resetRotation: boolean; preserveContentTimer?: boolean }): void {
     const previousContent = this.currentContent;
     const previousContentMode = this.state?.remoteControl?.contentMode;
@@ -294,6 +340,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     if (durationMs > 1000) {
       this.preTransitionPollTimer = setTimeout(() => {
+        this.eventBranding.refresh().subscribe();
         this.api.getState().subscribe((state) => {
           if (this.state !== null) {
             this.applyState(state, { resetRotation: false, preserveContentTimer: true });
@@ -432,6 +479,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.pollSub?.unsubscribe();
     this.currentPollIntervalMs = this.pollIntervalMs();
     this.pollSub = this.api.watchState(this.currentPollIntervalMs).subscribe((pollState) => {
+      this.eventBranding.refresh().subscribe();
       this.applyState(pollState, { resetRotation: false, preserveContentTimer: true });
     });
   }
@@ -440,6 +488,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     if (this.state === null) {
       return;
     }
+    this.eventBranding.refresh().subscribe();
     this.api.getState().subscribe((state) => {
       this.applyState(state, { resetRotation: false, preserveContentTimer: true });
     });

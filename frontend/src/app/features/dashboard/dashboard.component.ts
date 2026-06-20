@@ -293,6 +293,7 @@ export class AdminDashboardComponent implements OnInit {
   protected iconFor(route: string): string {
     if (route.startsWith('/admin/content')) return 'photo_library';
     if (route.startsWith('/admin/ads')) return 'campaign';
+    if (route.startsWith('/admin/event')) return 'event';
     if (route.startsWith('/admin/iframes')) return 'web_asset';
     if (route.startsWith('/admin/configuration')) return 'tune';
     if (route.startsWith('/admin/users')) return 'group';

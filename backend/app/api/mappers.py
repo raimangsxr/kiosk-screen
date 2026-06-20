@@ -2,6 +2,8 @@ from app.api.schemas import (
     AdItemSchema,
     ContentItemSchema,
     DisplayEventSchema,
+    EventBrandingSchema,
+    EventConfigurationSchema,
     IframeSchema,
     KioskConfigurationSchema,
     MediaFileReferenceSchema,
@@ -10,6 +12,7 @@ from app.api.schemas import (
 from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
+from app.repositories.models.event_configuration import EventConfiguration
 from app.repositories.models.iframe import Iframe
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
@@ -44,8 +47,31 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         inlineAdCount=configuration.inline_ad_count,
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         videoEndDelaySeconds=configuration.video_end_delay_seconds,
-        configuredEventDurationMinutes=configuration.configured_event_duration_minutes,
         isEnabled=configuration.is_enabled
+    )
+
+
+def to_event_configuration_schema(
+    row: EventConfiguration,
+    media: MediaFileReference | None = None,
+) -> EventConfigurationSchema:
+    return EventConfigurationSchema(
+        id=row.id,
+        organizationId=row.organization_id,
+        eventName=row.event_name,
+        organizerName=row.organizer_name,
+        organizerLogoMediaFile=to_media_schema(media),
+        eventDurationMinutes=row.event_duration_minutes,
+        createdAt=row.created_at,
+        updatedAt=row.updated_at,
+    )
+
+
+def to_event_branding_schema(row: EventConfiguration, media_url: str | None) -> EventBrandingSchema:
+    return EventBrandingSchema(
+        eventName=row.event_name,
+        organizerName=row.organizer_name,
+        organizerLogoUrl=media_url,
     )
 
 

@@ -60,7 +60,6 @@ class AdminService:
         configuration.inline_ad_count = payload.inline_ad_count
         configuration.remote_control_polling_seconds = payload.remote_control_polling_seconds
         configuration.video_end_delay_seconds = payload.video_end_delay_seconds
-        configuration.configured_event_duration_minutes = payload.configured_event_duration_minutes
         configuration.is_enabled = payload.is_enabled
         self._record(organization_id, user_id, "configuration_changed", "Display configuration changed")
         self.session.commit()

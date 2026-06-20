@@ -59,7 +59,6 @@ describe('DisplayApiService', () => {
         defaultTopAnimationDurationMilliseconds: 300,
         defaultAdAnimationDurationMilliseconds: 300,
         inlineAdCount: 1,
-        configuredEventDurationMinutes: 60,
         isEnabled: true,
       },
       topContent: [

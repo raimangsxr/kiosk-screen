@@ -1,9 +1,11 @@
 import { Subject, of } from 'rxjs';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { DisplayApiService, DisplayState } from '../core/api/display.api';
+import { EventBrandingService } from '../core/event-branding.service';
 import { DisplayScreenComponent } from './display-screen.component';
 
 describe('DisplayScreenComponent', () => {
@@ -20,7 +22,6 @@ describe('DisplayScreenComponent', () => {
       defaultTopAnimationDurationMilliseconds: 300,
       defaultAdAnimationDurationMilliseconds: 300,
       inlineAdCount: 2,
-      configuredEventDurationMinutes: 120,
       isEnabled: true
     },
     topContent: [{
@@ -47,7 +48,22 @@ describe('DisplayScreenComponent', () => {
     fallbackActive: false
   };
 
-  function createComponent(state: DisplayState): ComponentFixture<DisplayScreenComponent> {
+  function eventBrandingProvider(initial = { eventName: '', organizerName: '', organizerLogoUrl: null as string | null }) {
+    const branding = signal(initial);
+    return {
+      provide: EventBrandingService,
+      useValue: {
+        branding: branding.asReadonly(),
+        refresh: () => of(branding()),
+        clear: () => branding.set({ eventName: '', organizerName: '', organizerLogoUrl: null })
+      }
+    };
+  }
+
+  function createComponent(
+    state: DisplayState,
+    branding = { eventName: '', organizerName: '', organizerLogoUrl: null as string | null },
+  ): ComponentFixture<DisplayScreenComponent> {
     TestBed.configureTestingModule({
       imports: [DisplayScreenComponent],
       providers: [
@@ -59,6 +75,7 @@ describe('DisplayScreenComponent', () => {
             getState: () => of(state),
           }
         },
+        eventBrandingProvider(branding),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -87,6 +104,36 @@ describe('DisplayScreenComponent', () => {
 
     expect(text).toContain('Content unavailable');
     expect(text).toContain('Ads unavailable');
+  });
+
+  it('renders event branding when configured', () => {
+    const fixture = createComponent(readyState, {
+      eventName: 'Spring Summit 2026',
+      organizerName: 'ACME Events',
+      organizerLogoUrl: '/api/media/logo-1'
+    });
+    fixture.detectChanges();
+
+    const overlay = fixture.nativeElement.querySelector('.branding-overlay') as HTMLElement;
+    expect(overlay).not.toBeNull();
+    expect(overlay.getAttribute('aria-label')).toBe('Organizer and event branding');
+    expect(overlay.textContent).toContain('ACME Events');
+    expect(overlay.textContent).toContain('Spring Summit 2026');
+    expect(overlay.querySelector('img')?.getAttribute('alt')).toBe('');
+  });
+
+  it('hides event branding when all fields are empty', () => {
+    const fixture = createComponent(readyState);
+    expect(fixture.nativeElement.querySelector('.branding-overlay')).toBeNull();
+  });
+
+  it('renders the sponsor title as the first ad-region child', () => {
+    const fixture = createComponent(readyState);
+    const adRegion = fixture.nativeElement.querySelector('.ad-region') as HTMLElement;
+
+    expect(adRegion.getAttribute('aria-label')).toBe('Patrocinadores del evento');
+    expect(adRegion.firstElementChild?.classList).toContain('ad-region__title');
+    expect(adRegion.firstElementChild?.textContent).toContain('Patrocinadores del evento');
   });
 
   it('keeps the same trusted iframe URL object while the iframe URL is unchanged', () => {
@@ -214,6 +261,7 @@ describe('DisplayScreenComponent', () => {
             getState: () => of(state),
           }
         },
+        eventBrandingProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -277,6 +325,7 @@ describe('DisplayScreenComponent', () => {
             getState: () => of(state),
           }
         },
+        eventBrandingProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -461,6 +510,7 @@ describe('DisplayScreenComponent', () => {
       imports: [DisplayScreenComponent],
       providers: [
         { provide: DisplayApiService, useValue: api },
+        eventBrandingProvider(),
         provideRouter([]),
         provideNoopAnimations(),
       ],

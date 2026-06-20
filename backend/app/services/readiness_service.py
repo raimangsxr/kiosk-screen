@@ -6,6 +6,7 @@ from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
 from app.services.display_service import eligible_ads, eligible_top_content
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
+from app.services.event_configuration_service import EventConfigurationService
 from app.services.media_storage_service import MediaStorageService
 
 def _missing_media_sources(session: Session, organization_id: str) -> list[str]:
@@ -59,10 +60,11 @@ class ReadinessService:
                 KioskDisplayConfiguration.organization_id == organization_id
             )
         )
+        event_configuration = EventConfigurationService(self.session).get_or_create(organization_id) if configuration else None
         return evaluate_readiness(
             ReadinessInput(
                 configuration_enabled=bool(configuration and configuration.is_enabled),
-                event_duration_minutes=configuration.configured_event_duration_minutes if configuration else None,
+                event_duration_minutes=event_configuration.event_duration_minutes if event_configuration else None,
                 active_top_content_count=len(eligible_top_content(self.session, organization_id)) if configuration else 0,
                 active_ad_count=len(eligible_ads(self.session, organization_id)) if configuration else 0,
                 invalid_sources=_missing_media_sources(self.session, organization_id) if configuration else []

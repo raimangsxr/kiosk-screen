@@ -21,7 +21,6 @@ const configuration: KioskConfiguration = {
   inlineAdCount: 2,
   remoteControlPollingSeconds: 3,
   videoEndDelaySeconds: 2,
-  configuredEventDurationMinutes: 60,
   isEnabled: true
 };
 
@@ -124,14 +123,6 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     const form = fixture.componentInstance['form']!;
     form.controls.inlineAdCount.setValue(0);
     expect(form.controls.inlineAdCount.hasError('positiveInteger')).toBeTrue();
-    fixture.componentInstance.submit();
-    httpController.expectNone((req) => req.method === 'PUT');
-  });
-
-  it('rejects event duration of zero', () => {
-    const form = fixture.componentInstance['form']!;
-    form.controls.configuredEventDurationMinutes.setValue(0);
-    expect(form.controls.configuredEventDurationMinutes.hasError('positiveInteger')).toBeTrue();
     fixture.componentInstance.submit();
     httpController.expectNone((req) => req.method === 'PUT');
   });

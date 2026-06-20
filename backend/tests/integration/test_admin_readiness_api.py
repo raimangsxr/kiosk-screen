@@ -26,7 +26,7 @@ def test_admin_readiness_configuration_iframes_events_and_users(api_client: Test
         "isEnabled": True
     })
     assert updated.status_code == 200
-    assert updated.json()["configuredEventDurationMinutes"] == 180
+    assert "configuredEventDurationMinutes" not in updated.json()
 
     iframe = api_client.post("/api/iframes", json={"url": "https://example.org"})
     assert iframe.status_code == 201

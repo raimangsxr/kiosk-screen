@@ -16,6 +16,7 @@ from app.repositories.models.operator_session import OperatorSession
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.base import utc_now
 from app.application.display_control.service import DisplayControlService
+from app.services.event_configuration_service import EventConfigurationService
 
 
 @dataclass
@@ -108,7 +109,8 @@ def open_display(
 
     current_time = now or utc_now()
     state = get_display_state(session, organization_id, current_time)
-    if not state.configuration.is_enabled or not state.configuration.configured_event_duration_minutes:
+    event_configuration = EventConfigurationService(session).get_or_create(organization_id)
+    if not state.configuration.is_enabled or not event_configuration.event_duration_minutes:
         raise ValueError("Display configuration is not ready.")
     if state.fallback_active:
         raise ValueError("Display requires at least one eligible top content item and one eligible ad.")
@@ -117,7 +119,7 @@ def open_display(
         organization_id=organization_id,
         user_id=user_id,
         display_configuration_id=state.configuration.id,
-        valid_until=current_time + timedelta(minutes=state.configuration.configured_event_duration_minutes)
+        valid_until=current_time + timedelta(minutes=event_configuration.event_duration_minutes)
     )
     session.add(token)
     session.flush()

@@ -2,8 +2,9 @@
 
 <!-- SPECKIT START -->
 Read feature context only when implementing, reviewing, or validating that
-feature. For feature 016, start with `specs/016-preconfigured-iframes-and-video-end/tasks.md`
-and open `plan.md`, `spec.md`, or contracts only as needed for the active task.
+feature. For feature 017, start with `specs/017-event-branding/tasks.md`
+and open `plan.md`, `spec.md`, research.md, data-model.md, or contracts as needed
+for the active task.
 <!-- SPECKIT END -->
 
 ## Operating mode
