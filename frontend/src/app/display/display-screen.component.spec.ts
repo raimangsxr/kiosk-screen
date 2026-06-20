@@ -1,6 +1,7 @@
 import { Subject, of } from 'rxjs';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { DisplayApiService, DisplayState } from '../core/api/display.api';
 import { DisplayScreenComponent } from './display-screen.component';
@@ -58,7 +59,8 @@ describe('DisplayScreenComponent', () => {
             getState: () => of(state),
           }
         },
-        provideRouter([])
+        provideRouter([]),
+        provideNoopAnimations()
       ]
     });
     const fixture = TestBed.createComponent(DisplayScreenComponent);
@@ -87,6 +89,18 @@ describe('DisplayScreenComponent', () => {
     expect(text).toContain('Ads unavailable');
   });
 
+  it('keeps the same trusted iframe URL object while the iframe URL is unchanged', () => {
+    const fixture = createComponent(readyState);
+    const component = fixture.componentInstance;
+
+    const first = component.safeIframeUrl('https://example.org/live');
+    const second = component.safeIframeUrl('https://example.org/live');
+    const third = component.safeIframeUrl('https://example.org/other');
+
+    expect(second).toBe(first);
+    expect(third).not.toBe(first);
+  });
+
   it('rotates top content using effective duration', fakeAsync(() => {
     const fixture = createComponent({
       ...readyState,
@@ -99,6 +113,76 @@ describe('DisplayScreenComponent', () => {
     expect(fixture.componentInstance.currentContent?.title).toBe('First');
 
     tick(1000);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+  }));
+
+  it('applies remote navigation commands and restarts the content timer', fakeAsync(() => {
+    const poll$ = new Subject<DisplayState>();
+    const state: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+      topContent: [
+        { ...readyState.topContent[0], id: 'content-1', title: 'First', durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'content-3', title: 'Third', displayOrder: 3, durationSeconds: 10, effectiveDurationSeconds: 10 },
+      ],
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(state),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(state),
+          }
+        },
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('First');
+
+    poll$.next({
+      ...state,
+      remoteControl: {
+        ...state.remoteControl!,
+        navigationCommand: 'next',
+        navigationCommandId: '11111111-1111-4111-8111-111111111111',
+      },
+    });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+
+    tick(9999);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+
+    tick(1);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.title).toBe('Third');
+
+    poll$.next({
+      ...state,
+      remoteControl: {
+        ...state.remoteControl!,
+        navigationCommand: 'previous',
+        navigationCommandId: '22222222-2222-4222-8222-222222222222',
+      },
+    });
     fixture.detectChanges();
 
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
@@ -125,7 +209,8 @@ describe('DisplayScreenComponent', () => {
             getState: () => of(state),
           }
         },
-        provideRouter([])
+        provideRouter([]),
+        provideNoopAnimations()
       ]
     });
     const fixture = TestBed.createComponent(DisplayScreenComponent);
@@ -259,7 +344,7 @@ describe('DisplayScreenComponent', () => {
 
     const first = fixture.componentInstance.currentContent!;
     expect(fixture.componentInstance.animationClass(first)).toBe('rotation-fade');
-    const firstAnimationClass = fixture.componentInstance.contentAnimationClass(first, 'in');
+    const firstTransition = fixture.componentInstance.contentTransition(first);
     expect(fixture.componentInstance.animationDurationMs(first)).toBe(450);
 
     tick(1000);
@@ -267,7 +352,7 @@ describe('DisplayScreenComponent', () => {
 
     const second = fixture.componentInstance.currentContent!;
     expect(fixture.componentInstance.animationClass(second)).toBe('rotation-fade');
-    expect(fixture.componentInstance.contentAnimationClass(second, 'in')).not.toBe(firstAnimationClass);
+    expect(fixture.componentInstance.contentTransition(second).value).not.toBe(firstTransition.value);
   }));
 
   it('changes the ad animation class when the ad strip rotates', fakeAsync(() => {
@@ -309,6 +394,7 @@ describe('DisplayScreenComponent', () => {
       providers: [
         { provide: DisplayApiService, useValue: api },
         provideRouter([]),
+        provideNoopAnimations(),
       ],
     });
     const fixture = TestBed.createComponent(DisplayScreenComponent);

@@ -2,12 +2,14 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { forkJoin, tap, catchError, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
+import { DisplayControlSyncService } from '../../core/display-control-sync.service';
 import { RemoteControlApi } from './remote-control.api';
-import { RemoteControlIframeOption, RemoteControlState } from './remote-control.models';
+import { RemoteControlIframeOption, RemoteControlNavigationCommand, RemoteControlState } from './remote-control.models';
 
 @Injectable({ providedIn: 'root' })
 export class RemoteControlFacade {
   private readonly api = inject(RemoteControlApi);
+  private readonly displaySync = inject(DisplayControlSyncService);
   private readonly stateSignal = signal<RemoteControlState | null>(null);
   private readonly iframeOptionsSignal = signal<RemoteControlIframeOption[]>([]);
   private readonly loadingSignal = signal(false);
@@ -54,6 +56,23 @@ export class RemoteControlFacade {
     return this.update(current?.contentMode ?? 'loop', current?.selectedIframeId ?? null, adsVisible);
   }
 
+  navigate(command: RemoteControlNavigationCommand) {
+    this.savingSignal.set(true);
+    this.errorSignal.set(null);
+    return this.api.navigate({ command }).pipe(
+      tap((state) => {
+        this.stateSignal.set(state);
+        this.displaySync.notifyRemoteControlChanged();
+        this.savingSignal.set(false);
+      }),
+      catchError((error: unknown) => {
+        this.errorSignal.set(adaptApiError(error));
+        this.savingSignal.set(false);
+        return throwError(() => error);
+      })
+    );
+  }
+
   private update(contentMode: 'loop' | 'iframe', selectedIframeId: string | null, adsVisible?: boolean) {
     const current = this.stateSignal();
     this.savingSignal.set(true);
@@ -65,6 +84,7 @@ export class RemoteControlFacade {
     }).pipe(
       tap((state) => {
         this.stateSignal.set(state);
+        this.displaySync.notifyRemoteControlChanged();
         this.savingSignal.set(false);
       }),
       catchError((error: unknown) => {

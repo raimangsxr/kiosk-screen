@@ -43,7 +43,7 @@ def test_display_control_service_creates_default_loop_state_for_session(db_sessi
         organization_id=result.organization.id,
         user_id=result.operator.id,
         display_configuration_id=result.configuration.id,
-        valid_until=utc_now(),
+        valid_until=utc_now() + timedelta(minutes=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -73,7 +73,7 @@ def test_display_control_service_updates_to_existing_iframe(db_session) -> None:
         organization_id=result.organization.id,
         user_id=result.operator.id,
         display_configuration_id=result.configuration.id,
-        valid_until=utc_now(),
+        valid_until=utc_now() + timedelta(minutes=30),
     )
     db_session.add_all([iframe, session])
     db_session.commit()
@@ -101,7 +101,7 @@ def test_display_control_service_updates_ads_visibility_without_changing_content
         organization_id=result.organization.id,
         user_id=result.operator.id,
         display_configuration_id=result.configuration.id,
-        valid_until=utc_now(),
+        valid_until=utc_now() + timedelta(minutes=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -129,7 +129,7 @@ def test_display_control_service_records_ads_visibility_changes(db_session) -> N
         organization_id=result.organization.id,
         user_id=result.operator.id,
         display_configuration_id=result.configuration.id,
-        valid_until=utc_now(),
+        valid_until=utc_now() + timedelta(minutes=30),
     )
     db_session.add(session)
     db_session.commit()
@@ -146,6 +146,65 @@ def test_display_control_service_records_ads_visibility_changes(db_session) -> N
     events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_ads_visibility_changed").all()
     assert len(events) == 1
     assert events[0].event_metadata == {"adsVisible": False}
+
+
+def test_display_control_service_issues_navigation_command_in_loop_mode(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    state = DisplayControlService(db_session).issue_navigation_command(
+        result.organization.id,
+        result.administrator.id,
+        command="next",
+    )
+
+    assert state.navigation_command == "next"
+    assert state.navigation_command_id is not None
+    events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_navigation_changed").all()
+    assert len(events) == 1
+    assert events[0].event_metadata["command"] == "next"
+
+
+def test_display_control_service_rejects_navigation_command_in_iframe_mode(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    iframe = Iframe(
+        organization_id=result.organization.id,
+        url="https://example.org/agenda",
+        created_by_user_id=result.administrator.id,
+        updated_by_user_id=result.administrator.id,
+    )
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add_all([iframe, session])
+    db_session.commit()
+
+    service = DisplayControlService(db_session)
+    service.update_state(
+        result.organization.id,
+        session.id,
+        result.administrator.id,
+        content_mode="iframe",
+        selected_iframe_id=iframe.id,
+        ads_visible=True,
+    )
+
+    with pytest.raises(ValueError):
+        service.issue_navigation_command(result.organization.id, result.administrator.id, command="next")
 
 
 def test_display_control_service_uses_new_session_default_instead_of_stale_state(db_session) -> None:

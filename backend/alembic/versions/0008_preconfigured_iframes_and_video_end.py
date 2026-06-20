@@ -1,6 +1,6 @@
 """preconfigured iframes and video end delay
 
-Revision ID: 0008_preconfigured_iframes_and_video_end
+Revision ID: 0008_iframes_video_end
 Revises: 0007_drop_client_concept
 Create Date: 2026-06-20
 """
@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "0008_preconfigured_iframes_and_video_end"
+revision: str = "0008_iframes_video_end"
 down_revision: str | tuple[str, ...] | None = "0007_drop_client_concept"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -37,7 +37,9 @@ def upgrade() -> None:
     bind = op.get_bind()
 
     op.execute("DELETE FROM top_content_items WHERE content_type = 'embedded_web'")
-    op.drop_table("approved_embedded_domains", if_exists=True)
+    for fk_name in _fk_names(bind, "top_content_items", "approved_domain_id"):
+        op.drop_constraint(fk_name, "top_content_items", type_="foreignkey")
+    op.execute("DROP TABLE IF EXISTS approved_embedded_domains CASCADE")
 
     op.create_table(
         "iframes",
@@ -121,3 +123,11 @@ def downgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("organization_id", "domain", name="uq_approved_domains_organization_domain"),
     )
+    if _column_exists(bind, "top_content_items", "approved_domain_id"):
+        op.create_foreign_key(
+            "top_content_items_approved_domain_id_fkey",
+            "top_content_items",
+            "approved_embedded_domains",
+            ["approved_domain_id"],
+            ["id"],
+        )

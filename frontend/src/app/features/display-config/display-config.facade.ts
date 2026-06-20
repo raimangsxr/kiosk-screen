@@ -3,11 +3,13 @@ import { catchError, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { AdminApiService, KioskConfiguration } from '../../core/api/admin.api';
+import { DisplayControlSyncService } from '../../core/display-control-sync.service';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })
 export class DisplayConfigFacade {
   private readonly api = inject(AdminApiService);
+  private readonly displaySync = inject(DisplayControlSyncService);
   private readonly configState = signal<KioskConfiguration | null>(null);
   private readonly loadingState = signal(false);
   private readonly savingState = signal(false);
@@ -42,6 +44,7 @@ export class DisplayConfigFacade {
       tap((config) => {
         this.savingState.set(false);
         this.configState.set(config);
+        this.displaySync.notifyDisplayStateChanged();
       }),
       catchError((error: unknown) => {
         this.errorState.set(adaptApiError(error));

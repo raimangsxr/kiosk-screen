@@ -16,4 +16,6 @@ class DisplayControlState(IdMixin, TimestampMixin, Base):
     content_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="loop")
     selected_iframe_id: Mapped[str | None] = mapped_column(ForeignKey("iframes.id", ondelete="SET NULL"), nullable=True)
     ads_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    navigation_command: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    navigation_command_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     updated_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)

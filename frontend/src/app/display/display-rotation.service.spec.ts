@@ -93,6 +93,14 @@ describe('DisplayRotationService (novelty queue state machine)', () => {
     expect(service.pickNext()?.id).toBe('A'); // wraps
   });
 
+  it('picks the previous item and wraps to the end', () => {
+    const items = [makeItem('A', 1), makeItem('B', 2), makeItem('C', 3)];
+    service.initialize(items);
+    expect(service.pickPrevious()?.id).toBe('C');
+    expect(service.pickPrevious()?.id).toBe('B');
+    expect(service.pickNext()?.id).toBe('C');
+  });
+
   it('drains the novelty queue before returning to the base rotation', () => {
     const initial = [makeItem('A', 1), makeItem('B', 2)];
     service.initialize(initial);

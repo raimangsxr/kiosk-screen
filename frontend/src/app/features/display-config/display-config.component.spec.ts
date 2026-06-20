@@ -5,6 +5,7 @@ import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { AdminApiService, KioskConfiguration } from '../../core/api/admin.api';
+import { DisplayControlSyncService } from '../../core/display-control-sync.service';
 import { DisplayConfigFacade } from './display-config.facade';
 import { DisplayConfigComponent } from './display-config.component';
 
@@ -31,10 +32,19 @@ function buildConfig(partial: Partial<KioskConfiguration> = {}): KioskConfigurat
 describe('DisplayConfigFacade', () => {
   let facade: DisplayConfigFacade;
   let httpController: HttpTestingController;
+  let displaySync: jasmine.SpyObj<DisplayControlSyncService>;
 
   beforeEach(() => {
+    displaySync = jasmine.createSpyObj<DisplayControlSyncService>('DisplayControlSyncService', [
+      'notifyDisplayStateChanged'
+    ]);
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), DisplayConfigFacade]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        DisplayConfigFacade,
+        { provide: DisplayControlSyncService, useValue: displaySync }
+      ]
     });
     facade = TestBed.inject(DisplayConfigFacade);
     httpController = TestBed.inject(HttpTestingController);
@@ -58,6 +68,7 @@ describe('DisplayConfigFacade', () => {
     expect(put.request.body).toEqual(jasmine.objectContaining({ name: 'Renamed' }));
     put.flush(buildConfig({ name: 'Renamed' }));
     expect(facade.configuration()?.name).toBe('Renamed');
+    expect(displaySync.notifyDisplayStateChanged).toHaveBeenCalled();
   });
 
   it('clearError resets the error signal', () => {

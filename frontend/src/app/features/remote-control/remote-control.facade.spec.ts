@@ -101,6 +101,18 @@ describe('RemoteControlFacade', () => {
     expect(facade.state()?.adsVisible).toBeFalse();
   });
 
+  it('posts rotation navigation commands and updates state', () => {
+    facade.navigate('next').subscribe();
+
+    const request = http.expectOne('/api/display/remote-control/navigation');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({ command: 'next' });
+    request.flush({ ...state, navigationCommand: 'next', navigationCommandId: '11111111-1111-4111-8111-111111111111' });
+
+    expect(facade.state()?.navigationCommand).toBe('next');
+    expect(facade.state()?.navigationCommandId).toBe('11111111-1111-4111-8111-111111111111');
+  });
+
   it('maps safe errors when update fails', () => {
     facade.setIframeMode('missing').subscribe({ error: () => undefined });
 
