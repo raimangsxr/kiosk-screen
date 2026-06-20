@@ -59,7 +59,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           (cdkDropListDropped)="onDrop($event)"
           aria-label="Drag to reorder content items"
         >
-          <table mat-table [dataSource]="facade.items()" aria-label="Top content items" class="app-table content-list__table">
+          <table mat-table [dataSource]="facade.items()" [trackBy]="trackById" aria-label="Top content items" class="app-table content-list__table">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef class="content-list__select-cell"></th>
               <td mat-cell *matCellDef="let item" class="content-list__select-cell">
@@ -136,7 +136,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr
               mat-row
-              *matRowDef="let row; columns: displayedColumns; trackBy: trackById"
+              *matRowDef="let row; columns: displayedColumns"
               cdkDrag
               [cdkDragData]="row"
               class="content-list__row"

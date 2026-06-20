@@ -19,7 +19,7 @@ describe('HallComponent', () => {
     localStorage.clear();
   });
 
-  it('offers kiosk, remote control, and administration destinations', () => {
+  it('uses the shared header and offers kiosk and administration destinations', () => {
     const fixture = TestBed.createComponent(HallComponent);
     fixture.detectChanges();
 
@@ -29,9 +29,10 @@ describe('HallComponent', () => {
 
     expect(text).toContain('Enter kiosk mode');
     expect(text).toContain('Open administration');
-    expect(text).toContain('Open remote control');
+    expect(text).not.toContain('Open remote control');
+    expect(fixture.nativeElement.querySelector('app-admin-toolbar')).not.toBeNull();
     expect(links).toContain('/display');
     expect(links).toContain('/admin');
-    expect(links).toContain('/remote-control');
+    expect(links).not.toContain('/remote-control');
   });
 });

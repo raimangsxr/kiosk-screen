@@ -18,7 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 
 import { ContentFacade } from './content.facade';
 import { ContentItem, ContentItemRequest } from '../../core/api/content.api';
@@ -27,7 +27,7 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { FormPageComponent } from '../../shared/ui/form-page.component';
 import { FileInputComponent } from '../../shared/ui/file-input.component';
-import { positiveInteger, nonBlankString } from '../../shared/forms/admin-validators';
+import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
 type ContentType = 'photo' | 'video' | 'embedded_web';
@@ -89,15 +89,6 @@ interface ContentFormValue {
 
         <div class="content-form__row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Title</mat-label>
-            <input matInput formControlName="title" required maxlength="120" autocomplete="off" />
-            <mat-error *ngIf="form.controls.title.hasError('required')">Title is required.</mat-error>
-            <mat-error *ngIf="form.controls.title.hasError('nonBlankString')">
-              Title cannot be blank.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Type</mat-label>
             <mat-select formControlName="contentType" required>
               <mat-option value="photo">Photo</mat-option>
@@ -130,8 +121,10 @@ interface ContentFormValue {
               [buttonLabel]="fileButtonLabel()"
               [ariaLabel]="fileLabel()"
               [existingFileName]="existingMediaName()"
+              [multiple]="!contentId()"
               [showPreview]="isPhoto()"
               (fileSelected)="onFileSelected($event)"
+              (filesSelected)="onFilesSelected($event)"
             />
           </div>
         }
@@ -255,6 +248,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected readonly saveError = signal<{ code: string; message: string; category: string } | null>(null);
   protected readonly loadError = signal<{ code: string; message: string; category: string } | null>(null);
   protected readonly selectedFile = signal<File | null>(null);
+  protected readonly selectedFiles = signal<readonly File[]>([]);
   protected readonly existingMedia = signal<string | null>(null);
 
   protected form: FormGroup<{
@@ -323,10 +317,10 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected fileButtonLabel(): string {
     const type = this.form?.controls.contentType.value;
     if (type === 'video') {
-      return 'Choose video';
+      return this.contentId() ? 'Choose video' : 'Choose videos';
     }
     if (type === 'photo') {
-      return 'Choose image';
+      return this.contentId() ? 'Choose image' : 'Choose images';
     }
     return 'Choose file';
   }
@@ -334,10 +328,10 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected fileLabel(): string {
     const type = this.form?.controls.contentType.value;
     if (type === 'video') {
-      return 'Choose a video file to upload';
+      return this.contentId() ? 'Choose a video file to upload' : 'Choose video files to upload';
     }
     if (type === 'photo') {
-      return 'Choose an image file to upload';
+      return this.contentId() ? 'Choose an image file to upload' : 'Choose image files to upload';
     }
     return 'Choose a file to upload';
   }
@@ -354,6 +348,11 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     this.selectedFile.set(file);
   }
 
+  protected onFilesSelected(files: File[]): void {
+    this.selectedFiles.set(files);
+    this.selectedFile.set(files[0] ?? null);
+  }
+
   submit(): void {
     if (!this.form || this.form.invalid) {
       this.form?.markAllAsTouched();
@@ -361,7 +360,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     }
     const value = this.form.value as ContentFormValue;
     const payload: ContentItemRequest = {
-      title: value.title.trim(),
+      title: this.deriveTitle(value),
       contentType: value.contentType,
       sourceReference: value.sourceReference.trim(),
       mediaFile: null,
@@ -372,7 +371,8 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       animationDurationMilliseconds: value.animationDurationMilliseconds
     };
 
-    if (this.requiresFile(value.contentType) && !this.selectedFile() && !value.sourceReference.trim() && !this.contentId()) {
+    const uploadFiles = this.filesToUpload();
+    if (this.requiresFile(value.contentType) && !uploadFiles.length && !value.sourceReference.trim() && !this.contentId()) {
       this.saveError.set({
         code: 'validation_missing_file',
         message: 'Choose an image, video, or external source URL before saving.',
@@ -384,18 +384,27 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     this.saveError.set(null);
     const id = this.contentId() || undefined;
 
-    let request$;
+    let request$: Observable<unknown>;
     if (value.contentType === 'embedded_web') {
       request$ = this.facade.saveIframe(payload, id);
-    } else if (this.selectedFile()) {
-      request$ = this.facade.upload(payload, this.selectedFile() as File, id);
+    } else if (!id && uploadFiles.length > 1) {
+      request$ = this.facade.uploadMany(
+        (file) => ({
+          ...payload,
+          title: this.titleFromFileName(file.name),
+          displayOrder: undefined
+        }),
+        uploadFiles
+      );
+    } else if (uploadFiles.length) {
+      request$ = this.facade.upload(payload, uploadFiles[0], id);
     } else {
       request$ = this.facade.save(payload, id);
     }
 
     request$.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
-        this.snackBar.open(`Saved ${value.title}.`, 'Dismiss', { duration: 3000 });
+        this.snackBar.open(`Saved content.`, 'Dismiss', { duration: 3000 });
         this.markPristine();
         this.router.navigate(['/admin/content']);
       },
@@ -407,9 +416,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
 
   private buildForm(): void {
     this.form = this.fb.nonNullable.group({
-      title: this.fb.nonNullable.control('', {
-        validators: [Validators.required, nonBlankString('nonBlankString')]
-      }),
+      title: this.fb.nonNullable.control(''),
       contentType: this.fb.nonNullable.control<ContentType>('photo', {
         validators: [Validators.required]
       }),
@@ -469,11 +476,48 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       rotationAnimation: v.rotationAnimation,
       animationDurationMilliseconds: v.animationDurationMilliseconds,
       isActive: v.isActive,
-      selectedFile: this.selectedFile()?.name ?? ''
+      selectedFile: this.filesToUpload().map((file) => file.name).join(',')
     });
   }
 
   private requiresFile(type: ContentType): boolean {
     return type === 'photo' || type === 'video';
+  }
+
+  private deriveTitle(value: ContentFormValue): string {
+    const selectedName = this.filesToUpload()[0]?.name;
+    if (selectedName) {
+      return this.titleFromFileName(selectedName);
+    }
+
+    const source = value.sourceReference.trim();
+    if (source) {
+      return this.titleFromSource(source);
+    }
+
+    const existingTitle = value.title.trim();
+    return existingTitle || 'Content item';
+  }
+
+  private titleFromFileName(fileName: string): string {
+    return fileName.replace(/\.[^/.]+$/, '').trim() || fileName;
+  }
+
+  private titleFromSource(source: string): string {
+    try {
+      const url = new URL(source);
+      return url.hostname || source;
+    } catch {
+      return source;
+    }
+  }
+
+  private filesToUpload(): readonly File[] {
+    const files = this.selectedFiles();
+    if (files.length) {
+      return files;
+    }
+    const file = this.selectedFile();
+    return file ? [file] : [];
   }
 }

@@ -70,8 +70,9 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
 
   beforeEach(async () => {
     api = jasmine.createSpyObj<ContentApiService>('ContentApiService', [
-      'get', 'create', 'createIframe', 'update', 'upload'
+      'list', 'get', 'create', 'createIframe', 'update', 'upload'
     ]);
+    api.list.and.returnValue(of([buildItem()]));
     api.create.and.returnValue(of(buildItem()));
     api.createIframe.and.returnValue(of(buildItem({ contentType: 'embedded_web' })));
     api.update.and.returnValue(of(buildItem()));
@@ -84,15 +85,13 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     }).compileComponents();
   });
 
-  it('marks title as required and prevents save when invalid', () => {
+  it('does not render a title field for top content', () => {
     const fixture = TestBed.createComponent(ContentFormComponent);
     fixture.componentInstance.ngOnInit();
-    const form = fixture.componentInstance['form']!;
-    form.controls.title.setValue('');
-    form.controls.displayOrder.setValue(1);
-    expect(form.invalid).toBeTrue();
-    fixture.componentInstance.submit();
-    expect(api.create).not.toHaveBeenCalled();
+    fixture.detectChanges();
+
+    const input = fixture.nativeElement.querySelector('input[formControlName="title"]');
+    expect(input).toBeNull();
   });
 
   it('rejects display order that is not a positive integer', () => {
@@ -116,6 +115,7 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     form.controls.displayOrder.setValue(2);
     fixture.componentInstance.submit();
     expect(api.create).toHaveBeenCalled();
+    expect(api.create.calls.mostRecent().args[0].title).toBe('example.com');
     expect(api.upload).not.toHaveBeenCalled();
   });
 
@@ -129,7 +129,27 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     fixture.componentInstance['selectedFile'].set(new File(['x'], 'agenda.jpg', { type: 'image/jpeg' }));
     fixture.componentInstance.submit();
     expect(api.upload).toHaveBeenCalled();
+    expect(api.upload.calls.mostRecent().args[0].title).toBe('agenda');
     expect(api.create).not.toHaveBeenCalled();
+  });
+
+  it('uploads each selected file when multiple files are selected on create', () => {
+    const fixture = TestBed.createComponent(ContentFormComponent);
+    fixture.componentInstance.ngOnInit();
+    const form = fixture.componentInstance['form']!;
+    form.controls.contentType.setValue('photo');
+    form.controls.displayOrder.setValue(1);
+    fixture.componentInstance['selectedFiles'].set([
+      new File(['x'], 'agenda.jpg', { type: 'image/jpeg' }),
+      new File(['y'], 'menu.png', { type: 'image/png' })
+    ]);
+
+    fixture.componentInstance.submit();
+
+    expect(api.upload).toHaveBeenCalledTimes(2);
+    expect(api.upload.calls.argsFor(0)[0].title).toBe('agenda');
+    expect(api.upload.calls.argsFor(1)[0].title).toBe('menu');
+    expect(api.list).toHaveBeenCalledTimes(1);
   });
 
   it('submits embedded_web content to the iframe endpoint', () => {
@@ -142,6 +162,7 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     form.controls.displayOrder.setValue(3);
     fixture.componentInstance.submit();
     expect(api.createIframe).toHaveBeenCalled();
+    expect(api.createIframe.calls.mostRecent().args[0].title).toBe('example.com');
     expect(api.create).not.toHaveBeenCalled();
   });
 
@@ -164,7 +185,7 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
     fixture.componentInstance.ngOnInit();
     expect(fixture.componentInstance.hasUnsavedChanges()).toBeFalse();
     const form = fixture.componentInstance['form']!;
-    form.controls.title.setValue('New title');
+    form.controls.contentType.setValue('video');
     expect(fixture.componentInstance.hasUnsavedChanges()).toBeTrue();
   });
 });

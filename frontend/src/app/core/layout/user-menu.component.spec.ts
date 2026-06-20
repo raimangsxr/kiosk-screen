@@ -35,6 +35,7 @@ describe('UserMenuComponent', () => {
 
     const trigger = fixture.nativeElement.querySelector('button[aria-label]');
     expect(trigger.getAttribute('aria-label')).toBe('Account menu for Ada Lovelace');
+    expect(trigger.classList).toContain('user-menu__trigger');
     expect(fixture.nativeElement.textContent).toContain('AL');
   });
 

@@ -130,6 +130,30 @@ describe('AdFormComponent (Reactive Forms + Material)', () => {
     httpController.expectOne('/api/ads').flush([buildAd()]);
   });
 
+  it('uploads each selected ad image when multiple files are selected on create', () => {
+    const fixture = newForm();
+    fixture.componentInstance.ngOnInit();
+    const form = fixture.componentInstance['form']!;
+    form.controls.advertiser.setValue('Sponsor Inc.');
+    form.controls.displayOrder.setValue(1);
+    fixture.componentInstance['selectedFiles'].set([
+      new File(['x'], 'first.jpg', { type: 'image/jpeg' }),
+      new File(['y'], 'second.jpg', { type: 'image/jpeg' })
+    ]);
+
+    fixture.componentInstance.submit();
+
+    const first = httpController.expectOne('/api/ads/upload');
+    expect((first.request.body as FormData).has('displayOrder')).toBeFalse();
+    first.flush(buildAd({ id: 'ad-1' }));
+
+    const second = httpController.expectOne('/api/ads/upload');
+    expect((second.request.body as FormData).has('displayOrder')).toBeFalse();
+    second.flush(buildAd({ id: 'ad-2' }));
+
+    httpController.expectOne('/api/ads').flush([buildAd(), buildAd({ id: 'ad-2' })]);
+  });
+
   it('refuses to save on create when neither file nor source reference is provided', () => {
     const fixture = newForm();
     fixture.componentInstance.ngOnInit();

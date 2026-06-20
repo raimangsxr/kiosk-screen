@@ -2,7 +2,7 @@ import { routes } from './app.routes';
 import { dirtyFormGuard } from './shared/dirty-form.guard';
 
 describe('routes', () => {
-  it('wires login, display, hall, and remote control routes', () => {
+  it('wires login, display, hall, and legacy remote control redirect routes', () => {
     const displayRoute = routes.find((route) => route.path === 'display');
     const hallRoute = routes.find((route) => route.path === 'hall');
     const remoteControlRoute = routes.find((route) => route.path === 'remote-control');
@@ -10,7 +10,7 @@ describe('routes', () => {
     expect(routes.some((route) => route.path === 'login')).toBeTrue();
     expect(hallRoute?.canActivate?.length).toBe(1);
     expect(displayRoute?.canActivate?.length).toBe(1);
-    expect(remoteControlRoute?.canActivate?.length).toBe(1);
+    expect(remoteControlRoute?.redirectTo).toBe('admin/remote-control');
   });
 
   it('wires admin dashboard, destinations, and dirty form guarded editors', () => {
@@ -25,6 +25,7 @@ describe('routes', () => {
     expect(childPaths).toContain('ads');
     expect(childPaths).toContain('domains');
     expect(childPaths).toContain('configuration');
+    expect(childPaths).toContain('remote-control');
     expect(childPaths).toContain('readiness');
     expect(childPaths).toContain('users');
     expect(childPaths).toContain('api-keys');

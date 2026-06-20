@@ -9,8 +9,6 @@ $typography: (
   regular-weight: 400,
 );
 
-@include mat.strong-focus-indicators();
-
 html {
   min-height: 100%;
   background: var(--mat-sys-surface);
@@ -105,20 +103,17 @@ a {
   margin: 0;
 }
 
-*:focus-visible {
+:where(
+  a:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
+  button:not(.mat-mdc-button-base),
+  [tabindex]:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
+  input,
+  select,
+  textarea
+):focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--mat-sys-corner-extra-small);
-}
-
-button:focus-visible,
-a:focus-visible,
-[tabindex]:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .form-page__actions--stacked > * {

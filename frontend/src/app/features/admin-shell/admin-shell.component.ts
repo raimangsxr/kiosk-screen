@@ -55,7 +55,10 @@ import { AdminNavigationService } from './admin-navigation.service';
           @for (item of navigation.items; track item.route) {
             <a
               mat-list-item
+              class="admin-shell__nav-item"
               [routerLink]="item.route"
+              [activated]="isRouteActive(item.route, item.exact)"
+              [disableRipple]="true"
               routerLinkActive="admin-shell__nav-active"
               [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
               (click)="onNavItemClick()"
@@ -69,10 +72,19 @@ import { AdminNavigationService } from './admin-navigation.service';
         <div class="admin-shell__footer">
           <mat-divider />
           <a
+            mat-stroked-button
+            routerLink="/hall"
+            class="admin-shell__footer-button"
+            (click)="onNavItemClick()"
+          >
+            <mat-icon aria-hidden="true">home</mat-icon>
+            Back to hall
+          </a>
+          <a
             mat-flat-button
             color="primary"
             routerLink="/display"
-            class="admin-shell__kiosk-button"
+            class="admin-shell__footer-button"
             (click)="onNavItemClick()"
           >
             <mat-icon aria-hidden="true">play_circle</mat-icon>
@@ -111,11 +123,15 @@ import { AdminNavigationService } from './admin-navigation.service';
         overflow-y: auto;
         padding: 8px;
       }
-      .admin-shell__sidenav a[mat-list-item] {
-        margin: 2px 0;
-        border-radius: var(--mat-sys-corner-large);
+      .admin-shell__nav-item {
+        margin: 3px 0;
+        border-radius: 12px;
+        --mat-list-list-item-container-shape: 12px;
+        --mdc-list-list-item-container-shape: 12px;
+        --mat-list-list-item-selected-container-color: var(--mat-sys-secondary-container);
+        --mdc-list-list-item-selected-container-color: var(--mat-sys-secondary-container);
       }
-      .admin-shell__sidenav a[mat-list-item]:focus-visible {
+      .admin-shell__nav-item:focus-visible {
         outline: 2px solid var(--mat-sys-primary);
         outline-offset: -2px;
       }
@@ -125,7 +141,6 @@ import { AdminNavigationService } from './admin-navigation.service';
         letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .admin-shell__nav-active {
-        background: var(--mat-sys-primary-container);
         color: var(--mat-sys-on-primary-container);
         box-shadow: inset 3px 0 0 var(--mat-sys-primary);
       }
@@ -137,7 +152,7 @@ import { AdminNavigationService } from './admin-navigation.service';
         display: grid;
         gap: 12px;
       }
-      .admin-shell__kiosk-button {
+      .admin-shell__footer-button {
         width: 100%;
         min-height: var(--app-touch-target);
       }
@@ -163,12 +178,15 @@ export class AdminShellComponent implements OnInit {
   protected readonly sidenavMode = computed<'over' | 'side'>(() => (this.breakpoint.isCompact() ? 'over' : 'side'));
   protected readonly sidenavOpened = computed(() => !this.breakpoint.isCompact());
   protected readonly toolbarTitle = signal('Administration');
+  protected readonly currentUrl = signal('');
 
   ngOnInit(): void {
+    this.currentUrl.set(this.router.url);
     this.updateToolbarTitle(this.router.url);
     this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe((event) => {
+        this.currentUrl.set(event.urlAfterRedirects);
         this.updateToolbarTitle(event.urlAfterRedirects);
         if (this.isHandset()) {
           this.sidenav()?.close();
@@ -184,6 +202,11 @@ export class AdminShellComponent implements OnInit {
     if (this.isHandset()) {
       this.sidenav()?.close();
     }
+  }
+
+  protected isRouteActive(route: string, exact = false): boolean {
+    const url = this.currentUrl();
+    return exact ? url === route : url === route || url.startsWith(route + '/');
   }
 
   protected iconFor(route: string): string {
@@ -205,7 +228,7 @@ export class AdminShellComponent implements OnInit {
     if (route.startsWith('/admin/readiness')) {
       return 'fact_check';
     }
-    if (route === '/remote-control') {
+    if (route.startsWith('/admin/remote-control')) {
       return 'cast_connected';
     }
     if (route.startsWith('/admin/users')) {

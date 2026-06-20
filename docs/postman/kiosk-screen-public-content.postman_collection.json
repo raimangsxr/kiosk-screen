@@ -1,0 +1,897 @@
+{
+  "info": {
+    "_postman_id": "7b5f8688-3487-47c3-a621-1f1cf39d13a4",
+    "name": "Kiosk Screen - Public Content Upload API",
+    "description": "Coleccion para crear API keys de administracion y simular subidas publicas de fotos y videos mediante multipart/form-data.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin",
+      "type": "string"
+    },
+    {
+      "key": "apiKeyLabel",
+      "value": "Postman public uploader",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "apiKeyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "photoFilePath",
+      "value": "/absolute/path/to/photo.jpg",
+      "type": "string"
+    },
+    {
+      "key": "videoFilePath",
+      "value": "/absolute/path/to/video.mp4",
+      "type": "string"
+    },
+    {
+      "key": "unsupportedFilePath",
+      "value": "/absolute/path/to/file.txt",
+      "type": "string"
+    },
+    {
+      "key": "adImageFilePath",
+      "value": "/absolute/path/to/ad.jpg",
+      "type": "string"
+    },
+    {
+      "key": "uploadTitle",
+      "value": "Postman upload",
+      "type": "string"
+    },
+    {
+      "key": "contentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "displayOrder",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Admin session and API key setup",
+      "item": [
+        {
+          "name": "Login as admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('session cookie is received', function () {",
+                  "  pm.expect(pm.cookies.get('kiosk_session')).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Autentica el admin. Postman conserva la cookie `kiosk_session` para los requests admin siguientes."
+          },
+          "response": []
+        },
+        {
+          "name": "Create API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API key is created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('apiKey', json.rawKey);",
+                  "pm.collectionVariables.set('apiKeyId', json.record.id);",
+                  "pm.test('raw API key saved to collection variable', function () {",
+                  "  pm.expect(pm.collectionVariables.get('apiKey')).to.match(/^ksk_live_/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"{{apiKeyLabel}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "api-keys"
+              ]
+            },
+            "description": "Crea una API key. El script guarda `rawKey` en `apiKey` y `record.id` en `apiKeyId`."
+          },
+          "response": []
+        },
+        {
+          "name": "List API keys",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API keys are listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "api-keys"
+              ]
+            },
+            "description": "Lista las keys del admin logado. No devuelve el valor raw de la key."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "1. Public content uploads",
+      "item": [
+        {
+          "name": "Upload photo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestTitle', `${pm.collectionVariables.get('uploadTitle')} photo ${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('photo upload returns 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('contentId', json.id);",
+                  "pm.collectionVariables.set('displayOrder', String(json.displayOrder));",
+                  "pm.test('response is a photo content item', function () {",
+                  "  pm.expect(json.contentType).to.eql('photo');",
+                  "  pm.expect(json.mediaFile.mediaType).to.eql('image');",
+                  "  pm.expect(json.displayOrder).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "{{requestTitle}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            },
+            "description": "Sube una imagen publica. Antes de ejecutarlo, cambia `photoFilePath` por una ruta absoluta local."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload video",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestTitle', `${pm.collectionVariables.get('uploadTitle')} video ${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('video upload returns 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('contentId', json.id);",
+                  "pm.collectionVariables.set('displayOrder', String(json.displayOrder));",
+                  "pm.test('response is a video content item', function () {",
+                  "  pm.expect(json.contentType).to.eql('video');",
+                  "  pm.expect(json.mediaFile.mediaType).to.eql('video');",
+                  "  pm.expect(json.displayOrder).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{videoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "{{requestTitle}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            },
+            "description": "Sube un video publico. Antes de ejecutarlo, cambia `videoFilePath` por una ruta absoluta local."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload photo with manual title",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "Foto subida desde Postman",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            },
+            "description": "Variante simple con titulo fijo para repetir manualmente."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Validation and auth error examples",
+      "item": [
+        {
+          "name": "Missing API key should return 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('missing key is rejected', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().code).to.eql('missing_api_key');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "Missing key test",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid API key should return 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invalid key is rejected', function () {",
+                  "  pm.response.to.have.status(401);",
+                  "  pm.expect(pm.response.json().code).to.eql('invalid_api_key');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "ksk_live_invalid_invalid_invalid_invalid",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "Invalid key test",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Missing title should return 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('missing title is rejected', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "  pm.expect(pm.response.json().code).to.eql('title_required');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unsupported media type should return 415",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('unsupported media is rejected', function () {",
+                  "  pm.response.to.have.status(415);",
+                  "  pm.expect(pm.response.json().code).to.eql('unsupported_media_type');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{unsupportedFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "Unsupported file test",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Admin ads uploads",
+      "item": [
+        {
+          "name": "Upload ad image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ad image upload returns 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('adId', json.id);",
+                  "pm.test('response is an active ad', function () {",
+                  "  pm.expect(json.isActive).to.eql(true);",
+                  "  pm.expect(json.mediaFile.mediaType).to.eql('image');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{adImageFilePath}}"
+                },
+                {
+                  "key": "advertiser",
+                  "value": "Postman advertiser",
+                  "type": "text"
+                },
+                {
+                  "key": "isActive",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "durationSeconds",
+                  "value": "10",
+                  "type": "text"
+                },
+                {
+                  "key": "rotationAnimation",
+                  "value": "fade",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "animationDurationMilliseconds",
+                  "value": "600",
+                  "type": "text",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ads/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ads",
+                "upload"
+              ]
+            },
+            "description": "Sube una imagen de ad usando la sesion admin. Antes de ejecutarlo, cambia `adImageFilePath` por una ruta absoluta local."
+          },
+          "response": []
+        },
+        {
+          "name": "List ads",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ads are listed', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ads"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Key lifecycle checks",
+      "item": [
+        {
+          "name": "Rotate API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API key is rotated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('apiKey', json.rawKey);",
+                  "pm.collectionVariables.set('apiKeyId', json.record.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/api-keys/{{apiKeyId}}/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "api-keys",
+                "{{apiKeyId}}",
+                "rotate"
+              ]
+            },
+            "description": "Rota la key actual y reemplaza la variable `apiKey` por la nueva raw key."
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke API key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API key is revoked', function () {",
+                  "  pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/api-keys/{{apiKeyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "api-keys",
+                "{{apiKeyId}}"
+              ]
+            },
+            "description": "Revoca la key actual. Despues, las subidas publicas con `apiKey` deben devolver 403."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload with revoked key should return 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('revoked key is rejected', function () {",
+                  "  pm.response.to.have.status(403);",
+                  "  pm.expect(pm.response.json().code).to.eql('inactive_api_key');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{photoFilePath}}"
+                },
+                {
+                  "key": "title",
+                  "value": "Revoked key test",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/public/content/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "content",
+                "upload"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

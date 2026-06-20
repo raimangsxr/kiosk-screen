@@ -57,7 +57,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           (cdkDropListDropped)="onDrop($event)"
           aria-label="Drag to reorder ads"
         >
-          <table mat-table [dataSource]="facade.ads()" aria-label="Ads" class="app-table ad-list__table">
+          <table mat-table [dataSource]="facade.ads()" [trackBy]="trackById" aria-label="Ads" class="app-table ad-list__table">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef class="ad-list__select-cell"></th>
               <td mat-cell *matCellDef="let ad" class="ad-list__select-cell">
@@ -130,7 +130,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr
               mat-row
-              *matRowDef="let row; columns: displayedColumns; trackBy: trackById"
+              *matRowDef="let row; columns: displayedColumns"
               cdkDrag
               [cdkDragData]="row"
               class="ad-list__row"
@@ -197,6 +197,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .ad-list__table {
         width: 100%;
+        min-width: 760px;
         background: transparent;
       }
       .ad-list__select-cell {
@@ -222,6 +223,8 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       }
       .ad-list__card-item {
         display: block;
+        min-width: 0;
+        overflow: hidden;
         background: var(--mat-sys-surface);
       }
       .ad-list__card-header {
@@ -230,25 +233,34 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         justify-content: space-between;
         gap: 8px;
         flex-wrap: wrap;
+        min-width: 0;
       }
       .ad-list__card-title {
         margin: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .ad-list__card-meta {
         margin: 4px 0 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .ad-list__card-rotation {
         margin: 6px 0 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
       }
       .ad-list__card-actions {
+        flex-wrap: wrap;
+        gap: 4px;
         padding: 0 16px 12px;
       }
     `

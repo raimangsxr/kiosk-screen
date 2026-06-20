@@ -16,6 +16,7 @@ import { AuthService } from '../auth/auth.service';
     <button
       mat-icon-button
       type="button"
+      class="user-menu__trigger"
       [attr.aria-label]="'Account menu for ' + auth.displayName()"
       [matMenuTriggerFor]="menu"
     >
@@ -36,12 +37,20 @@ import { AuthService } from '../auth/auth.service';
   `,
   styles: [
     `
+      .user-menu__trigger {
+        display: inline-grid;
+        place-items: center;
+        width: var(--app-touch-target);
+        height: var(--app-touch-target);
+        padding: 0;
+        line-height: 1;
+      }
       .user-menu__avatar {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         line-height: 1;
         border-radius: 50%;
         background: var(--mat-sys-primary-container);
