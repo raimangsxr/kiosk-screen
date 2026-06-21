@@ -67,6 +67,7 @@ type DisplayRenderableItem = Pick<
         <div
           *ngIf="hasBranding()"
           aria-label="Organizer and event branding"
+          id="branding-overlay"
         >
           <ng-container *ngIf="branding().organizerLogoUrl as logoUrl">
               <img
