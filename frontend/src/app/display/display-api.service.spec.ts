@@ -50,7 +50,7 @@ describe('DisplayApiService', () => {
       configuration: {
         id: 'c1',
         name: 'Main',
-        topRegionRatio: 4,
+        topRegionRatio: 5,
         bottomRegionRatio: 1,
         defaultTopDurationSeconds: 10,
         defaultAdDurationSeconds: 10,

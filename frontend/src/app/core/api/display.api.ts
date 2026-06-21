@@ -8,7 +8,7 @@ import { IframeItem } from './iframe.api';
 export interface DisplayKioskConfiguration {
   id: string;
   name: string;
-  topRegionRatio: 4;
+  topRegionRatio: 5;
   bottomRegionRatio: 1;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
