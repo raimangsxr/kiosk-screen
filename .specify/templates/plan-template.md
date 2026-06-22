@@ -59,6 +59,17 @@
   implementation plan.
 - **Conflict handling**: If implementation reality conflicts with this plan, work
   stops until the conflict is documented and the spec or plan is updated.
+- **Capability boundary (Principle VII)**: This plan's `spec.md` declares a single
+  `capability:` frontmatter. Cross-capability changes are split into two specs
+  or link through a `bridge.md`.
+- **Supersession (Principle VI)**: If this spec amends an approved spec, the
+  amended spec's footer `> Superseded by: <NNN>-<name> (<US>)` is in place and a
+  `supersedes.md` file documents the change.
+- **Size budget (Principle VIII)**: `spec.md` ≤ 250, `plan.md` ≤ 300, `tasks.md`
+  ≤ 400 lines (frontmatter excluded). Over-budget artefacts carry `oversize:
+  true` and a `## Oversize justification` block.
+- **Conflict log clean**: `<active-spec>/validation/implementation-conflicts.md`
+  has no unresolved rows from prior work.
 
 ## Project Structure
 
