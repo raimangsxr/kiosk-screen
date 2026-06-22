@@ -1,7 +1,9 @@
 ---
 capability: C4-configuration-and-setup
 supersedes:
+  - 006-remote-control-display (US1, US2, US3) — readiness rules wired; relabel
 superseded_by:
+  - 016-preconfigured-iframes-and-video-end — embedded_web approval system removed
 status: closed
 oversize: false
 ---
@@ -338,3 +340,15 @@ page reports a warning of the form
   enabled, event duration, ≥1 active content, ≥1 active ad,
   pre-existing unapproved-embedded-domains — the latter was declared
   but never produced; this spec wires it).
+
+## Superseded by
+
+- `016-preconfigured-iframes-and-video-end` — removed the iframe
+  domain approval system and the `unapproved_embedded_domains`
+  readiness rule. The wiring work that 010 did remains in
+  `readiness_service.py` but evaluates against an empty approved-
+  domains set. Detail: `specs/_archive/C3-admin-shell/010-admin-polish-bundle/010-setup-check-relabel-wire-rules/supersedes-006.md`
+  amendment A-601.
+
+Amendment chain authored from this spec:
+- `supersedes-006.md` (in this directory)

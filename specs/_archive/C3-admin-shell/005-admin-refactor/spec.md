@@ -182,3 +182,14 @@ A maintainer can understand, test, and change the application through clearly se
 - Existing uploaded files and persisted database records may be migrated to redesigned structures, but the migration must preserve their business meaning and usability.
 - Mobile phone layouts are not a primary target for this refactor; desktop and tablet-sized administration use are required.
 - New product capabilities are out of scope unless later specified through a separate feature.
+
+## Superseded by
+
+- `011-ux-polish` — compact dashboard, brand in toolbar, sidenav
+  entry for remote control.
+- `015-remote-control-polish` — Material 3 remote-control page
+  rewrite (orphaned by reality; design source only).
+
+Amendment chain:
+- `specs/_archive/C3-admin-shell/010-admin-polish-bundle/011-ux-polish/supersedes-005.md`
+- `specs/_archive/C5-remote-control/015-remote-control-polish/supersedes-006.md`

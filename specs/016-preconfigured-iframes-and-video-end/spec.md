@@ -1,6 +1,9 @@
 ---
 capability: C1-kiosk-display-runtime
 supersedes:
+  - 003-admin-media-uploads (US2) — embedded_web content type removed
+  - 006-remote-control-display — selectedContentId replaced by selectedIframeId
+  - 010-setup-check-relabel-wire-rules — unapproved_embedded_domains rule removed
 superseded_by:
 status: in-progress
 oversize: false

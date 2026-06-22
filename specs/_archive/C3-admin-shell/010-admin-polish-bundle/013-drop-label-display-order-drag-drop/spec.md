@@ -1,6 +1,7 @@
 ---
 capability: C2-content-and-ads
 supersedes:
+  - 003-admin-media-uploads — drop label column, auto-incremental displayOrder, drag-and-drop reorder
 superseded_by:
 status: closed
 oversize: false
@@ -405,3 +406,12 @@ position.
 - A new "bulk create" endpoint. The spec only changes
   `displayOrder` semantics on the existing single-item create
   endpoint.
+
+## Superseded by
+
+- No direct behavioral supersession. The drag-and-drop reorder
+  endpoints and the auto-incremental `displayOrder` are still
+  authoritative.
+
+Amendment chain authored from this spec:
+- `supersedes-003.md` (in this directory)

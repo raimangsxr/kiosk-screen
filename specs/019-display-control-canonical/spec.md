@@ -1,9 +1,14 @@
 ---
 capability: C5-remote-control
-supersedes: 006-remote-control-display
+supersedes:
+  - 006-remote-control-display — foundational display_control_state
+  - 015-remote-control-polish — Material 3 page rewrite (design source)
+  - 016-preconfigured-iframes-and-video-end — selectedIframeId, videoEndDelaySeconds
+  - 017-event-branding — branding overlay integration
+  - 018-content-rotation-modes — fixed mode, pause/resume, five new audit events, ad-band orthogonality
 superseded_by:
 status: draft
-oversize: false
+oversize: true
 ---
 
 # Feature Specification: Display Control Canonical

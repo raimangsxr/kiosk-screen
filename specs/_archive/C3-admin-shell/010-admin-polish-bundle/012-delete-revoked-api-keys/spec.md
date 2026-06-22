@@ -1,6 +1,7 @@
 ---
 capability: C6-public-api-and-keys
 supersedes:
+  - 009-public-content-api — hard-delete endpoint for revoked API keys
 superseded_by:
 status: closed
 oversize: false
@@ -294,3 +295,12 @@ message.
   a no-schema-change change.
 - Deleting a key on behalf of another organization. The endpoint
   filters by the caller's `organization_id` (existing pattern).
+
+## Superseded by
+
+- No direct behavioral supersession. The
+  `POST /api/admin/api-keys/{id}/delete` endpoint is still
+  authoritative for revoking+deleting API keys.
+
+Amendment chain authored from this spec:
+- `supersedes-009.md` (in this directory)

@@ -182,3 +182,12 @@ An administrator can understand the current kiosk setup status, complete common 
 - Multi-organization administration.
 - Password reset flows and creation of new role types.
 - Visual rebranding beyond improving administration usability, clarity, and navigation.
+
+## Superseded by
+
+- `005-admin-refactor` — Material 3 admin shell redesign.
+- `011-ux-polish` — compact dashboard, brand in toolbar.
+
+Amendment chain:
+- `specs/_archive/C3-admin-shell/005-admin-refactor/`
+- `specs/_archive/C3-admin-shell/010-admin-polish-bundle/011-ux-polish/supersedes-005.md`

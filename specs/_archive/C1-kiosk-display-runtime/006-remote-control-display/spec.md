@@ -171,3 +171,23 @@ When the kiosk display is opened or restarted, it starts from the standard appro
 - If the display loses connectivity, it continues showing the last safe state until it can recover or show a safe fallback.
 - Remote control changes are immediate from the administrator perspective; the kiosk applies them when its next configured polling check succeeds.
 - This feature does not introduce scheduling, multiple kiosks, multiple simultaneous control devices, arbitrary URL entry, new media types, public unauthenticated control, or local keyboard recovery flows.
+
+## Superseded by
+
+- `015-remote-control-polish` — Material 3 page rewrite (orphaned by
+  reality; design source only).
+- `016-preconfigured-iframes-and-video-end` — preconfigured iframes
+  as separate entity; `videoEndDelaySeconds`.
+- `017-event-branding` — branding overlay integration on the kiosk.
+- `018-content-rotation-modes` — `fixed` mode; `pause`/`resume`;
+  five new audit events; ad-band orthogonality; extension-based
+  autodetect.
+- `019-display-control-canonical` — canonical anchor for the four
+  amendments above.
+
+Amendment chain (see each amending spec's `supersedes-006.md`):
+- `specs/_archive/C5-remote-control/015-remote-control-polish/supersedes-006.md`
+- `specs/016-preconfigured-iframes-and-video-end/`
+- `specs/017-event-branding/supersedes-006.md` (referenced via 018)
+- `specs/018-content-rotation-modes/supersedes-006.md`
+- `specs/019-display-control-canonical/`

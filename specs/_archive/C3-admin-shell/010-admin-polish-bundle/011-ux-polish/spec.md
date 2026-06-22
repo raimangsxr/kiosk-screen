@@ -1,6 +1,7 @@
 ---
 capability: C3-admin-shell
 supersedes:
+  - 005-admin-refactor — brand in toolbar, compact dashboard, sidenav entry for remote control
 superseded_by:
 status: closed
 oversize: false
@@ -375,3 +376,13 @@ must also be centered.
 - Changes to the toolbar's color, height, or background. The spec
   only adds the brand block to the existing toolbar; the visual
   surface of the toolbar is unchanged.
+
+## Superseded by
+
+- No direct behavioral supersession. The brand-in-toolbar and
+  compact dashboard layout are still authoritative. The remote-
+  control sidenav entry that 011 added is the design source for
+  015's Material 3 page rewrite.
+
+Amendment chain authored from this spec:
+- `supersedes-005.md` (in this directory)
