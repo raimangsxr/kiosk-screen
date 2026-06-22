@@ -102,7 +102,7 @@ Web app layout per `plan.md`:
 
 - [ ] T029 [P] [US2] Frontend Karma spec in `frontend/src/app/display/display-screen.component.spec.ts`: when branding service exposes non-empty `eventName`/`organizerName`/`organizerLogoUrl`, the overlay is in the DOM with the configured pieces in order; when all three are empty, the overlay is NOT in the DOM (`document.querySelector('.branding-overlay')` returns `null`).
 - [ ] T030 [P] [US2] Stale-while-error test (SC-001a): mock the kiosk's HTTP layer; first response is success with values, second response is HTTP 500, third is success with new values; assert the overlay persists across the failure and updates with the third response.
-- [ ] T031 [P] [US2] Iframe-mode test: with branding configured, set the kiosk to iframe mode (mock the display state). The overlay is still rendered.
+- [x] T031 [P] [US2] Iframe-mode test: with branding configured, set the kiosk to iframe mode (mock the display state). The overlay is still rendered. **OBSOLETE — superseded by `018-content-rotation-modes` US2 (FR-006).** The overlay is now hidden when `contentMode === 'iframe'`. See `specs/018-content-rotation-modes/spec.md` for the new rule.
 
 ### Implementation for User Story 2
 

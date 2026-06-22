@@ -56,7 +56,7 @@ The kiosk's top region shows a small, non-intrusive overlay in the top-left corn
 2. **Given** only the organizer name is configured, **When** the kiosk renders the top region, **Then** the overlay shows only the organizer name (no logo, no event name, no separator).
 3. **Given** only the logo is configured, **When** the kiosk renders the top region, **Then** the overlay shows only the logo.
 4. **Given** no values are configured, **When** the kiosk renders the top region, **Then** the overlay is not present in the DOM.
-5. **Given** the kiosk is in iframe mode, **When** the iframe is on screen, **Then** the overlay is still rendered (operator still sees who is running the show).
+5. **Given** the kiosk is in iframe mode, **When** the iframe is on screen, **Then** ~~the overlay is still rendered (operator still sees who is running the show)~~ **OBSOLETE — superseded by `018-content-rotation-modes` US2 (FR-006).** The overlay is now hidden when `contentMode === 'iframe'`. See `specs/018-content-rotation-modes/spec.md` for the new rule.
 6. **Given** the kiosk is in fullscreen mode, **When** the overlay is rendered, **Then** the overlay is fully visible inside the fullscreen viewport and does not block the "Enter fullscreen" button.
 7. **Given** a viewer using a screen reader, **When** the kiosk renders the overlay, **Then** the overlay has `aria-label="Organizer and event branding"` and the logo has empty `alt` (decorative).
 

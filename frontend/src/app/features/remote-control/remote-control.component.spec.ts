@@ -9,7 +9,7 @@ import { of, throwError } from 'rxjs';
 
 import { RemoteControlComponent } from './remote-control.component';
 import { RemoteControlFacade } from './remote-control.facade';
-import { RemoteControlState } from './remote-control.models';
+import { RemoteControlFixedContentOption, RemoteControlState } from './remote-control.models';
 import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 class MatSnackBarStub {
@@ -43,19 +43,22 @@ const loadError: ApplicationErrorContract = {
 function buildFacade(overrides: {
   state?: ReturnType<typeof signal<RemoteControlState | null>>;
   iframeOptions?: ReturnType<typeof signal<typeof iframeOption[]>>;
+  fixedContentOptions?: ReturnType<typeof signal<RemoteControlFixedContentOption[]>>;
   loading?: ReturnType<typeof signal<boolean>>;
   saving?: ReturnType<typeof signal<boolean>>;
   error?: ReturnType<typeof signal<ApplicationErrorContract | null>>;
 } = {}) {
   return jasmine.createSpyObj<RemoteControlFacade>(
     'RemoteControlFacade',
-    ['refresh', 'setLoopMode', 'setIframeMode', 'setAdsVisible', 'setFullscreenRequested', 'navigate'],
+    ['refresh', 'setLoopMode', 'setIframeMode', 'setFixedMode', 'setAdsVisible', 'setFullscreenRequested', 'navigate'],
     {
       state: (overrides.state ?? signal(baseState)).asReadonly(),
       iframeOptions: (overrides.iframeOptions ?? signal([iframeOption])).asReadonly(),
+      fixedContentOptions: (overrides.fixedContentOptions ?? signal([])).asReadonly(),
       loading: (overrides.loading ?? signal(false)).asReadonly(),
       saving: (overrides.saving ?? signal(false)).asReadonly(),
       ready: signal(true).asReadonly(),
+      isPaused: signal(false).asReadonly(),
       error: (overrides.error ?? signal(null)).asReadonly()
     }
   );
@@ -125,13 +128,13 @@ describe('RemoteControlComponent', () => {
     expect(text).toMatch(/Updated/);
   });
 
-  it('renders the Rotation and Iframe radio buttons with the active mode preselected', () => {
+  it('renders the Rotation, Iframe, and Fixed radio buttons with the active mode preselected', () => {
     const modeGroup = fixture.nativeElement.querySelector(
       '[data-testid="remote-control-mode-group"]'
     );
     expect(modeGroup).not.toBeNull();
     const radios = modeGroup.querySelectorAll('mat-radio-button');
-    expect(radios.length).toBe(2);
+    expect(radios.length).toBe(3);
     expect(radios[0].textContent).toContain('Rotation');
     expect(radios[1].textContent).toContain('Iframe');
 

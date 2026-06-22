@@ -1,14 +1,24 @@
 import { IframeItem } from '../../core/api/iframe.api';
 import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
-export type RemoteControlContentMode = 'loop' | 'iframe';
-export type RemoteControlNavigationCommand = 'next' | 'previous';
+export type RemoteControlContentMode = 'loop' | 'iframe' | 'fixed';
+export type RemoteControlNavigationCommand = 'next' | 'previous' | 'pause' | 'resume';
 
 export type RemoteControlIframeOption = IframeItem;
+
+export interface RemoteControlFixedContentOption {
+  id: string;
+  title: string;
+  contentType: 'photo' | 'video';
+  mediaUrl: string | null;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+}
 
 export interface RemoteControlState {
   contentMode: RemoteControlContentMode;
   selectedIframeId: string | null;
+  selectedFixedContentId?: string | null;
   selectedIframe?: RemoteControlIframeOption | null;
   adsVisible: boolean;
   fullscreenRequested: boolean;
@@ -21,6 +31,7 @@ export interface RemoteControlState {
 export interface RemoteControlUpdate {
   contentMode: RemoteControlContentMode;
   selectedIframeId: string | null;
+  selectedFixedContentId?: string | null;
   adsVisible: boolean;
   fullscreenRequested: boolean;
 }
@@ -31,6 +42,7 @@ export interface RemoteControlNavigationRequest {
 
 export interface RemoteControlIframeOptionsResponse {
   items: RemoteControlIframeOption[];
+  fixedEligibleContents?: RemoteControlFixedContentOption[];
 }
 
 export interface RemoteControlViewError extends ApplicationErrorContract {}

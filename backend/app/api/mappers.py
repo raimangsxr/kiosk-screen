@@ -4,6 +4,7 @@ from app.api.schemas import (
     DisplayEventSchema,
     EventBrandingSchema,
     EventConfigurationSchema,
+    FixedEligibleContentItemSchema,
     IframeSchema,
     KioskConfigurationSchema,
     MediaFileReferenceSchema,
@@ -98,7 +99,21 @@ def to_content_schema(
         effectiveRotationAnimation=effective_rotation_animation,
         effectiveAnimationDurationMilliseconds=effective_animation_duration_milliseconds,
         availableFrom=item.available_from,
-        availableUntil=item.available_until
+        availableUntil=item.available_until,
+        isFixed=item.is_fixed,
+        recurringEveryXIterations=item.recurring_every_x_iterations,
+    )
+
+
+def to_fixed_eligible_content_schema(item: TopContentItem) -> FixedEligibleContentItemSchema:
+    media = getattr(item, "media_file", None)
+    return FixedEligibleContentItemSchema(
+        id=item.id,
+        title=item.title,
+        contentType=item.content_type,
+        mediaUrl=getattr(media, "public_reference", None) if media else None,
+        thumbnailUrl=getattr(media, "public_reference", None) if media else None,
+        durationSeconds=item.duration_seconds,
     )
 
 

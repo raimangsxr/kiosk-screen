@@ -33,14 +33,17 @@ def create_content(
 def upload_content(
     file: UploadFile = File(...),
     title: str = Form(...),
-    content_type: str = Form(..., alias="contentType"),
-    is_active: bool = Form(..., alias="isActive"),
+    # FR-025: contentType is now optional; the backend autodetects by extension when omitted.
+    content_type: str | None = Form(default=None, alias="contentType"),
+    is_active: bool = Form(default=True, alias="isActive"),
     display_order: int | None = Form(default=None, alias="displayOrder"),
     duration_seconds: int | None = Form(default=None, alias="durationSeconds"),
     rotation_animation: str | None = Form(default=None, alias="rotationAnimation"),
     animation_duration_milliseconds: int | None = Form(default=None, alias="animationDurationMilliseconds"),
     available_from: datetime | None = Form(default=None, alias="availableFrom"),
     available_until: datetime | None = Form(default=None, alias="availableUntil"),
+    is_fixed: bool = Form(default=False, alias="isFixed"),
+    recurring_every_x_iterations: int | None = Form(default=None, alias="recurringEveryXIterations"),
     user: CurrentUser = Depends(require_roles(CONTENT_MANAGEMENT_ROLES)),
     session: Session = Depends(get_session)
 ) -> ContentItemSchema:
@@ -55,7 +58,9 @@ def upload_content(
         rotationAnimation=rotation_animation,
         animationDurationMilliseconds=animation_duration_milliseconds,
         availableFrom=available_from,
-        availableUntil=available_until
+        availableUntil=available_until,
+        isFixed=is_fixed,
+        recurringEveryXIterations=recurring_every_x_iterations,
     )
     try:
         return to_content_schema(ContentService(session).create_uploaded(user.organization_id, user.id, file, payload))

@@ -35,6 +35,17 @@ Current work is organized around the MVP plan:
 - Admin and setup-check workflows
 - Deployment and release validation
 
+## Recent Features
+
+- **Content rotation modes** (`specs/018-content-rotation-modes/`): pause/resume
+  and fixed-content modes in the remote control, recurring content with
+  cadence, fixed-content mode that pins a single item, branding overlay hidden
+  in iframe mode, and automatic image-vs-video detection by file extension on
+  the upload endpoints. See `specs/018-content-rotation-modes/spec.md`.
+- **Event branding** (`specs/017-event-branding/`): organizer logo, event
+  name, and event duration on `/admin/event`, with a kiosk overlay and an
+  integrated "Patrocinadores del evento" label on the ad band.
+
 ## Local Lab Environment
 
 Prerequisites:

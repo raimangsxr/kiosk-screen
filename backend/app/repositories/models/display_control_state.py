@@ -7,7 +7,11 @@ from app.repositories.base import Base, IdMixin, TimestampMixin
 class DisplayControlState(IdMixin, TimestampMixin, Base):
     __tablename__ = "display_control_states"
     __table_args__ = (
-        CheckConstraint("content_mode IN ('loop', 'iframe')", name="ck_display_control_content_mode"),
+        CheckConstraint("content_mode IN ('loop', 'iframe', 'fixed')", name="ck_display_control_content_mode"),
+        CheckConstraint(
+            "selected_fixed_content_id IS NOT NULL OR content_mode != 'fixed'",
+            name="ck_display_control_fixed_has_target",
+        ),
         UniqueConstraint("display_session_id", name="uq_display_control_state_session"),
     )
 
@@ -15,6 +19,9 @@ class DisplayControlState(IdMixin, TimestampMixin, Base):
     display_session_id: Mapped[str] = mapped_column(ForeignKey("operator_sessions.id"), nullable=False)
     content_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="loop")
     selected_iframe_id: Mapped[str | None] = mapped_column(ForeignKey("iframes.id", ondelete="SET NULL"), nullable=True)
+    selected_fixed_content_id: Mapped[str | None] = mapped_column(
+        ForeignKey("top_content_items.id", ondelete="SET NULL"), nullable=True
+    )
     ads_visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     fullscreen_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     navigation_command: Mapped[str | None] = mapped_column(String(16), nullable=True)

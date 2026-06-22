@@ -54,13 +54,23 @@ export interface DisplayAdItem {
 }
 
 export interface DisplayRemoteControlState {
-  contentMode: 'loop' | 'iframe';
+  contentMode: 'loop' | 'iframe' | 'fixed';
   selectedIframeId: string | null;
+  selectedFixedContentId?: string | null;
   adsVisible: boolean;
   fullscreenRequested?: boolean;
-  navigationCommand?: 'next' | 'previous' | null;
+  navigationCommand?: 'next' | 'previous' | 'pause' | 'resume' | null;
   navigationCommandId?: string | null;
   updatedAt: string;
+}
+
+export interface DisplayFixedEligibleContentItem {
+  id: string;
+  title: string;
+  contentType: 'photo' | 'video';
+  mediaUrl?: string | null;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number | null;
 }
 
 export interface DisplayState {
@@ -70,6 +80,7 @@ export interface DisplayState {
   remoteControl?: DisplayRemoteControlState;
   selectedIframe?: IframeItem | null;
   fallbackActive: boolean;
+  fixedEligibleContents?: DisplayFixedEligibleContentItem[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -102,9 +113,11 @@ function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState
     sameIdsAndOrder(prev.ads, curr.ads) &&
     sameDisplayConfiguration(prev.configuration, curr.configuration) &&
     prev.remoteControl?.selectedIframeId === curr.remoteControl?.selectedIframeId &&
+    prev.remoteControl?.selectedFixedContentId === curr.remoteControl?.selectedFixedContentId &&
     prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
     prev.remoteControl?.fullscreenRequested === curr.remoteControl?.fullscreenRequested &&
     prev.remoteControl?.navigationCommandId === curr.remoteControl?.navigationCommandId &&
+    prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
   );
 }

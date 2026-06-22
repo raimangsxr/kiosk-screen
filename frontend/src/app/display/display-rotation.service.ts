@@ -94,7 +94,51 @@ export class DisplayRotationService {
     }
   }
 
-  pickNext(defaultItem: DisplayContentItem | null = null): DisplayContentItem | null {
+  pickNext(queueOrDefault?: DisplayContentItem[] | null, currentId?: string | null): DisplayContentItem | null;
+  pickNext(
+    queueOrDefault: DisplayContentItem[] | null,
+    currentId: string | null,
+  ): DisplayContentItem | null;
+  pickNext(
+    queueOrDefault?: DisplayContentItem[] | null,
+    currentId?: string | null,
+  ): DisplayContentItem | null {
+    if (Array.isArray(queueOrDefault)) {
+      return this._pickNextInQueue(queueOrDefault, currentId ?? null);
+    }
+    return this._pickNextInternal(null);
+  }
+
+  pickPrevious(queueOrDefault?: DisplayContentItem[] | null, currentId?: string | null): DisplayContentItem | null;
+  pickPrevious(
+    queueOrDefault: DisplayContentItem[] | null,
+    currentId: string | null,
+  ): DisplayContentItem | null;
+  pickPrevious(
+    queueOrDefault?: DisplayContentItem[] | null,
+    currentId?: string | null,
+  ): DisplayContentItem | null {
+    if (Array.isArray(queueOrDefault)) {
+      return this._pickPreviousInQueue(queueOrDefault, currentId ?? null);
+    }
+    return this._pickPreviousInternal(null);
+  }
+
+  private _pickNextInQueue(queue: DisplayContentItem[], currentId: string | null): DisplayContentItem | null {
+    if (queue.length === 0) return null;
+    const idx = currentId ? queue.findIndex((i) => i.id === currentId) : -1;
+    const nextIndex = idx < 0 ? 0 : (idx + 1) % queue.length;
+    return queue[nextIndex] ?? null;
+  }
+
+  private _pickPreviousInQueue(queue: DisplayContentItem[], currentId: string | null): DisplayContentItem | null {
+    if (queue.length === 0) return null;
+    const idx = currentId ? queue.findIndex((i) => i.id === currentId) : 0;
+    const previousIndex = idx <= 0 ? queue.length - 1 : idx - 1;
+    return queue[previousIndex] ?? null;
+  }
+
+  private _pickNextInternal(defaultItem: DisplayContentItem | null): DisplayContentItem | null {
     if (this.noveltyQueue.length > 0) {
       const next = this.noveltyQueue.shift()!;
       this.currentItemId = next.id;
@@ -116,7 +160,7 @@ export class DisplayRotationService {
     return next;
   }
 
-  pickPrevious(defaultItem: DisplayContentItem | null = null): DisplayContentItem | null {
+  private _pickPreviousInternal(defaultItem: DisplayContentItem | null): DisplayContentItem | null {
     if (this.fullState.length === 0) {
       this.currentItemId = null;
       return defaultItem;

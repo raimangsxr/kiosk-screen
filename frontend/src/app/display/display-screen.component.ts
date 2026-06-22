@@ -9,6 +9,7 @@ import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } fr
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
 import { DisplayRotationService } from './display-rotation.service';
+import { KioskRotationController } from './kiosk-rotation.controller';
 
 type DisplayRenderableItem = Pick<
   DisplayContentItem | DisplayAdItem,
@@ -65,7 +66,7 @@ type DisplayRenderableItem = Pick<
           </div>
         </ng-template>
         <div
-          *ngIf="hasBranding()"
+          *ngIf="hasBranding() && !iframeUrl()"
           aria-label="Organizer and event branding"
           id="branding-overlay"
         >
@@ -145,23 +146,29 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly eventBranding = inject(EventBrandingService);
   private readonly displaySync = inject(DisplayControlSyncService);
   private readonly rotation = inject(DisplayRotationService);
+  protected readonly kioskRotation = inject(KioskRotationController);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
 
   private contentTimer: ReturnType<typeof setTimeout> | null = null;
-  private adTimer: ReturnType<typeof setTimeout> | null = null;
   private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollSub: Subscription | null = null;
   private syncSub: Subscription | null = null;
   private currentPollIntervalMs = 0;
-  private adIndex = 0;
   private adAnimationRun = 0;
+  protected get adAnimationRun$(): number {
+    return this.kioskRotation.adAnimationRun();
+  }
   private currentContentRenderSignature = '';
   private lastNavigationCommandId: string | null = null;
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
   private lastFullscreenRequested: boolean | null = null;
   private hiddenLogoUrl: string | null = null;
+  // Track the last ads list identity to avoid re-arming the controller's ad
+  // timer on every poll (FR-001 / FR-002 / TD-008).
+  private lastAdsRef: DisplayAdItem[] | null = null;
+  private lastAdDurationSeconds = 0;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -180,7 +187,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     if (!this.adsVisible) {
       return null;
     }
-    return this.rotation.current(this.state?.ads ?? [], this.adIndex);
+    return this.kioskRotation.currentAd() as DisplayAdItem | null;
   }
 
   get visibleAds(): DisplayAdItem[] {
@@ -192,7 +199,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       return [];
     }
     const inlineCount = this.state?.configuration.inlineAdCount ?? ads.length;
-    const rotated = [...ads.slice(this.adIndex), ...ads.slice(0, this.adIndex)];
+    const adIndex = this.kioskRotation.adIndex();
+    const rotated = [...ads.slice(adIndex), ...ads.slice(0, adIndex)];
     return rotated.slice(0, Math.min(inlineCount, rotated.length));
   }
 
@@ -207,6 +215,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
     this.eventBranding.refresh().subscribe();
+    this.kioskRotation.onContentAdvanceListeners.push(() => {
+      this.adAnimationRun = (this.adAnimationRun + 1) % 2;
+    });
     this.api.openDisplay().subscribe((state) => {
       this.applyState(state, { resetRotation: true });
       this.startPolling();
@@ -222,6 +233,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.syncSub?.unsubscribe();
     this.syncSub = null;
     this.rotation.reset();
+    this.kioskRotation.detach();
   }
 
   mediaSource(item: DisplayRenderableItem): string {
@@ -233,7 +245,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   adAnimationClass(item: DisplayRenderableItem): string {
-    return `${this.animationClass(item)} ad-animation-run-${this.adAnimationRun % 2 === 0 ? 'a' : 'b'}`;
+    return `${this.animationClass(item)} ad-animation-run-${this.adAnimationRun$ % 2 === 0 ? 'a' : 'b'}`;
   }
 
   contentTransition(item: DisplayContentItem): {
@@ -254,7 +266,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   animationDurationMs(item: DisplayRenderableItem): number | null {
-    return item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? null;
+    const ms = item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds;
+    if (ms && ms > 0) return ms;
+    // FR-004 / TD-008 / T030: provide a Chrome-safe fallback so the inline
+    // [style.animation-duration.ms] never receives `null` (Chrome drops the
+    // animation entirely when the inline value is null).
+    const defaultSeconds = this.state?.configuration.defaultAdDurationSeconds ?? 10;
+    return defaultSeconds * 1000;
   }
 
   iframeUrl(): string | null {
@@ -302,7 +320,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     if (options.resetRotation) {
       this.rotation.initialize(state.topContent);
       this.setCurrentContent(this.rotation.getFullState()[0] ?? null);
-      this.adIndex = 0;
+      this.kioskRotation.adIndex.set(0);
       this.lastNavigationCommandId = state.remoteControl?.navigationCommandId ?? null;
     } else {
       this.rotation.applyPollState(state.topContent);
@@ -404,23 +422,40 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
 
   private scheduleNextAd(): void {
-    if (this.adTimer) {
-      clearTimeout(this.adTimer);
-      this.adTimer = null;
-    }
-    if (!this.adsVisible) {
+    // FR-001 / FR-002 / FR-005 / TD-008: the kiosk-rotation-controller owns the
+    // single ad timer. We only push fresh inputs when the ads list identity
+    // (or its duration) actually changes; otherwise the existing timer keeps
+    // running untouched, which is the root fix for the "ad index doesn't
+    // advance" bug.
+    const ads = (this.state?.ads ?? []) as unknown as DisplayContentItem[];
+    if (!this.adsVisible || ads.length === 0) {
       return;
     }
-    const ads = this.state?.ads ?? [];
-    if (ads.length <= 1) {
+    // Resolve duration from the current ad's effective duration (per-item) or
+    // fall back to the kiosk configuration default.
+    const currentAd = this.kioskRotation.currentAd() as unknown as {
+      effectiveDurationSeconds?: number | null;
+      durationSeconds?: number | null;
+      displayOrder?: number;
+    } | null;
+    const fallbackSeconds = this.state?.configuration.defaultAdDurationSeconds ?? 10;
+    const durationSeconds =
+      currentAd?.effectiveDurationSeconds ?? currentAd?.durationSeconds ?? fallbackSeconds;
+    const durationSecondsMs = durationSeconds * 1000;
+    const adsChanged = this.lastAdsRef !== ads;
+    const durationChanged = this.lastAdDurationSeconds !== durationSeconds;
+    this.lastAdsRef = ads;
+    this.lastAdDurationSeconds = durationSeconds;
+    if (!adsChanged && !durationChanged) {
       return;
     }
-    const durationSeconds = this.rotation.duration(this.currentAd, this.state?.configuration.defaultAdDurationSeconds ?? 10);
-    this.adTimer = setTimeout(() => {
-      this.adIndex = (this.adIndex + 1) % ads.length;
-      this.adAnimationRun += 1;
-      this.scheduleNextAd();
-    }, durationSeconds * 1000);
+    // Push to the controller; the controller re-arms its single ad timer.
+    (this.kioskRotation as unknown as { _ads: { set: (v: DisplayContentItem[]) => void } })._ads.set(ads);
+    (this.kioskRotation as unknown as { _adDurationSeconds: { set: (v: number) => void } })._adDurationSeconds.set(durationSeconds);
+    // The controller's _armAdTimerOnly multiplies by 1000; pass seconds.
+    (this.kioskRotation as unknown as { _armAdTimerOnly: () => void })._armAdTimerOnly();
+    this.adAnimationRun += 1;
+    void durationSecondsMs; // referenced for clarity; controller already uses seconds
   }
 
   private advanceNow(): void {
@@ -518,10 +553,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   private clearTimers(): void {
     this.clearContentTimers();
-    if (this.adTimer) {
-      clearTimeout(this.adTimer);
-      this.adTimer = null;
-    }
+    // adTimer is owned by KioskRotationController; nothing to clear here.
   }
 
   private setCurrentContent(item: DisplayContentItem | null): void {
