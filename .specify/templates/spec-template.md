@@ -1,3 +1,11 @@
+---
+capability: C<n>-<capability-name>
+supersedes: <NNN>-<other-feature> (<US>)
+superseded_by:
+status: draft
+oversize: false
+---
+
 # Feature Specification: [FEATURE NAME]
 
 **Feature Branch**: `[###-feature-name]`
@@ -142,3 +150,32 @@
 - [Assumption about scope boundaries, e.g., "Mobile support is out of scope for v1"]
 - [Assumption about data/environment, e.g., "Existing authentication system will be reused"]
 - [Dependency on existing system/service, e.g., "Requires access to the existing user profile API"]
+
+## Supersedes
+
+<!--
+  ACTION REQUIRED: List every cross-spec amendment this feature introduces.
+  For each amended spec, list the user story and acceptance scenario or task
+  that is being changed, and link to the matching FR/US in this spec. If the
+  feature introduces no amendments, write "None".
+
+  Each entry below produces a one-line footer in the amended spec and a
+  standalone `supersedes-<NNN>.md` file in this spec's directory. See
+  `sdd-optimization/06-spec-partitioning-issues.md` for the canonical format.
+-->
+
+- `<NNN>-<other-feature>` — `<US>` `<scenario-or-task-id>` superseded by `<US>` `<FR>`.
+
+## Superseded by
+
+<!--
+  ACTION REQUIRED: List every newer spec that has amended this one. The block
+  starts empty for a new spec. As amendments land, add the amending spec's
+  number and the user story.
+
+  When this block gains entries, the spec status moves to "superseded" and
+  the file should be moved to `specs/_archive/<capability>/<NNN>/` on the
+  next housekeeping PR.
+-->
+
+- `<NNN>-<amending-feature>` — `<US>` amended this spec's `<US>` `<scenario-or-task-id>`.
