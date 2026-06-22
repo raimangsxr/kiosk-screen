@@ -1,3 +1,11 @@
+---
+capability: C5-remote-control
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Remote Control Admin Polish
 
 **Feature Branch**: `015-remote-control-polish`

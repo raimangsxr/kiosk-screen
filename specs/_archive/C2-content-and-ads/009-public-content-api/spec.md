@@ -1,3 +1,11 @@
+---
+capability: C2-content-and-ads
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Public Content API with Novelty Priority
 
 **Feature Branch**: `009-public-content-api`

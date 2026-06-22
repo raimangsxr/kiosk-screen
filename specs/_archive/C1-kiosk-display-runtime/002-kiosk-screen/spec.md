@@ -1,3 +1,11 @@
+---
+capability: C1-kiosk-display-runtime
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Kiosk Screen Content and Ads
 
 **Feature Branch**: `002-kiosk-screen`

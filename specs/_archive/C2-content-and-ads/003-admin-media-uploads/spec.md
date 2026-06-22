@@ -1,3 +1,11 @@
+---
+capability: C2-content-and-ads
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Admin Media Uploads
 
 > Superseded by: 016-preconfigured-iframes-and-video-end (US2 — `embedded_web` content type and `ApprovedEmbeddedDomain` table removed). See `specs/016-preconfigured-iframes-and-video-end/supersedes-003.md`.

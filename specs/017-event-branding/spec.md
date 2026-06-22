@@ -1,3 +1,11 @@
+---
+capability: C7-event-branding
+supersedes:
+superseded_by:
+status: in-progress
+oversize: false
+---
+
 # Feature Specification: Event Branding and Ads Section Title
 
 > Superseded by: 018-content-rotation-modes (US2 — branding overlay hidden in iframe mode). See `specs/018-content-rotation-modes/supersedes-017.md`.

@@ -1,3 +1,11 @@
+---
+capability: C2-content-and-ads
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Drop the Client Concept
 
 **Feature Branch**: `010-admin-cleanup-and-polish`

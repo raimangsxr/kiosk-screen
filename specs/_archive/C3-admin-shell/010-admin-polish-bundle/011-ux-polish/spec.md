@@ -1,3 +1,11 @@
+---
+capability: C3-admin-shell
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Administration UX Polish
 
 **Feature Branch**: `010-admin-cleanup-and-polish`

@@ -1,3 +1,11 @@
+---
+capability: C6-public-api-and-keys
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Delete Revoked API Keys
 
 **Feature Branch**: `010-admin-cleanup-and-polish`
