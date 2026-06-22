@@ -2,9 +2,15 @@
 
 <!-- SPECKIT START -->
 Read feature context only when implementing, reviewing, or validating that
-feature. For feature 018, start with `specs/018-content-rotation-modes/tasks.md`
-and open `plan.md`, `spec.md`, `research.md`, `data-model.md`, or `contracts/`
-as needed for the active task.
+feature. The active feature is at `.specify/feature.json` (currently
+`specs/018-content-rotation-modes/`).
+
+Start with the capability overview for the feature's capability
+(`specs/_capabilities/<cap>/overview.md`), then the active feature's
+`specs/<NNN>-<name>/tasks.md`. Open `plan.md`, `spec.md`, `research.md`,
+`data-model.md`, or `contracts/` as needed for the active task. For
+display-control questions, read `specs/019-display-control-canonical/`
+first.
 <!-- SPECKIT END -->
 
 ## Operating mode
@@ -17,7 +23,9 @@ Use a concise, low-token style.
 - In final replies, summarize changed files and validation in a few bullets.
 
 This project follows Spec-Driven Development. Do not implement non-trivial
-functionality unless it is traceable to a spec, plan, task, and validation step.
+functionality unless it is traceable to a spec, plan, task, and validation
+step. The constitution at `.specify/memory/constitution.md` v2.0.0
+governs spec structure (size budget, supersession, capability boundary).
 
 ## SDD workflow
 
@@ -40,6 +48,8 @@ Do not jump directly from idea to code.
 - Avoid premature abstractions.
 - Do not introduce production dependencies without justification.
 - Public contracts must be documented and tested.
+- Each spec names exactly one capability (`capability:` frontmatter in
+  `spec.md`). Cross-capability changes need two specs or a `bridge.md`.
 
 ## Testing
 
@@ -72,3 +82,33 @@ All three resolve through `frontend/karma.conf.js`.
 - Keep changes small and reviewable.
 - Report changed files and validation commands executed.
 - Stop if the implementation requires changing the approved spec or plan.
+- If implementation diverges, log a row in
+  `<active-spec>/validation/implementation-conflicts.md` (create the
+  file if needed) before continuing the work.
+- Closed features live under `specs/_archive/<capability>/<NNN>/`; the
+  canonical anchor for display-control rules is
+  `specs/019-display-control-canonical/`.
+
+## Governance
+
+The constitution at `.specify/memory/constitution.md` v2.0.0 supersedes
+this file for spec structure rules. Key rules:
+
+- **Supersession**: approved specs are append-only. A behavior change
+  creates a new spec with a `supersedes.md` file; the amended spec
+  gets a one-line footer.
+- **Capability boundary**: each spec names one capability via
+  frontmatter. Cross-capability changes need two specs or a
+  `bridge.md`.
+- **Size budget**: `spec.md` ≤ 250, `plan.md` ≤ 300, `tasks.md` ≤ 400,
+  `research.md` ≤ 200, `data-model.md` ≤ 200, `contracts/*.md` ≤ 150
+  lines. Over-budget artefacts carry `oversize: true` and a
+  justification block.
+- **No bundles**: a spec that bundles ≥ 2 capabilities or ≥ 5 sibling
+  specs sharing one branch is forbidden.
+- **Validation artefacts**: substantial features (≥ 3 user stories OR
+  ≥ 50 tasks) carry a `validation/` directory; slim features carry a
+  `quickstart.md`. Never both silently.
+
+See `sdd-optimization/10-future-speckit-governance.md` for the full
+rule set.
