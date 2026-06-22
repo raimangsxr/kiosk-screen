@@ -25,10 +25,13 @@ endpoint, the content-type autodetect, and the client-side
 
 ## Living specs
 
-- Active: `specs/018-content-rotation-modes/`
+- Active: `specs/020-display-control-rotation-tests/` (closes the
+  deferred work from 018).
 - Archived: `specs/_archive/C1-kiosk-display-runtime/002-kiosk-screen/`,
   `…/006-remote-control-display/`,
-  `…/016-preconfigured-iframes-and-video-end/`
+  `…/016-preconfigured-iframes-and-video-end/`,
+  `…/018-content-rotation-modes/` (behavior shipped; tests deferred
+  to 020).
 
 ## Stable contracts
 

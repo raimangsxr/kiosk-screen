@@ -25,8 +25,9 @@ for `contentMode='fixed'`.
 
 ## Living specs
 
-- Active: `specs/016-…`, `specs/017-…`, `specs/018-…` (all touch C5)
-- Archived: `specs/_archive/C1-…/006-…`, `…/015-…` (C5 in path)
+- Active: `specs/020-…` (rotation test coverage).
+- Touch C5: `specs/016-…`, `specs/017-…`, archived `specs/_archive/C1-…/006-…`,
+  `…/015-…`, `…/018-…`.
 
 ## Stable contracts
 

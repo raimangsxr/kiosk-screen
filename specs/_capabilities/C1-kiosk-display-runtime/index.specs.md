@@ -4,9 +4,9 @@ Specs that touch the kiosk display runtime.
 
 ## Active
 
-- `specs/018-content-rotation-modes/` — rotation bug fixes, pause /
-  resume, recurring content, fixed content + new mode, extension
-  autodetect.
+- `specs/020-display-control-rotation-tests/` — closes the
+  deferred test work from 018 (rotation bug fixes, pause / resume,
+  recurring content, fixed content, extension autodetect).
 
 ## Archived
 

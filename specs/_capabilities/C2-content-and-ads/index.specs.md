@@ -21,8 +21,11 @@ Specs that touch content and ad entities.
   drop the Client concept.
 - `specs/_archive/C1-kiosk-display-runtime/016-…/` — drop the
   `embedded_web` content type.
-- `specs/018-content-rotation-modes/` — recurring / fixed content
-  and autodetect (active, will land in C2 on closure).
+- `specs/_archive/C1-kiosk-display-runtime/018-content-rotation-modes/` —
+  recurring / fixed content and autodetect (archived 2026-06-22;
+  tests deferred to 020).
+- `specs/020-display-control-rotation-tests/` — closes the
+  deferred test work from 018.
 
 ## Capabilities touched
 
