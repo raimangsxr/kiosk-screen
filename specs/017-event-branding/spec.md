@@ -1,7 +1,10 @@
 ---
 capability: C7-event-branding
 supersedes:
+  - 006-remote-control-display (US2) — branding overlay rendered by kiosk display runtime
+  - 002-kiosk-screen — event_duration_minutes column moved to event_configurations
 superseded_by:
+  - 018-content-rotation-modes (US2) — branding overlay hidden in iframe mode
 status: in-progress
 oversize: false
 ---

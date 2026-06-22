@@ -409,3 +409,17 @@ release scope.
 - The first product version is owned and operated by one organization; support
   for multiple organizations or client-owned ad management requires a future
   approved specification.
+
+## Superseded by
+
+- `005-admin-refactor` — Material 3 admin shell redesign.
+- `018-content-rotation-modes` — rotation bug fixes
+  (US1: ad index, ad interval, Chrome rendering).
+- `019-display-control-canonical` — canonical anchor for
+  display-control amendments.
+
+The amendment chain is recorded in the amending spec's
+`supersedes-<NNN>.md` file:
+- `specs/_archive/C3-admin-shell/005-admin-refactor/`
+- `specs/018-content-rotation-modes/supersedes-006.md`
+- `specs/019-display-control-canonical/`

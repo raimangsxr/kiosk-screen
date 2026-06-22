@@ -1,6 +1,7 @@
 ---
 capability: C5-remote-control
 supersedes:
+  - 006-remote-control-display — Material 3 page rewrite (orphaned by reality)
 superseded_by:
 status: closed
 oversize: false
@@ -393,3 +394,15 @@ that a snackbar appears with the expected text and disappears after
 - Adding undo support to the snackbar. The spec keeps the
   "Dismiss" button only; the operator can revert through the
   same control (e.g. toggle ads back on).
+
+## Superseded by
+
+- This spec is orphaned by reality (see `reality.md`). The
+  Material 3 page rewrite shipped on `main` PR #10; the spec's
+  `tasks.md` was never used as the working checklist. The runtime
+  behavior is governed by 006 (canonical schema) and amended by 016,
+  017, 018. The canonical anchor for display-control amendments is
+  `specs/019-display-control-canonical/`.
+
+Amendment chain authored from this spec:
+- `specs/_archive/C5-remote-control/015-remote-control-polish/supersedes-006.md`

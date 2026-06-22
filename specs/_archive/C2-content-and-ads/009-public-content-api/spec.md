@@ -290,3 +290,20 @@ When an external system uploads a new item, the operator can confirm the item ha
 - Encryption of files at rest beyond the existing storage path.
 - Multi-region replication or cross-organization content sharing.
 - Analytics, billing, or usage dashboards for the public API.
+
+## Superseded by
+
+- `012-delete-revoked-api-keys` — hard-delete endpoint for revoked
+  API keys.
+- `016-preconfigured-iframes-and-video-end` — public endpoint never
+  accepts `embedded_web`.
+- `018-content-rotation-modes` — public endpoint silently ignores
+  `isFixed` and `recurringEveryXIterations`; extension-based
+  autodetect.
+
+Amendment chain:
+- `specs/_archive/C3-admin-shell/010-admin-polish-bundle/012-delete-revoked-api-keys/supersedes-009.md`
+- `specs/016-preconfigured-iframes-and-video-end/supersedes-003.md`
+  (covers the embedded_web removal)
+- `specs/018-content-rotation-modes/supersedes-016.md` (covers
+  silent-ignore of fixed/recurring flags and autodetect)

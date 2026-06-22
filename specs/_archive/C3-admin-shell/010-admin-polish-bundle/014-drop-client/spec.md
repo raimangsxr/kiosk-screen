@@ -1,6 +1,7 @@
 ---
 capability: C2-content-and-ads
 supersedes:
+  - 003-admin-media-uploads — drop Client entity, advertiser free-text replaces client picker
 superseded_by:
 status: closed
 oversize: false
@@ -393,3 +394,11 @@ confirm the seeded ad has `advertiser = "Sample Client"`.
 - Multi-tenant ownership. The kiosk is single-tenant per
   organization; the spec does not introduce a per-organization
   advertiser entity.
+
+## Superseded by
+
+- No direct behavioral supersession. The hard-delete of `clients`
+  and the `advertiser` free-text column are still authoritative.
+
+Amendment chain authored from this spec:
+- `supersedes-003.md` (in this directory)
