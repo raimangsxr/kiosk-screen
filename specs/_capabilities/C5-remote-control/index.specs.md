@@ -4,11 +4,9 @@ Specs that touch the remote-control surface.
 
 ## Active
 
-- `specs/016-preconfigured-iframes-and-video-end/` — preconfigured
-  iframes in remote control.
-- `specs/017-event-branding/` — branding overlay integration.
-- `specs/018-content-rotation-modes/` — pause/resume/fixed + new
-  navigation commands.
+- `specs/020-display-control-rotation-tests/` — closes the
+  deferred test work from 018 (pause/resume/fixed + new
+  navigation commands + autodetect).
 - `specs/019-display-control-canonical/` — canonical anchor for
   `display_control_state` and the four amending specs. Start here.
 
