@@ -32,18 +32,28 @@ export class AuthService {
   readonly email = computed(() => this.userState()?.email ?? '');
   readonly initials = computed(() => this.computeInitials(this.userState()?.displayName || this.userState()?.email || ''));
 
-  login(credentials: { email: string; password: string }): Observable<AuthenticatedUser> {
-    return this.http.post<UserResponse>('/api/auth/login', credentials, { withCredentials: true }).pipe(
-      tap((response) => {
-        const user: AuthenticatedUser = {
-          id: response.id,
-          email: response.email,
-          displayName: response.displayName,
-          roles: response.roles ?? []
-        };
-        this.persist(user);
-      })
-    );
+  login(credentials: { email: string; password: string; rememberMe?: boolean }): Observable<AuthenticatedUser> {
+    return this.http
+      .post<UserResponse>(
+        '/api/auth/login',
+        {
+          email: credentials.email,
+          password: credentials.password,
+          rememberMe: credentials.rememberMe ?? false,
+        },
+        { withCredentials: true },
+      )
+      .pipe(
+        tap((response) => {
+          const user: AuthenticatedUser = {
+            id: response.id,
+            email: response.email,
+            displayName: response.displayName,
+            roles: response.roles ?? []
+          };
+          this.persist(user);
+        })
+      );
   }
 
   logout(): Observable<void> {
