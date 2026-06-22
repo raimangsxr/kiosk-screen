@@ -1,5 +1,7 @@
 # Feature Specification: Admin Media Uploads
 
+> Superseded by: 016-preconfigured-iframes-and-video-end (US2 — `embedded_web` content type and `ApprovedEmbeddedDomain` table removed). See `specs/016-preconfigured-iframes-and-video-end/supersedes-003.md`.
+
 **Feature Branch**: `005-admin-media-uploads`
 
 **Created**: 2026-06-17
@@ -190,3 +192,14 @@ A display viewer sees uploaded media fill its assigned region, rotating one item
 - Bulk upload, drag-and-drop batch upload, or scheduled publishing.
 - Per-client ad targeting, analytics, billing, or impression reporting.
 - Automatic iframe approval policy changes beyond existing source validation behavior.
+
+## Superseded by
+
+- `016-preconfigured-iframes-and-video-end` (US2) — `embedded_web`
+  content type removed; `ApprovedEmbeddedDomain` table and admin
+  section removed. Detail:
+  `specs/016-preconfigured-iframes-and-video-end/supersedes-003.md`.
+- `013-drop-label-display-order-drag-drop` (US1) — `label` column
+  dropped; drag-and-drop reorder added.
+- `014-drop-client` (US1) — `Client` entity hard-deleted; `advertiser`
+  free-text replaces client picker.
