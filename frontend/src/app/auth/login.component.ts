@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -277,10 +277,18 @@ interface LoginFormValue {
     `
   ]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  ngOnInit(): void {
+    // If a session is already active (cookie + cached user), skip the form
+    // and send the user straight to the hall.
+    if (this.auth.isAuthenticated()) {
+      void this.router.navigateByUrl('/hall');
+    }
+  }
 
   protected readonly submitting = signal(false);
   protected readonly showPassword = signal(false);

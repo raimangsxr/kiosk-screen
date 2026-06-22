@@ -74,4 +74,23 @@ describe('LoginComponent', () => {
     http.expectNone(() => true);
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
+
+  it('redirects to /hall when a session is already active', async () => {
+    // Simulate an existing session by priming the auth service before
+    // creating the component.
+    const { AuthService } = await import('../core/auth/auth.service');
+    const auth = TestBed.inject(AuthService);
+    auth['persist']({
+      id: 'user-1',
+      email: 'admin@example.com',
+      displayName: 'Admin',
+      roles: ['administrator'],
+    });
+
+    // Re-create the component to trigger ngOnInit with the active session.
+    fixture = TestBed.createComponent(LoginComponent);
+    fixture.detectChanges();
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/hall');
+  });
 });
