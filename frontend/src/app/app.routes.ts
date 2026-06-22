@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { LoginComponent } from './auth/login.component';
-import { sessionGuard } from './auth/session.guard';
+import { authRootGuard, sessionGuard } from './auth/session.guard';
 import { DisplayScreenComponent } from './features/display/display-screen.component';
 import { HallComponent } from './features/hall/hall.component';
 import { ContentListComponent } from './features/content/content-list.component';
@@ -55,5 +55,5 @@ export const routes: Routes = [
       { path: 'api-keys', component: ApiKeysListComponent }
     ]
   },
-  { path: '', pathMatch: 'full', redirectTo: 'login' }
+  { path: '', pathMatch: 'full', canActivate: [authRootGuard], component: LoginComponent }
 ];

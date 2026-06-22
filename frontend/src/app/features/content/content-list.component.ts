@@ -94,7 +94,23 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
 
             <ng-container matColumnDef="rotation">
               <th mat-header-cell *matHeaderCellDef>Rotation</th>
-              <td mat-cell *matCellDef="let item">{{ rotationSummary(item) }}</td>
+              <td mat-cell *matCellDef="let item">
+                <div class="content-list__rotation">
+                  <span>{{ rotationSummary(item) }}</span>
+                  <app-status-chip
+                    *ngIf="item.isFixed"
+                    label="Fijo"
+                    kind="info"
+                    ariaLabel="Contenido fijo"
+                  />
+                  <app-status-chip
+                    *ngIf="item.recurringEveryXIterations"
+                    [label]="'Recurrente cada ' + item.recurringEveryXIterations"
+                    kind="warning"
+                    [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
+                  />
+                </div>
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="status">
@@ -209,6 +225,12 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         width: 48px;
         padding-left: 8px;
         padding-right: 0;
+      }
+      .content-list__rotation {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
       }
       .content-list__row {
         cursor: grab;

@@ -1,14 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.mappers import to_ad_schema, to_configuration_schema, to_content_schema, to_iframe_schema
+from app.api.mappers import (
+    to_ad_schema,
+    to_configuration_schema,
+    to_content_schema,
+    to_fixed_eligible_content_schema,
+    to_iframe_schema,
+)
 from app.api.schemas import (
     DisplayStateSchema,
+    FixedEligibleContentItemSchema,
     RemoteControlAdminStateSchema,
     RemoteControlIframeOptionsSchema,
     RemoteControlNavigationRequest,
     RemoteControlStateRequest,
     RemoteControlStateSchema,
+    RotationEventRequest,
 )
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.domain.roles import REMOTE_CONTROL_ROLES
@@ -45,6 +53,7 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
     return RemoteControlStateSchema(
         contentMode=state.content_mode,
         selectedIframeId=state.selected_iframe_id,
+        selectedFixedContentId=state.selected_fixed_content_id,
         adsVisible=state.ads_visible,
         fullscreenRequested=state.fullscreen_requested,
         navigationCommand=state.navigation_command,
@@ -60,6 +69,7 @@ def to_remote_control_admin_schema(
     return RemoteControlAdminStateSchema(
         contentMode=state.content_mode,
         selectedIframeId=state.selected_iframe_id,
+        selectedFixedContentId=state.selected_fixed_content_id,
         selectedIframe=to_iframe_schema(selected_iframe) if selected_iframe else None,
         adsVisible=state.ads_visible,
         navigationCommand=state.navigation_command,
@@ -134,7 +144,11 @@ def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
         ],
         remoteControl=to_remote_control_schema(state.remote_control),
         selectedIframe=to_iframe_schema(state.selected_iframe) if state.selected_iframe else None,
-        fallbackActive=state.fallback_active
+        fallbackActive=state.fallback_active,
+        fixedEligibleContents=[
+            to_fixed_eligible_content_schema(item)
+            for item in (state.fixed_eligible_contents or [])
+        ],
     )
 
 
@@ -197,6 +211,9 @@ def update_remote_control_state_route(
             selected_iframe_id=str(payload.selected_iframe_id) if payload.selected_iframe_id else None,
             ads_visible=payload.ads_visible,
             fullscreen_requested=payload.fullscreen_requested,
+            selected_fixed_content_id=str(payload.selected_fixed_content_id)
+            if payload.selected_fixed_content_id
+            else None,
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
@@ -232,5 +249,33 @@ def remote_control_iframe_options_route(
     session: Session = Depends(get_session),
 ) -> RemoteControlIframeOptionsSchema:
     ensure_remote_control_admin(user, session)
-    items = DisplayControlService(session).list_iframe_options(user.organization_id)
-    return RemoteControlIframeOptionsSchema(items=[to_iframe_schema(item) for item in items])
+    service = DisplayControlService(session)
+    items = service.list_iframe_options(user.organization_id)
+    fixed_items = service.list_fixed_eligible_contents(user.organization_id)
+    return RemoteControlIframeOptionsSchema(
+        items=[to_iframe_schema(item) for item in items],
+        fixedEligibleContents=[to_fixed_eligible_content_schema(item) for item in fixed_items],
+    )
+
+
+@router.post("/rotation-event", status_code=status.HTTP_202_ACCEPTED)
+def rotation_event_route(
+    payload: RotationEventRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict[str, str]:
+    """Kiosk-initiated rotation events (contracts/audit-display-control.md §6).
+
+    Only the kiosk runs in an authenticated session tied to an operator session; we
+    accept the same auth model as the rest of the display endpoints.
+    """
+    try:
+        DisplayControlService(session).record_rotation_event(
+            organization_id=user.organization_id,
+            event_type=payload.event_type,
+            payload=payload.payload,
+            user_id=user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return {"status": "accepted"}

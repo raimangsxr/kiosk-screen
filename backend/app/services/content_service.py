@@ -6,7 +6,7 @@ from app.api.schemas import ContentItemRequest
 from app.config import get_settings
 from app.domain.availability import validate_availability_window
 from app.domain.display_events import create_display_event
-from app.domain.media import validate_rotation_animation
+from app.domain.media import UnsupportedExtensionError, detect_media_type_from_extension, validate_rotation_animation
 from app.repositories.content import ContentRepository
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.content import TopContentItem
@@ -14,20 +14,31 @@ from app.services.api_key_service import ApiKeyService
 from app.services.display_order import assign_ordered_display_orders, next_display_order
 from app.services.media_storage_service import MediaStorageService
 
+
+def _validate_fixed_recurring_exclusivity(is_fixed: bool | None, recurring_every_x_iterations: int | None) -> None:
+    """FR-016: a Content cannot be both fixed and recurring."""
+    if is_fixed and recurring_every_x_iterations is not None:
+        raise ValueError("Un Content no puede ser fijo y recurrente a la vez.")
+    if recurring_every_x_iterations is not None and recurring_every_x_iterations < 1:
+        raise ValueError("La cadencia debe ser un entero >= 1.")
+
+
 def validate_content(session: Session, organization_id: str, payload: ContentItemRequest) -> None:
     validate_availability_window(payload.available_from, payload.available_until)
     validate_rotation_animation(payload.rotation_animation)
-    if payload.content_type not in {"photo", "video"}:
+    if payload.content_type is not None and payload.content_type not in {"photo", "video"}:
         raise ValueError("invalid_content_type")
     if payload.is_active and not payload.source_reference:
         raise ValueError("Active content requires a source reference.")
+    _validate_fixed_recurring_exclusivity(payload.is_fixed, payload.recurring_every_x_iterations)
 
 
 def validate_uploaded_content(payload: ContentItemRequest) -> None:
     validate_availability_window(payload.available_from, payload.available_until)
     validate_rotation_animation(payload.rotation_animation)
-    if payload.content_type not in {"photo", "video"}:
+    if payload.content_type is not None and payload.content_type not in {"photo", "video"}:
         raise ValueError("invalid_content_type")
+    _validate_fixed_recurring_exclusivity(payload.is_fixed, payload.recurring_every_x_iterations)
 
 
 class ContentService:
@@ -59,6 +70,8 @@ class ContentService:
             animation_duration_milliseconds=payload.animation_duration_milliseconds,
             available_from=payload.available_from,
             available_until=payload.available_until,
+            is_fixed=bool(payload.is_fixed),
+            recurring_every_x_iterations=payload.recurring_every_x_iterations,
             created_by_user_id=user_id,
             updated_by_user_id=user_id
         )
@@ -83,6 +96,8 @@ class ContentService:
         item.animation_duration_milliseconds = payload.animation_duration_milliseconds
         item.available_from = payload.available_from
         item.available_until = payload.available_until
+        item.is_fixed = bool(payload.is_fixed)
+        item.recurring_every_x_iterations = payload.recurring_every_x_iterations
         item.updated_by_user_id = user_id
         self._record_change(organization_id, user_id, "content_changed", "Content updated", item.id)
         self.session.commit()
@@ -96,7 +111,40 @@ class ContentService:
         payload: ContentItemRequest
     ) -> TopContentItem:
         validate_uploaded_content(payload)
-        media_type = "image" if payload.content_type == "photo" else "video"
+        # FR-025 / FR-027 / FR-028: autodetect content_type from the filename extension
+        # when the explicit field is missing or contradicts the extension. The extension
+        # wins (TD-003).
+        detected = detect_media_type_from_extension(getattr(upload, "filename", None))
+        requested = payload.content_type
+        if requested is None or (requested != detected):
+            if requested is not None and requested != detected:
+                # Audit override (TD-003).
+                DisplayEventRepository(self.session).record(
+                    create_display_event(
+                        organization_id=organization_id,
+                        event_type="content_type_autodetected",
+                        severity="info",
+                        message=(
+                            f"Content type autodetected from extension for {upload.filename}"
+                        ),
+                        entity_type="top_content",
+                        entity_id=None,
+                        created_by_user_id=user_id,
+                        metadata={
+                            "filename": upload.filename,
+                            "extension": (upload.filename or "").rsplit(".", 1)[-1].lower()
+                            if upload.filename and "." in upload.filename
+                            else "",
+                            "detectedContentType": detected,
+                            "requestedContentType": requested,
+                            "source": "admin",
+                        },
+                    )
+                )
+            content_type_value = detected
+        else:
+            content_type_value = requested
+        media_type = "image" if content_type_value == "photo" else "video"
         media = MediaStorageService(self.session).save_upload(organization_id, user_id, upload, media_type)
         try:
             display_order = (
@@ -107,7 +155,7 @@ class ContentService:
             item = TopContentItem(
                 organization_id=organization_id,
                 title=payload.title,
-                content_type=payload.content_type,
+                content_type=content_type_value,
                 source_reference=media.public_reference,
                 media_file_id=media.id,
                 approved_domain_id=None,
@@ -118,6 +166,8 @@ class ContentService:
                 animation_duration_milliseconds=payload.animation_duration_milliseconds,
                 available_from=payload.available_from,
                 available_until=payload.available_until,
+                is_fixed=bool(payload.is_fixed),
+                recurring_every_x_iterations=payload.recurring_every_x_iterations,
                 created_by_user_id=user_id,
                 updated_by_user_id=user_id
             )
@@ -164,14 +214,18 @@ class ContentService:
             raise TitleTooLongError(255)
 
         content_type = (upload.content_type or "").lower()
-        if content_type.startswith("image/"):
-            media_type = "image"
-            content_kind = "photo"
-        elif content_type.startswith("video/"):
-            media_type = "video"
-            content_kind = "video"
-        else:
-            raise UnsupportedMediaTypeError()
+        # FR-026 / TD-004: detect by extension, not by MIME header. The MIME header
+        # may lie; the extension is more reliable for automation use cases. The
+        # public API never accepts is_fixed / recurring_every_x_iterations; those
+        # values, if present on the request payload, are silently ignored and
+        # always persisted as False / None (TD-004).
+        try:
+            content_kind = detect_media_type_from_extension(getattr(upload, "filename", None))
+        except UnsupportedExtensionError as exc:
+            # Map to the typed error; the unsupported_extension message is logged
+            # via the standard media_uploaded audit path inside save_upload.
+            raise UnsupportedMediaTypeError() from exc
+        media_type = "image" if content_kind == "photo" else "video"
 
         # Acquire the per-organization advisory lock for the duration of the transaction.
         # Released automatically on commit or rollback.
@@ -222,6 +276,9 @@ class ContentService:
                 approved_domain_id=None,
                 is_active=True,
                 display_order=next_order,
+                # FR-014 / FR-016 / TD-004: public API never sets these flags.
+                is_fixed=False,
+                recurring_every_x_iterations=None,
                 created_by_user_id=None,
                 updated_by_user_id=None,
             )

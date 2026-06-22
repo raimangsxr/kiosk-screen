@@ -17,13 +17,14 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { RemoteControlFacade } from './remote-control.facade';
 import { RemoteControlContentMode } from './remote-control.models';
 
-type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
+type LocalMode = RemoteControlContentMode;
 
 @Component({
   selector: 'app-remote-control',
@@ -40,6 +41,7 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
     MatRadioModule,
     MatSlideToggleModule,
     MatSnackBarModule,
+    MatTooltipModule,
     AdminStateComponent,
     PageHeaderComponent
   ],
@@ -143,6 +145,16 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                   <span class="remote-control__radio-title">Iframe</span>
                   <span class="remote-control__radio-hint">Lock the display on a single approved iframe.</span>
                 </mat-radio-button>
+                <mat-radio-button
+                  value="fixed"
+                  class="remote-control__radio"
+                  [disabled]="!hasFixedContents()"
+                  [matTooltip]="hasFixedContents() ? '' : 'No hay content fijo disponible'"
+                  data-testid="remote-control-fixed-radio"
+                >
+                  <span class="remote-control__radio-title">Fixed</span>
+                  <span class="remote-control__radio-hint">Pin a single fixed Content on screen.</span>
+                </mat-radio-button>
               </mat-radio-group>
             </fieldset>
 
@@ -189,6 +201,35 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                 </a>
               </div>
             }
+
+            @if (mode() === 'fixed' && hasFixedContents()) {
+              <fieldset class="remote-control__fieldset remote-control__iframe-fieldset">
+                <legend class="remote-control__legend">Select a fixed Content to display</legend>
+                <mat-radio-group
+                  class="remote-control__iframe-list"
+                  aria-label="Available fixed content"
+                  [value]="selectedFixedContentId() ?? ''"
+                  (change)="selectFixedContent($event.value)"
+                  [disabled]="facade.saving()"
+                  data-testid="remote-control-fixed-list"
+                >
+                  @for (option of fixedContentOptions(); track option.id) {
+                    <mat-radio-button [value]="option.id" class="remote-control__iframe-item">
+                      <span class="remote-control__iframe-title">{{ truncate(option.title, 32) }}</span>
+                      <span class="remote-control__iframe-meta">
+                        <span class="remote-control__iframe-url">{{ option.contentType }}</span>
+                        @if (option.id === selectedFixedContentId()) {
+                          <span class="remote-control__iframe-badge" aria-label="Currently showing">
+                            <mat-icon aria-hidden="true">check_circle</mat-icon>
+                            Currently showing
+                          </span>
+                        }
+                      </span>
+                    </mat-radio-button>
+                  }
+                </mat-radio-group>
+              </fieldset>
+            }
           </mat-card-content>
         </mat-card>
 
@@ -197,7 +238,7 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
             <mat-card-header>
               <mat-icon mat-card-avatar aria-hidden="true">skip_next</mat-icon>
               <mat-card-title>Rotation navigation</mat-card-title>
-              <mat-card-subtitle>Move the running rotation and restart the item timer.</mat-card-subtitle>
+              <mat-card-subtitle>Move, pause, or resume the running rotation.</mat-card-subtitle>
             </mat-card-header>
             <mat-card-content>
               <div class="remote-control__navigation" aria-label="Rotation navigation">
@@ -207,9 +248,32 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                   [disabled]="facade.saving()"
                   (click)="navigateRotation('previous')"
                   data-testid="remote-control-previous"
+                  aria-label="Previous content"
                 >
                   <mat-icon aria-hidden="true">skip_previous</mat-icon>
                   Previous
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="facade.saving() || facade.isPaused()"
+                  (click)="navigateRotation('pause')"
+                  data-testid="remote-control-pause"
+                  aria-label="Pause rotation"
+                >
+                  <mat-icon aria-hidden="true">pause</mat-icon>
+                  Pause
+                </button>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  [disabled]="facade.saving() || !facade.isPaused()"
+                  (click)="navigateRotation('resume')"
+                  data-testid="remote-control-resume"
+                  aria-label="Resume rotation"
+                >
+                  <mat-icon aria-hidden="true">play_arrow</mat-icon>
+                  Resume
                 </button>
                 <button
                   mat-flat-button
@@ -218,11 +282,15 @@ type LocalMode = Extract<RemoteControlContentMode, 'loop' | 'iframe'>;
                   [disabled]="facade.saving()"
                   (click)="navigateRotation('next')"
                   data-testid="remote-control-next"
+                  aria-label="Next content"
                 >
                   <mat-icon aria-hidden="true">skip_next</mat-icon>
                   Next
                 </button>
               </div>
+              @if (facade.isPaused()) {
+                <p class="remote-control__hint" aria-live="polite">Rotation paused.</p>
+              }
             </mat-card-content>
           </mat-card>
         }
@@ -490,6 +558,10 @@ export class RemoteControlComponent implements OnInit {
   protected readonly selectedIframeId = computed(
     () => this.facade.state()?.selectedIframeId ?? null
   );
+  protected readonly selectedFixedContentId = computed(
+    () => this.facade.state()?.selectedFixedContentId ?? null
+  );
+  protected readonly fixedContentOptions = computed(() => this.facade.fixedContentOptions());
   protected readonly adsVisible = computed(() => this.facade.state()?.adsVisible !== false);
   protected readonly fullscreenRequested = computed(() => this.facade.state()?.fullscreenRequested === true);
   protected readonly displayOnline = computed<boolean | null>(() => {
@@ -497,8 +569,18 @@ export class RemoteControlComponent implements OnInit {
     return active === undefined ? null : active;
   });
 
-  protected readonly modeLabel = computed(() => (this.mode() === 'iframe' ? 'Iframe' : 'Rotation'));
-  protected readonly modeIcon = computed(() => (this.mode() === 'iframe' ? 'cast_connected' : 'loop'));
+  protected readonly modeLabel = computed(() => {
+    const m = this.mode();
+    if (m === 'iframe') return 'Iframe';
+    if (m === 'fixed') return 'Fixed';
+    return 'Rotation';
+  });
+  protected readonly modeIcon = computed(() => {
+    const m = this.mode();
+    if (m === 'iframe') return 'cast_connected';
+    if (m === 'fixed') return 'push_pin';
+    return 'loop';
+  });
   protected readonly adsLabel = computed(() => (this.adsVisible() ? 'Visible' : 'Hidden'));
   protected readonly adsIcon = computed(() => (this.adsVisible() ? 'campaign' : 'visibility_off'));
   protected readonly fullscreenLabel = computed(() => (this.fullscreenRequested() ? 'On' : 'Off'));
@@ -517,7 +599,7 @@ export class RemoteControlComponent implements OnInit {
     effect(() => {
       const backendMode = this.facade.state()?.contentMode;
       if (backendMode) {
-        this.mode.set(backendMode);
+        this.mode.set(backendMode as LocalMode);
       }
     });
   }
@@ -541,7 +623,7 @@ export class RemoteControlComponent implements OnInit {
         this.updateError.set(true);
         const backendMode = this.facade.state()?.contentMode;
         if (backendMode) {
-          this.mode.set(backendMode);
+          this.mode.set(backendMode as LocalMode);
         }
       }
     });
@@ -556,6 +638,18 @@ export class RemoteControlComponent implements OnInit {
       next: () => {
         const title = this.facade.iframeOptions().find((o) => o.id === contentId)?.url ?? '';
         this.notify('Now showing: ' + title + '.');
+      },
+      error: () => this.updateError.set(true)
+    });
+  }
+
+  selectFixedContent(contentId: string): void {
+    if (!contentId) return;
+    this.updateError.set(false);
+    this.facade.setFixedMode(contentId).subscribe({
+      next: () => {
+        const title = this.facade.fixedContentOptions().find((o) => o.id === contentId)?.title ?? '';
+        this.notify('Pinned: ' + title + '.');
       },
       error: () => this.updateError.set(true)
     });
@@ -577,10 +671,18 @@ export class RemoteControlComponent implements OnInit {
     });
   }
 
-  navigateRotation(command: 'next' | 'previous'): void {
+  navigateRotation(command: 'next' | 'previous' | 'pause' | 'resume'): void {
     this.updateError.set(false);
     this.facade.navigate(command).subscribe({
-      next: () => this.notify(command === 'next' ? 'Skipped to next content.' : 'Returned to previous content.'),
+      next: () => {
+        const messages: Record<typeof command, string> = {
+          next: 'Skipped to next content.',
+          previous: 'Returned to previous content.',
+          pause: 'Rotation paused.',
+          resume: 'Rotation resumed.',
+        };
+        this.notify(messages[command]);
+      },
       error: () => this.updateError.set(true)
     });
   }
@@ -591,6 +693,10 @@ export class RemoteControlComponent implements OnInit {
 
   protected hasIframes(): boolean {
     return this.facade.iframeOptions().length > 0;
+  }
+
+  protected hasFixedContents(): boolean {
+    return this.facade.fixedContentOptions().length > 0;
   }
 
   protected truncate(value: string, max: number): string {

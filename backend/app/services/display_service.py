@@ -27,6 +27,7 @@ class DisplayState:
     fallback_active: bool
     remote_control: DisplayControlState | None = None
     selected_iframe: Iframe | None = None
+    fixed_eligible_contents: list[TopContentItem] | None = None
 
 
 def eligible_top_content(session: Session, organization_id: str, now: datetime | None = None) -> list[TopContentItem]:
@@ -93,6 +94,7 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
         fallback_active=not top_content or not ads,
         remote_control=remote_control,
         selected_iframe=selected_iframe,
+        fixed_eligible_contents=control_service.list_fixed_eligible_contents(organization_id),
     )
 
 

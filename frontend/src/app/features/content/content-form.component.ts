@@ -10,6 +10,7 @@ import {
 } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -41,6 +42,8 @@ interface ContentFormValue {
   rotationAnimation: RotationAnimation | null;
   animationDurationMilliseconds: number | null;
   isActive: boolean;
+  isFixed: boolean;
+  recurringEveryXIterations: number | null;
 }
 
 @Component({
@@ -55,6 +58,7 @@ interface ContentFormValue {
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatSlideToggleModule,
     MatDividerModule,
@@ -149,6 +153,48 @@ interface ContentFormValue {
 
         <mat-divider />
 
+        <div class="content-form__lifecycle" aria-label="Display modes">
+          <h3 class="content-form__section-title">Modo de visualización</h3>
+          <p class="content-form__hint">
+            Recurrente y Fijo son mutuamente excluyentes.
+          </p>
+
+          <mat-checkbox
+            formControlName="isFixed"
+            (change)="onIsFixedChange()"
+            class="content-form__checkbox"
+          >
+            Marcar como contenido fijo
+          </mat-checkbox>
+          <p
+            class="content-form__hint content-form__hint--detail"
+            *ngIf="form.controls.isFixed.value"
+          >
+            Sólo se mostrará en modo "Fixed" del control remoto. No aparece en la rotación normal.
+          </p>
+
+          <mat-form-field
+            appearance="outline"
+            subscriptSizing="dynamic"
+            class="content-form__cadence"
+            *ngIf="!form.controls.isFixed.value"
+          >
+            <mat-label>Recurrente cada (iteraciones)</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="recurringEveryXIterations"
+              min="1"
+            />
+            <mat-hint>
+              Si está definido, este contenido se mostrará cada N cambios del resto de la cola.
+              Déjalo vacío para que sólo rote en orden normal.
+            </mat-hint>
+          </mat-form-field>
+        </div>
+
+        <mat-divider />
+
         <div class="content-form__toggle">
           <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
           <span class="content-form__hint" *ngIf="!form.controls.isActive.value">
@@ -208,10 +254,31 @@ interface ContentFormValue {
         flex-wrap: wrap;
         padding: 4px 0;
       }
+      .content-form__lifecycle {
+        display: grid;
+        gap: 8px;
+        padding: 12px 0;
+      }
+      .content-form__section-title {
+        margin: 0;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
+      }
+      .content-form__checkbox {
+        padding: 4px 0;
+      }
+      .content-form__cadence {
+        width: 100%;
+      }
       .content-form__hint {
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
+        margin: 0;
+      }
+      .content-form__hint--detail {
+        padding-left: 32px;
+        font-style: italic;
       }
     `
   ]
@@ -243,6 +310,8 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     rotationAnimation: FormControl<RotationAnimation | null>;
     animationDurationMilliseconds: FormControl<number | null>;
     isActive: FormControl<boolean>;
+    isFixed: FormControl<boolean>;
+    recurringEveryXIterations: FormControl<number | null>;
   }> | null = null;
 
   private initialSnapshot = '';
@@ -336,6 +405,15 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     this.selectedFile.set(files[0] ?? null);
   }
 
+  protected onIsFixedChange(): void {
+    // FR-016 / spec 018: isFixed and recurringEveryXIterations are mutually
+    // exclusive. When isFixed flips on, clear the cadence value so the user
+    // can't submit a contradictory state.
+    if (this.form?.controls.isFixed.value) {
+      this.form.controls.recurringEveryXIterations.setValue(null);
+    }
+  }
+
   submit(): void {
     if (!this.form || this.form.invalid) {
       this.form?.markAllAsTouched();
@@ -351,7 +429,9 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       isActive: value.isActive,
       durationSeconds: value.durationSeconds,
       rotationAnimation: value.rotationAnimation,
-      animationDurationMilliseconds: value.animationDurationMilliseconds
+      animationDurationMilliseconds: value.animationDurationMilliseconds,
+      isFixed: value.isFixed,
+      recurringEveryXIterations: value.isFixed ? null : value.recurringEveryXIterations,
     };
 
     const uploadFiles = this.filesToUpload();
@@ -408,7 +488,11 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       durationSeconds: this.fb.control<number | null>(null),
       rotationAnimation: this.fb.control<RotationAnimation | null>(null),
       animationDurationMilliseconds: this.fb.control<number | null>(null),
-      isActive: this.fb.nonNullable.control(true)
+      isActive: this.fb.nonNullable.control(true),
+      isFixed: this.fb.nonNullable.control(false),
+      recurringEveryXIterations: this.fb.control<number | null>(null, {
+        validators: [positiveInteger('positiveInteger')]
+      })
     });
 
   }
@@ -425,7 +509,9 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       durationSeconds: item.durationSeconds ?? null,
       rotationAnimation: item.rotationAnimation ?? null,
       animationDurationMilliseconds: item.animationDurationMilliseconds ?? null,
-      isActive: item.isActive
+      isActive: item.isActive,
+      isFixed: item.isFixed ?? false,
+      recurringEveryXIterations: item.recurringEveryXIterations ?? null,
     });
     this.existingMedia.set(item.mediaFile?.originalFilename ?? null);
     this.markPristine();
@@ -449,6 +535,8 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       rotationAnimation: v.rotationAnimation,
       animationDurationMilliseconds: v.animationDurationMilliseconds,
       isActive: v.isActive,
+      isFixed: v.isFixed,
+      recurringEveryXIterations: v.recurringEveryXIterations,
       selectedFile: this.filesToUpload().map((file) => file.name).join(',')
     });
   }

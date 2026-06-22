@@ -28,6 +28,7 @@ class MediaFileReferenceSchema(CamelModel):
 class LoginRequest(CamelModel):
     email: str
     password: str = Field(min_length=1)
+    remember_me: bool = Field(default=False, alias="rememberMe")
 
 
 class UserSchema(CamelModel):
@@ -132,27 +133,31 @@ class ContentItemSchema(CamelModel):
     effective_animation_duration_milliseconds: int | None = Field(default=None, alias="effectiveAnimationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
+    is_fixed: bool = Field(default=False, alias="isFixed")
+    recurring_every_x_iterations: int | None = Field(default=None, alias="recurringEveryXIterations", ge=1)
 
 
 class RemoteControlStateSchema(CamelModel):
-    content_mode: str = Field(alias="contentMode")
+    content_mode: Literal["loop", "iframe", "fixed"] = Field(alias="contentMode")
     selected_iframe_id: UUID | None = Field(default=None, alias="selectedIframeId")
+    selected_fixed_content_id: UUID | None = Field(default=None, alias="selectedFixedContentId")
     ads_visible: bool = Field(alias="adsVisible")
     fullscreen_requested: bool = Field(default=False, alias="fullscreenRequested")
-    navigation_command: str | None = Field(default=None, alias="navigationCommand")
+    navigation_command: Literal["next", "previous", "pause", "resume", ""] | None = Field(default=None, alias="navigationCommand")
     navigation_command_id: UUID | None = Field(default=None, alias="navigationCommandId")
     updated_at: datetime = Field(alias="updatedAt")
 
 
 class RemoteControlStateRequest(CamelModel):
-    content_mode: str = Field(alias="contentMode")
+    content_mode: Literal["loop", "iframe", "fixed"] = Field(alias="contentMode")
     selected_iframe_id: UUID | None = Field(default=None, alias="selectedIframeId")
+    selected_fixed_content_id: UUID | None = Field(default=None, alias="selectedFixedContentId")
     ads_visible: bool = Field(alias="adsVisible")
     fullscreen_requested: bool = Field(default=False, alias="fullscreenRequested")
 
 
 class RemoteControlNavigationRequest(CamelModel):
-    command: str
+    command: Literal["next", "previous", "pause", "resume"]
 
 
 class RemoteControlAdminStateSchema(RemoteControlStateSchema):
@@ -160,22 +165,39 @@ class RemoteControlAdminStateSchema(RemoteControlStateSchema):
     display_session_active: bool = Field(default=True, alias="displaySessionActive")
 
 
+class FixedEligibleContentItemSchema(CamelModel):
+    id: UUID
+    title: str
+    content_type: Literal["photo", "video"] = Field(alias="contentType")
+    media_url: str | None = Field(default=None, alias="mediaUrl")
+    thumbnail_url: str | None = Field(default=None, alias="thumbnailUrl")
+    duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
+
+
 class RemoteControlIframeOptionsSchema(CamelModel):
     items: list[IframeSchema]
+    fixed_eligible_contents: list[FixedEligibleContentItemSchema] = Field(default_factory=list, alias="fixedEligibleContents")
 
 
 class ContentItemRequest(CamelModel):
     title: str
-    content_type: str = Field(alias="contentType")
-    source_reference: str = Field(alias="sourceReference")
+    content_type: str | None = Field(default=None, alias="contentType")
+    source_reference: str | None = Field(default=None, alias="sourceReference")
     approved_domain_id: UUID | None = Field(default=None, alias="approvedDomainId")
-    is_active: bool = Field(alias="isActive")
+    is_active: bool | None = Field(default=None, alias="isActive")
     display_order: int | None = Field(default=None, alias="displayOrder", ge=1)
     duration_seconds: int | None = Field(default=None, alias="durationSeconds", ge=1)
     rotation_animation: str | None = Field(default=None, alias="rotationAnimation")
     animation_duration_milliseconds: int | None = Field(default=None, alias="animationDurationMilliseconds", ge=1)
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
+    is_fixed: bool | None = Field(default=None, alias="isFixed")
+    recurring_every_x_iterations: int | None = Field(default=None, alias="recurringEveryXIterations", ge=1)
+
+
+class RotationEventRequest(CamelModel):
+    event_type: Literal["content_rotation_empty"] = Field(alias="eventType")
+    payload: dict = Field(default_factory=dict)
 
 
 class ReorderRequest(CamelModel):
@@ -224,6 +246,9 @@ class DisplayStateSchema(CamelModel):
     remote_control: RemoteControlStateSchema | None = Field(default=None, alias="remoteControl")
     selected_iframe: IframeSchema | None = Field(default=None, alias="selectedIframe")
     fallback_active: bool = Field(alias="fallbackActive")
+    fixed_eligible_contents: list[FixedEligibleContentItemSchema] = Field(
+        default_factory=list, alias="fixedEligibleContents"
+    )
 
 
 class DisplayEventSchema(CamelModel):
