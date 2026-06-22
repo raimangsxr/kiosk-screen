@@ -9,6 +9,8 @@ Specs that touch the remote-control surface.
 - `specs/017-event-branding/` — branding overlay integration.
 - `specs/018-content-rotation-modes/` — pause/resume/fixed + new
   navigation commands.
+- `specs/019-display-control-canonical/` — canonical anchor for
+  `display_control_state` and the four amending specs. Start here.
 
 ## Archived
 

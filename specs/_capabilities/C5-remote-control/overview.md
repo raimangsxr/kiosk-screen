@@ -62,4 +62,6 @@ for `contentMode='fixed'`.
 ## See also
 
 - `sdd-optimization/05-capability-map-from-code.md`
-- `specs/019-display-control-canonical/` (Phase 6 canonical anchor)
+- `specs/019-display-control-canonical/` — Phase 6 canonical anchor
+  for `display_control_state` and the four amendments (006, 016,
+  017, 018). Start here.

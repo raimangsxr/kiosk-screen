@@ -72,3 +72,5 @@ endpoint, the content-type autodetect, and the client-side
 
 - `sdd-optimization/05-capability-map-from-code.md`
 - `sdd-optimization/07-target-speckit-structure.md`
+- `specs/019-display-control-canonical/` — canonical anchor for
+  the cross-capability (C1 + C5) display-control narrative.
