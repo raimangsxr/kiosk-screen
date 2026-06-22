@@ -1,5 +1,7 @@
 # Feature Specification: Event Branding and Ads Section Title
 
+> Superseded by: 018-content-rotation-modes (US2 — branding overlay hidden in iframe mode). See `specs/018-content-rotation-modes/supersedes-017.md`.
+
 **Feature Branch**: `017-event-branding`
 **Spec Directory**: `specs/017-event-branding/`
 **Created**: 2026-06-20
@@ -278,3 +280,8 @@ Sub-FRs (bolded) without a one-to-one SC are covered by parent acceptance scenar
 - The new "Event configuration" admin module follows the same `display-config` UX pattern: a single form page with all fields, save button, snackbar on success, and `dirtyFormGuard` on navigation.
 - The poll interval, top-zone default duration, ad-zone default duration, and other display configuration knobs from spec 006 and its successors continue to apply unchanged, except for the moved `eventDurationMinutes` field.
 - Future-scope items (TBD, not implemented): per-event theming, multi-language branding strings, scheduled branding changes, logo upload from a URL, animated logos, separate mobile/desktop overlays, A/B test of overlay placement, multi-tenant branding, kiosk-side caching beyond the operator session.
+
+## Superseded by
+
+- `018-content-rotation-modes` (US2) — branding overlay hidden in
+  iframe mode. Detail: `specs/018-content-rotation-modes/supersedes-017.md`.
