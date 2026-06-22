@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -15,6 +16,7 @@ import { AuthService } from '../core/auth/auth.service';
 interface LoginFormValue {
   email: string;
   password: string;
+  rememberMe: boolean;
 }
 
 @Component({
@@ -28,6 +30,7 @@ interface LoginFormValue {
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatProgressSpinnerModule
   ],
@@ -86,6 +89,10 @@ interface LoginFormValue {
               </button>
               <mat-error *ngIf="form.controls.password.hasError('required')">Password is required.</mat-error>
             </mat-form-field>
+
+            <mat-checkbox formControlName="rememberMe" class="login-form__remember">
+              Recordarme (mantener la sesión iniciada durante 30 días)
+            </mat-checkbox>
 
             <p
               *ngIf="errorMessage() as message"
@@ -210,6 +217,12 @@ interface LoginFormValue {
         font: var(--mat-sys-body-medium);
         letter-spacing: var(--mat-sys-body-medium-tracking);
       }
+      .login-form__remember {
+        margin: 4px 0 0;
+        font: var(--mat-sys-body-medium);
+        letter-spacing: var(--mat-sys-body-medium-tracking);
+        color: var(--mat-sys-on-surface);
+      }
       .login-form__actions {
         padding: 8px 24px 16px;
         gap: 8px;
@@ -276,13 +289,15 @@ export class LoginComponent {
   protected readonly form: FormGroup<{
     email: FormControl<string>;
     password: FormControl<string>;
+    rememberMe: FormControl<boolean>;
   }> = this.fb.nonNullable.group({
     email: this.fb.nonNullable.control('', {
       validators: [Validators.required, Validators.email]
     }),
     password: this.fb.nonNullable.control('', {
       validators: [Validators.required]
-    })
+    }),
+    rememberMe: this.fb.nonNullable.control(false),
   });
 
   protected togglePassword(): void {
@@ -298,7 +313,13 @@ export class LoginComponent {
     this.submitting.set(true);
     const value = this.form.value as LoginFormValue;
 
-    this.auth.login({ email: value.email.trim(), password: value.password }).subscribe({
+    this.auth
+      .login({
+        email: value.email.trim(),
+        password: value.password,
+        rememberMe: value.rememberMe,
+      })
+      .subscribe({
       next: () => {
         this.submitting.set(false);
         void this.router.navigateByUrl('/hall');

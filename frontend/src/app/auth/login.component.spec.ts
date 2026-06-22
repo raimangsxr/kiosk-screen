@@ -7,7 +7,7 @@ import { provideRouter, Router } from '@angular/router';
 import { LoginComponent } from './login.component';
 
 interface TestableLoginComponent {
-  form: { setValue: (value: { email: string; password: string }) => void; invalid: boolean };
+  form: { setValue: (value: { email: string; password: string; rememberMe: boolean }) => void; invalid: boolean };
   submit: () => void;
   errorMessage: () => string | null;
 }
@@ -42,13 +42,13 @@ describe('LoginComponent', () => {
 
   it('posts credentials and marks the browser session authenticated', () => {
     const component = asTestable(fixture.componentInstance);
-    component.form.setValue({ email: 'operator@example.com', password: 'operator' });
+    component.form.setValue({ email: 'operator@example.com', password: 'operator', rememberMe: false });
 
     component.submit();
 
     const request = http.expectOne('/api/auth/login');
     expect(request.request.withCredentials).toBeTrue();
-    expect(request.request.body).toEqual({ email: 'operator@example.com', password: 'operator' });
+    expect(request.request.body).toEqual({ email: 'operator@example.com', password: 'operator', rememberMe: false });
     request.flush({ id: 'user-1', email: 'operator@example.com', displayName: 'Operator', roles: ['event_operator'] });
 
     expect(localStorage.getItem('kiosk_authenticated')).toBe('true');
@@ -57,7 +57,7 @@ describe('LoginComponent', () => {
 
   it('surfaces an error message when credentials are rejected', () => {
     const component = asTestable(fixture.componentInstance);
-    component.form.setValue({ email: 'wrong@example.com', password: 'nope' });
+    component.form.setValue({ email: 'wrong@example.com', password: 'nope', rememberMe: false });
 
     component.submit();
 

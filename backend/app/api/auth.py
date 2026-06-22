@@ -29,7 +29,11 @@ def login(payload: LoginRequest, request: Request, response: Response, session: 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     roles = list(session.scalars(select(RoleAssignment.role).where(RoleAssignment.user_id == user.id)))
-    token = create_session_token(user.id, duration_minutes=24 * 60)
+    # "Recordarme" extiende la duración de la sesión de 24h a 30 días. El
+    # backend es la fuente de verdad para la caducidad; el frontend sólo
+    # envía la intención del usuario.
+    duration_minutes = 30 * 24 * 60 if payload.remember_me else 24 * 60
+    token = create_session_token(user.id, duration_minutes=duration_minutes)
     request.app.state.auth_sessions[token.id] = user.id
     response.set_cookie(
         SESSION_COOKIE_NAME,
@@ -37,7 +41,7 @@ def login(payload: LoginRequest, request: Request, response: Response, session: 
         httponly=True,
         samesite="lax",
         secure=False,
-        max_age=24 * 60 * 60
+        max_age=duration_minutes * 60
     )
     return user_schema(CurrentUser(user, roles))
 

@@ -28,6 +28,7 @@ class MediaFileReferenceSchema(CamelModel):
 class LoginRequest(CamelModel):
     email: str
     password: str = Field(min_length=1)
+    remember_me: bool = Field(default=False, alias="rememberMe")
 
 
 class UserSchema(CamelModel):

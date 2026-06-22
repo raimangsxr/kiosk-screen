@@ -30,7 +30,11 @@ describe('AuthService', () => {
       });
 
     const request = http.expectOne('/api/auth/login');
-    expect(request.request.body).toEqual({ email: 'admin@example.com', password: 'admin' });
+    expect(request.request.body).toEqual({
+      email: 'admin@example.com',
+      password: 'admin',
+      rememberMe: false
+    });
     request.flush({
       id: 'user-1',
       email: 'admin@example.com',
