@@ -91,24 +91,7 @@ All three resolve through `frontend/karma.conf.js`.
 
 ## Governance
 
-The constitution at `.specify/memory/constitution.md` v2.0.0 supersedes
-this file for spec structure rules. Key rules:
-
-- **Supersession**: approved specs are append-only. A behavior change
-  creates a new spec with a `supersedes.md` file; the amended spec
-  gets a one-line footer.
-- **Capability boundary**: each spec names one capability via
-  frontmatter. Cross-capability changes need two specs or a
-  `bridge.md`.
-- **Size budget**: `spec.md` ≤ 250, `plan.md` ≤ 300, `tasks.md` ≤ 400,
-  `research.md` ≤ 200, `data-model.md` ≤ 200, `contracts/*.md` ≤ 150
-  lines. Over-budget artefacts carry `oversize: true` and a
-  justification block.
-- **No bundles**: a spec that bundles ≥ 2 capabilities or ≥ 5 sibling
-  specs sharing one branch is forbidden.
-- **Validation artefacts**: substantial features (≥ 3 user stories OR
-  ≥ 50 tasks) carry a `validation/` directory; slim features carry a
-  `quickstart.md`. Never both silently.
-
-See `sdd-optimization/10-future-speckit-governance.md` for the full
-rule set.
+The constitution at `.specify/memory/constitution.md` v2.0.0 governs
+spec structure (supersession, capability boundary, size budget, no
+bundles, validation artefacts). See
+`sdd-optimization/10-future-speckit-governance.md` for the full set.
