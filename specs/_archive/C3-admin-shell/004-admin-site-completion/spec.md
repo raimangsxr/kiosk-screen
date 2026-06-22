@@ -1,3 +1,11 @@
+---
+capability: C3-admin-shell
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Administration Site Completion
 
 **Feature Branch**: `006-admin-site-completion`

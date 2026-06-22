@@ -1,3 +1,11 @@
+---
+capability: C1-kiosk-display-runtime
+supersedes:
+superseded_by:
+status: in-progress
+oversize: false
+---
+
 # Feature Specification: Pre-configured Iframes and Video Plays To End
 
 **Feature Branch**: `016-preconfigured-iframes-and-video-end`

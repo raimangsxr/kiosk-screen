@@ -1,3 +1,11 @@
+---
+capability: C1-kiosk-display-runtime
+supersedes:
+superseded_by:
+status: in-progress
+oversize: false
+---
+
 # Feature Specification: Content Rotation Modes
 
 **Feature Branch**: `018-content-rotation-modes`

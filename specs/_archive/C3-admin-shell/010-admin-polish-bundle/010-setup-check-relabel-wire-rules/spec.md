@@ -1,3 +1,11 @@
+---
+capability: C4-configuration-and-setup
+supersedes:
+superseded_by:
+status: closed
+oversize: false
+---
+
 # Feature Specification: Setup Check Relabel and Wire Empty Rules
 
 **Feature Branch**: `010-admin-cleanup-and-polish`
