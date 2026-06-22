@@ -254,14 +254,17 @@ The project requires tests for changed behavior. Typical validation includes:
 
 ### Administration Refactor Validation
 
-The administration refactor is tracked under `specs/005-admin-refactor/`.
+The administration refactor is tracked under
+`specs/_archive/C3-admin-shell/005-admin-refactor/`.
 Implementation must follow the approved spec, plan, and task list. If the
 implementation conflicts with those artifacts, stop the affected work and record
-the conflict in `specs/005-admin-refactor/validation/implementation-conflicts.md`
+the conflict in
+`specs/_archive/C3-admin-shell/005-admin-refactor/validation/implementation-conflicts.md`
 before changing direction.
 
 Local validation for this refactor should record evidence in
-`specs/005-admin-refactor/validation/final-acceptance.md`, including:
+`specs/_archive/C3-admin-shell/005-admin-refactor/validation/final-acceptance.md`,
+including:
 
 - backend tests
 - frontend tests and build
