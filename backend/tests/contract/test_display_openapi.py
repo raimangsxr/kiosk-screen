@@ -1,13 +1,24 @@
-from pathlib import Path
+"""Contract test for the auth / display OpenAPI surface.
 
-import yaml
+Validates that the live FastAPI app exposes the documented
+``/auth/{login,logout,me}`` and ``/display/{open,state}`` paths.
+Detailed request/response shape validation is left to the
+integration tests.
+"""
+import pytest
+from fastapi.testclient import TestClient
 
 
-def test_auth_and_display_paths_exist_in_openapi_contract():
-    contract_path = Path(__file__).parents[3] / "specs" / "002-kiosk-screen" / "contracts" / "openapi.yaml"
-    contract = yaml.safe_load(contract_path.read_text(encoding="utf-8"))
+@pytest.fixture
+def openapi_schema(api_client: TestClient) -> dict:
+    """Return the OpenAPI document for the test app."""
+    response = api_client.get("/openapi.json")
+    assert response.status_code == 200
+    return response.json()
 
-    paths = contract["paths"]
+
+def test_auth_and_display_paths_exist_in_openapi_contract(openapi_schema: dict):
+    paths = openapi_schema["paths"]
     assert "/auth/login" in paths
     assert "/auth/me" in paths
     assert "/auth/logout" in paths

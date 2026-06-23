@@ -1,11 +1,38 @@
-from pathlib import Path
+"""Contract test for the admin / readiness / events OpenAPI surface.
 
-import yaml
+Validates that the live FastAPI app exposes the documented admin
+endpoints and that the legacy ``/approved-domains`` paths are
+absent (they were removed when the iframe entity replaced the
+approved-domains table, see spec 006).
+
+Detailed request/response shape validation is left to the
+integration tests.
+"""
+import pytest
+from fastapi.testclient import TestClient
 
 
-def test_admin_paths_exist_in_openapi_contract():
-    contract = yaml.safe_load((Path(__file__).parents[3] / "specs/002-kiosk-screen/contracts/openapi.yaml").read_text())
-    paths = contract["paths"]
+@pytest.fixture
+def openapi_schema(api_client: TestClient) -> dict:
+    """Return the OpenAPI document for the test app."""
+    response = api_client.get("/openapi.json")
+    assert response.status_code == 200
+    return response.json()
 
-    for path in ["/readiness", "/display/configuration", "/approved-domains", "/approved-domains/{domainId}", "/events", "/users", "/users/{userId}"]:
-        assert path in paths
+
+def test_admin_paths_exist_in_openapi_contract(openapi_schema: dict):
+    paths = openapi_schema["paths"]
+    for path in [
+        "/readiness",
+        "/display/configuration",
+        "/events",
+        "/users",
+        "/users/{user_id}",
+    ]:
+        assert path in paths, f"missing OpenAPI path: {path}"
+
+
+def test_approved_domains_paths_removed_from_openapi_contract(openapi_schema: dict):
+    paths = openapi_schema["paths"]
+    assert "/approved-domains" not in paths
+    assert "/approved-domains/{domainId}" not in paths
