@@ -160,8 +160,8 @@ oversize: false
   feature introduces no amendments, write "None".
 
   Each entry below produces a one-line footer in the amended spec and a
-  standalone `supersedes-<NNN>.md` file in this spec's directory. See
-  `sdd-optimization/06-spec-partitioning-issues.md` for the canonical format.
+  standalone `supersedes-<NNN>.md` file in this spec's directory. The
+  amendment is anchored by the FR listed here.
 -->
 
 - `<NNN>-<other-feature>` — `<US>` `<scenario-or-task-id>` superseded by `<US>` `<FR>`.
@@ -173,9 +173,10 @@ oversize: false
   starts empty for a new spec. As amendments land, add the amending spec's
   number and the user story.
 
-  When this block gains entries, the spec status moves to "superseded" and
-  the file should be moved to `specs/_archive/<capability>/<NNN>/` on the
-  next housekeeping PR.
+  When this block gains entries, the spec status moves to "superseded".
+  Closed features stay in their original `specs/<NNN>-<slug>/`
+  directory; the amendment trail is captured by the `## Superseded by`
+  footer and the amending spec's `## Supersedes` block.
 -->
 
 - `<NNN>-<amending-feature>` — `<US>` amended this spec's `<US>` `<scenario-or-task-id>`.

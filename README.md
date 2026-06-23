@@ -37,14 +37,19 @@ Current work is organized around the MVP plan:
 
 ## Recent Features
 
-- **Content rotation modes** (`specs/018-content-rotation-modes/`): pause/resume
-  and fixed-content modes in the remote control, recurring content with
-  cadence, fixed-content mode that pins a single item, branding overlay hidden
-  in iframe mode, and automatic image-vs-video detection by file extension on
-  the upload endpoints. See `specs/018-content-rotation-modes/spec.md`.
-- **Event branding** (`specs/017-event-branding/`): organizer logo, event
+- **Content rotation modes** (`specs/007-content-rotation-modes/`): pause /
+  resume and fixed-content modes in the remote control, recurring content
+  with cadence, fixed-content mode that pins a single item, branding
+  overlay hidden in iframe mode, and automatic image-vs-video detection
+  by file extension on the upload endpoints. See
+  `specs/007-content-rotation-modes/spec.md`.
+- **Event branding** (`specs/008-event-branding/`): organizer logo, event
   name, and event duration on `/admin/event`, with a kiosk overlay and an
   integrated "Patrocinadores del evento" label on the ad band.
+- **Display control canonical** (`specs/005-display-control-state/`):
+  three content modes (`loop | iframe | fixed`), four navigation
+  commands (`next | previous | pause | resume`), ads toggle, fullscreen
+  request, and auto-fallback when the selected target disappears.
 
 ## Local Lab Environment
 
@@ -252,19 +257,16 @@ The project requires tests for changed behavior. Typical validation includes:
 - OpenAPI contract validation
 - Alembic migration checks
 
-### Administration Refactor Validation
+### Spec-driven implementation
 
-The administration refactor is tracked under
-`specs/_archive/C3-admin-shell/005-admin-refactor/`.
-Implementation must follow the approved spec, plan, and task list. If the
-implementation conflicts with those artifacts, stop the affected work and record
-the conflict in
-`specs/_archive/C3-admin-shell/005-admin-refactor/validation/implementation-conflicts.md`
-before changing direction.
+Implementation must follow the approved spec, plan, and task list for
+the active feature (`specs/014-display-screen-runtime/` per
+`.specify/feature.json`). If the implementation conflicts with those
+artifacts, stop the affected work and update the spec, plan, or tasks
+before continuing.
 
-Local validation for this refactor should record evidence in
-`specs/_archive/C3-admin-shell/005-admin-refactor/validation/final-acceptance.md`,
-including:
+Local validation for the active feature should record evidence in the
+spec's `checklist.md`, including:
 
 - backend tests
 - frontend tests and build

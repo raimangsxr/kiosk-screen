@@ -3,7 +3,7 @@
 The refactor introduced ``backend/app/application/display/service.py`` as a
 re-export layer over ``app.services.display_service``. These tests verify
 that the facade exposes the right symbols and that the contracts documented
-in ``specs/005-admin-refactor/contracts/backend-contract.md`` for the display
+in spec 005 (``specs/005-display-control-state/spec.md``) for the display
 use case continue to hold.
 """
 

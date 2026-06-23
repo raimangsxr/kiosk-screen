@@ -1,18 +1,35 @@
-from pathlib import Path
+"""Contract test for the ads OpenAPI surface (spec 009 US3).
 
-import yaml
+Validates that the live FastAPI app exposes the documented
+``/ads`` paths and that the legacy ``/clients`` paths are
+absent (the ``Client`` entity was hard-deleted, see spec 009's
+``## Supersedes`` block and migration ``0007``).
+
+Detailed request/response shape validation is left to the
+integration tests.
+"""
+import pytest
+from fastapi.testclient import TestClient
 
 
-def test_ads_paths_exist_in_openapi_contract():
-    contract = yaml.safe_load((Path(__file__).parents[3] / "specs/002-kiosk-screen/contracts/openapi.yaml").read_text())
+@pytest.fixture
+def openapi_schema(api_client: TestClient) -> dict:
+    """Return the OpenAPI document for the test app."""
+    response = api_client.get("/openapi.json")
+    assert response.status_code == 200
+    return response.json()
 
-    assert "/ads" in contract["paths"]
-    assert "/ads/{adId}" in contract["paths"]
-    assert "AdItemRequest" in contract["components"]["schemas"]
+
+def test_ads_paths_exist_in_openapi_contract(openapi_schema: dict):
+    paths = openapi_schema["paths"]
+    assert "/ads" in paths
+    assert "/ads/{ad_id}" in paths
+    assert "/ads/upload" in paths
+    assert "/ads/reorder" in paths
+    assert "AdItemRequest" in openapi_schema["components"]["schemas"]
 
 
-def test_clients_paths_removed_from_openapi_contract():
-    contract = yaml.safe_load((Path(__file__).parents[3] / "specs/002-kiosk-screen/contracts/openapi.yaml").read_text())
-
-    assert "/clients" not in contract["paths"]
-    assert "/clients/{clientId}" not in contract["paths"]
+def test_clients_paths_removed_from_openapi_contract(openapi_schema: dict):
+    paths = openapi_schema["paths"]
+    assert "/clients" not in paths
+    assert "/clients/{clientId}" not in paths
