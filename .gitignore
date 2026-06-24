@@ -35,3 +35,4 @@ htmlcov/
 var/media/
 backend/var/media/
 uploads/
+._*

@@ -22,8 +22,7 @@ The MVP is planned as:
 
 ## Repository Status
 
-The repository follows a spec-driven workflow. Design artifacts live under
-`.specify/` and the feature specification task list drives implementation.
+The repository follows a spec-driven workflow. Design artifacts live under `.specify/` and `specs/`. The SDD model is contract-centric: `specs/manifest.yml` is the entrypoint, active contracts live under `specs/contracts/**/contract.md`, and incremental feature history lives under `specs/changes/**`.
 
 Current work is organized around the MVP plan:
 
@@ -37,19 +36,32 @@ Current work is organized around the MVP plan:
 
 ## Recent Features
 
-- **Content rotation modes** (`specs/007-content-rotation-modes/`): pause /
+- **Content rotation modes** (`specs/changes/007-content-rotation-modes/`): pause /
   resume and fixed-content modes in the remote control, recurring content
   with cadence, fixed-content mode that pins a single item, branding
   overlay hidden in iframe mode, and automatic image-vs-video detection
   by file extension on the upload endpoints. See
-  `specs/007-content-rotation-modes/spec.md`.
-- **Event branding** (`specs/008-event-branding/`): organizer logo, event
+  `specs/changes/007-content-rotation-modes/spec.md`.
+- **Event branding** (`specs/changes/008-event-branding/`): organizer logo, event
   name, and event duration on `/admin/event`, with a kiosk overlay and an
   integrated "Patrocinadores del evento" label on the ad band.
-- **Display control canonical** (`specs/005-display-control-state/`):
+- **Display control canonical** (`specs/changes/005-display-control-state/`):
   three content modes (`loop | iframe | fixed`), four navigation
   commands (`next | previous | pause | resume`), ads toggle, fullscreen
   request, and auto-fallback when the selected target disappears.
+
+
+## SDD Governance
+
+The repository now uses a token-aware SDD structure:
+
+- `specs/manifest.yml` is the mandatory entrypoint for agents.
+- `specs/contracts/**/contract.md` contains active living contracts and is the source of truth for current behavior.
+- `specs/changes/**` contains proposed, in-progress, implemented, or consolidated feature/change specs.
+- `docs/adr/**` contains durable technical decisions.
+- Active changes should include a `context-pack.md` to limit mandatory context.
+
+Do not use consolidated change specs as the default source of truth. Start from the manifest and the affected contract.
 
 ## Local Lab Environment
 
@@ -260,12 +272,9 @@ The project requires tests for changed behavior. Typical validation includes:
 ### Spec-driven implementation
 
 Implementation must follow the approved spec, plan, and task list for
-the active feature (`specs/014-display-screen-runtime/` per
-`.specify/feature.json`). If the implementation conflicts with those
-artifacts, stop the affected work and update the spec, plan, or tasks
-before continuing.
+the active change (`specs/changes/019-display-responsive-runtime/` per `.specify/feature.json`), the affected active contract (`specs/contracts/display-runtime/contract.md`), and the context pack for the change. If the implementation conflicts with those artifacts, stop the affected work and update the contract, spec, plan, or tasks before continuing.
 
-Local validation for the active feature should record evidence in the
+Local validation for the active change should record evidence in the
 spec's `checklist.md`, including:
 
 - backend tests

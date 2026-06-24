@@ -1,0 +1,63 @@
+---
+id: READINESS.SETUP
+type: contract
+status: active
+source_of_truth: true
+owns:
+  - backend/app/domain/readiness.py
+  - backend/app/application/readiness/**
+  - backend/app/api/readiness.py
+  - backend/app/api/v1/readiness/**
+  - frontend/src/app/features/readiness/**
+  - frontend/src/app/features/dashboard/**
+  - frontend/src/app/features/hall/**
+tests:
+  - backend/tests/**/*
+  - frontend/src/app/**/*.spec.ts
+related_changes:
+  - CHG-011
+related_adrs:
+  []
+---
+
+# Readiness and Setup Check Contract
+
+## Purpose
+
+This active contract is the current source of truth for `READINESS.SETUP`. Historical feature specs remain under `specs/changes/` and must be read only when the manifest or a context pack marks them as relevant.
+
+## Current behavior
+
+- Readiness evaluation reports blockers and warnings before a live display is opened.
+- Open kiosk is blocked when readiness is red and allowed when blockers are resolved.
+- Checks cover enabled configuration, available content, available ads, timing values, and event setup as applicable.
+- The admin dashboard and readiness page surface actionable status without exposing internal errors.
+- Readiness logic is testable independently from the UI.
+
+## Public interfaces
+
+- `GET /readiness`
+
+## Owned code paths
+
+- `backend/app/domain/readiness.py`
+- `backend/app/application/readiness/**`
+- `backend/app/api/readiness.py`
+- `backend/app/api/v1/readiness/**`
+- `frontend/src/app/features/readiness/**`
+- `frontend/src/app/features/dashboard/**`
+- `frontend/src/app/features/hall/**`
+
+## Quality gates
+
+- Changed behavior must be covered by automated tests or an explicit manual validation task with rationale.
+- The manifest entry for this contract must be updated when owned paths or related changes move.
+- Durable technical rationale belongs in `docs/adr/`, not only in feature `plan.md` files.
+
+## Non-goals
+
+- Hardware health monitoring is outside scope.
+
+## Change history
+
+- CHG-011
