@@ -314,7 +314,7 @@ overlapping each other.
   of every other figure; no ad image is clipped by its figure.
 - **SC-005**: When the polled `configuration.topRegionRatio=3` and
   `bottomRegionRatio=1`, the top region height at 1920×1080 is
-  1620 px and the ad band height is 540 px (within ±1 px).
+  810 px and the ad band height is 270 px (within ±1 px).
 
 ## Assumptions
 

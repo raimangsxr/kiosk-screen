@@ -55,16 +55,18 @@
 
 ## Decision: Container queries for the ad band
 
-- **Decision**: Add `container-type: inline-size` on
-  `.display-screen` and use `@container` to adjust the ad-band grid
-  when the inline size shrinks below 900 px.
-- **Rationale**: The ad band is a sub-component whose size depends
-  on the parent viewport, not on the document. Container queries
-  (Chromium 105+, Sep 2022) are the right tool.
+- **Decision**: Container queries are **not** used in this spec.
+  The primary targets are fixed landscape viewports (≥ 1280×720)
+  where a single ad-band grid works without per-size overrides.
+- **Rationale**: keeping the ad band layout viewport-driven keeps
+  the CSS minimal and matches the user's selected target (Chromium
+  desktop + kiosk landscape only). Container queries can be added
+  in a follow-up spec if a phone-sized or split-view layout is ever
+  required.
 - **Alternatives considered**:
-  - `@media` queries: would couple the ad-band layout to the
-    browser viewport instead of the parent container; couples the
-    layout to the wrong source of truth.
+  - `@media` queries on the document width: rejected because the
+    ad-band size is determined by the parent container's grid
+    rows, not the document width.
 
 ## Decision: `matchMedia('(orientation: portrait)')` for portrait detection
 

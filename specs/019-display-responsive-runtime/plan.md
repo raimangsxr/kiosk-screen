@@ -132,7 +132,7 @@ directories, no new routes.
    - Replace fixed `px` font sizes and heights with `clamp()`
      driven by `vh` / `vw`.
    - Apply `aspect-ratio` to `.ad-region__item`.
-   - Apply `container-type: inline-size` to `.display-screen`.
+   - (No container queries in this spec; see research.md.)
    - Scope `object-fit: cover` to `.display-content-media` only.
    - Move the `branding-overlay` class onto the container `<div>`.
 5. Add Karma specs:

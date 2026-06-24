@@ -49,9 +49,11 @@ property hook.
 - [ ] T002 [P] Add an orientation `signal<'landscape' | 'portrait'>`
       and a `matchMedia('(orientation: portrait)')` listener in
       `frontend/src/app/display/display-screen.component.ts`,
-      with safe `addEventListener('change', ...)` registration
-      in `ngOnInit` and cleanup in `ngOnDestroy`; guard against
-      environments where `matchMedia` is undefined.
+      retain the `MediaQueryList` handle as a private field for
+      cleanup, register `addEventListener('change', ...)` in
+      `ngOnInit`, and remove the listener in `ngOnDestroy`;
+      guard against environments where `matchMedia` is
+      undefined.
 - [ ] T003 [P] Bind CSS custom properties on the host element in
       `frontend/src/app/display/display-screen.component.ts`:
       `[style.--top-ratio]="(state?.configuration?.topRegionRatio ?? 5)"`
@@ -74,6 +76,9 @@ horizontal scroll bar is present.
       `100vh` in
       `frontend/src/app/display/display-screen.component.css`
       (selector `.display-screen`).
+- [ ] T004a [P] [US1] Remove `overflow: hidden` from `.display-screen`
+      in `frontend/src/app/display/display-screen.component.css`
+      and re-scope it to `.ad-region__item` only (per FR-010).
 - [ ] T005 [US1] Replace every fixed `px` font-size and height in
       `frontend/src/app/display/display-screen.component.css`
       with `clamp(min, vh or vw, max)` covering the `.ad-region`,
@@ -88,6 +93,12 @@ horizontal scroll bar is present.
       within ±1 px and the ad band height matches
       `Math.round(viewport.height × 1 / 6)` within ±1 px, and
       no horizontal scroll bar is present.
+- [ ] T006a [P] [US1] Karma spec for SC-002 in
+      `frontend/src/app/display/display-screen.component.spec.ts`:
+      assert that at 1280×720 the computed `font-size` of
+      `.ad-region__title`, `.branding-overlay`, and `.fallback`
+      is ≥ 14 px, and that no text inside the ad band or the
+      branding overlay is clipped by its container.
 
 ## Phase 4: User Story 2 — Portrait rotation prompt (Priority: P1)
 
@@ -105,7 +116,10 @@ top region / ad band are absent from the DOM.
       a `<div class="rotate-device" role="status"
       aria-live="polite">Por favor, rota el dispositivo</div>`
       rendered when the orientation signal is `portrait`, and
-      hide the existing regions when portrait is active.
+      hide the existing regions when portrait is active via
+      CSS `display: none` on `.top-region`, `.ad-region`, and
+      the branding overlay (regions remain in the DOM, no
+      Angular churn).
 - [ ] T008 [US2] Karma spec for SC-003 in
       `frontend/src/app/display/display-screen.component.spec.ts`:
       mock `matchMedia` to flip orientation, assert the prompt
@@ -127,7 +141,7 @@ ad band is 540 px tall at 1920×1080.
       `frontend/src/app/display/display-screen.component.spec.ts`:
       with the polled configuration `topRegionRatio=3,
       bottomRegionRatio=1`, at 1920×1080 the top region height
-      is `Math.round(1080 × 3 / 4)` (1620) within ±1 px and the
+      is `Math.round(1080 × 3 / 4)` (810) within ±1 px and the
       ad band height is `Math.round(1080 × 1 / 4)` (270) within
       ±1 px.
 
@@ -195,6 +209,13 @@ overlapping each other.
       `prefers-reduced-motion` continues to neutralise CSS
       animations (regression check against
       `frontend/src/styles.scss` line ~159).
+- [ ] T015a [P] Confirm that the only files touched by this spec
+      are `frontend/src/app/display/display-screen.component.ts`,
+      `frontend/src/app/display/display-screen.component.css`,
+      and `frontend/src/app/display/display-screen.component.spec.ts`
+      (per FR-007). The controller, the rotation service, the
+      cross-tab sync, the branding service, and the display API
+      remain unchanged.
 - [ ] T016 Run `npm --prefix frontend run build` and confirm it
       exits zero.
 - [ ] T017 Run `npm --prefix frontend run test` and confirm it
