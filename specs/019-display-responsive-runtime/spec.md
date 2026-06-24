@@ -3,8 +3,17 @@ capability: C19-display-responsive-runtime
 supersedes:
 superseded_by:
 status: draft
-oversize: false
+oversize: true
 ---
+
+## Oversize justification
+
+`spec.md` is 333 lines (limit 250) because the five user stories
+each carry measurable acceptance scenarios and explicit viewport
+sizes. The detail is required to make SC-001..SC-005 testable in
+Karma at fixed viewports without ambiguity; collapsing the
+scenarios would shift the precision into the implementation plan,
+which is the wrong layer for testable assertions.
 
 # Feature Specification: Display Responsive Runtime
 
