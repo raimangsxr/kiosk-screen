@@ -143,8 +143,9 @@ class RemoteControlStateSchema(CamelModel):
     selected_fixed_content_id: UUID | None = Field(default=None, alias="selectedFixedContentId")
     ads_visible: bool = Field(alias="adsVisible")
     fullscreen_requested: bool = Field(default=False, alias="fullscreenRequested")
-    navigation_command: Literal["next", "previous", "pause", "resume", ""] | None = Field(default=None, alias="navigationCommand")
+    navigation_command: Literal["next", "previous", "pause", "resume", "jump_to", ""] | None = Field(default=None, alias="navigationCommand")
     navigation_command_id: UUID | None = Field(default=None, alias="navigationCommandId")
+    jump_to_content_id: UUID | None = Field(default=None, alias="jumpToContentId")
     updated_at: datetime = Field(alias="updatedAt")
 
 
@@ -157,7 +158,8 @@ class RemoteControlStateRequest(CamelModel):
 
 
 class RemoteControlNavigationRequest(CamelModel):
-    command: Literal["next", "previous", "pause", "resume"]
+    command: Literal["next", "previous", "pause", "resume", "jump_to"]
+    target_content_id: UUID | None = Field(default=None, alias="targetContentId")
 
 
 class RemoteControlAdminStateSchema(RemoteControlStateSchema):

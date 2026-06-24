@@ -54,16 +54,21 @@ restarts the video.
 A `content_manager` creates a content with
 `recurringEveryXIterations=N` (N ≥ 1). On the kiosk, that content
 appears every N iterations of the regular rotation queue. The
-cadence counter is preserved on mode transitions and on
-pause/resume; the counter is lost only on a full kiosk page
-reload.
+recurring content is shown in place of the next regular advance
+(its `effectiveDurationSeconds` decides how long it stays on
+screen) and the cadence counter resets to 0 after the recurring
+item has been displayed. The cadence counter is preserved on
+mode transitions and on pause/resume; the counter is lost only
+on a full kiosk page reload.
 
 **Why this priority**: surfaces event sponsors or recurring
 reminders without disrupting the main rotation.
 
 **Independent Test**: 1 recurring at cadence 3 + 4 regular; the
 kiosk shows the recurring item at positions 4, 8, 12, 16 of a 16
-advance run.
+advance run. The cadence counter is `0, 1, 2, (recurring), 0,
+1, 2, (recurring), 0, 1, 2, (recurring), 0, 1, 2, (recurring)`
+across the 16 advances.
 
 **Acceptance Scenarios**:
 
@@ -80,22 +85,45 @@ advance run.
 4. **Given** `recurringEveryXIterations=0`, **When** POST
    `/content` is called, **Then** the response is 400 (CHECK
    `recurring_every_x_iterations >= 1`).
+5. **Given** the kiosk in `loop` with cadence counter 0, **When**
+   the controller advances the cursor three times, **Then** the
+   next advance (the 4th) shows the recurring content instead of
+   the next regular item and the cadence counter is reset to 0.
+6. **Given** the kiosk in `loop` with the recurring content
+   currently displayed, **When** the operator clicks "Next",
+   **Then** the controller advances to the next regular item (in
+   display order) and the cadence counter starts at 1.
+7. **Given** the recurring content is a video, **When** it is
+   displayed, **Then** the kiosk waits for `<video> ended` (or
+   `effectiveDurationSeconds` for photos) before advancing, and
+   the cadence counter is reset only after the recurring content
+   has actually been shown.
+8. **Given** the kiosk in `loop` at cadence counter 2, **When**
+   the operator issues `jump_to` (spec 005 addendum), **Then** the
+   cadence counter is reset to 0 and the cursor lands on the
+   target content; the next advance is the first of the new
+   cadence cycle.
 
 ### User Story 3 — Pause and resume the rotation (Priority: P1)
 
 The operator clicks "Pause" on the remote control. The kiosk
-freezes the content timer (and the ad-band timer, which is
-orthogonal to the content mode). On "Resume", both timers re-arm
-at their next scheduled tick. Pause is only valid in
-`contentMode='loop'`; issuing it in `iframe` or `fixed` returns
-400.
+freezes **only the content rotation timer** (the top region);
+the ad-band timer keeps rotating independently, as it already
+does in `iframe` and `fixed` modes (per spec 014 US2). On
+"Resume", the content timer re-arms at its next scheduled tick.
+Pause is only valid in `contentMode='loop'`; issuing it in
+`iframe` or `fixed` returns 400.
 
-**Why this priority**: lets the operator freeze the screen for an
-on-stage announcement or a sponsor pitch.
+**Why this priority**: lets the operator freeze the on-screen
+content for an on-stage announcement or a sponsor pitch without
+also freezing the sponsor ad band — the ad band is the sponsor
+revenue surface and must keep its cadence regardless of the
+content mode or pause state.
 
-**Independent Test**: in `loop` mode, send `pause`; the kiosk
-stops advancing for 30 s; send `resume`; the kiosk resumes from
-where it was.
+**Independent Test**: in `loop` mode with 3 ads at 10 s cadence,
+send `pause`; the content stays on the current item for 30 s
+while the ad index keeps advancing 0 → 1 → 2 → 0; send `resume`;
+the kiosk advances the content from where it was.
 
 **Acceptance Scenarios**:
 
@@ -103,13 +131,20 @@ where it was.
    `command='pause'` is called, **Then** the response is 200 and
    a `display_control_paused` event is recorded.
 2. **Given** the kiosk paused, **When** 30 s elapse with no resume,
-   **Then** the kiosk remains on the current item.
+   **Then** the kiosk remains on the current content item while
+   the ad band keeps rotating.
 3. **Given** `contentMode='loop'` and a paused state, **When**
    `command='resume'` is called, **Then** the response is 200 and
-   a `display_control_resumed` event is recorded.
+   a `display_control_resumed` event is recorded; the content
+   timer re-arms and the next advance fires at the original
+   cadence.
 4. **Given** `contentMode='iframe'`, **When** `command='pause'` is
    called, **Then** the response is 400 (already enforced by
    spec 005).
+5. **Given** a paused state, **When** the operator changes
+   `contentMode` (e.g. enters `iframe`), **Then** the local pause
+   flag is discarded on the next state poll (the kiosk resumes
+   its content timer when the operator returns to `loop`).
 
 ### User Story 4 — Empty queue debounce and audit (Priority: P2)
 
@@ -175,9 +210,24 @@ second POST is suppressed by the 60 s debounce.
   `recurring_every_x_iterations != null` MUST be rejected with
   400 (the admin form surfaces a "mutual exclusion" hint per
   spec 009).
-- **FR-008**: The kiosk controller MUST pause both the content
-  timer and the ad-band timer on `pause`; `resume` MUST re-arm
-  both timers at the next scheduled tick.
+- **FR-008**: The kiosk controller MUST pause **only the content
+  timer** on `pause`; the ad-band timer MUST keep rotating on its
+  own cadence (the ad band is the sponsor revenue surface and is
+  orthogonal to the content pause flag). `resume` MUST re-arm
+  the content timer at the next scheduled tick.
+- **FR-008a**: The kiosk controller MUST honor
+  `recurring_every_x_iterations` for every active top content
+  item. After every N advances of the regular rotation queue
+  (where N is the smallest positive `recurring_every_x_iterations`
+  across the active recurring items, or the only one if there is
+  just one), the controller MUST show the recurring content in
+  place of the next regular advance, reset the cadence counter
+  to 0, and continue the regular loop from there. The recurring
+  content's `effectiveDurationSeconds` decides how long it stays
+  on screen. If multiple recurring items exist, exactly one is
+  chosen per cadence cycle (the one with the smallest
+  `recurring_every_x_iterations`); a recurring item with the same
+  cadence is rotated in display order.
 - **FR-009**: The kiosk controller MUST debounce empty-queue
   reports to once per 60 s.
 - **FR-010**: The system MUST expose
@@ -222,3 +272,32 @@ None.
 ## Superseded by
 
 None yet.
+
+## Addendum — Pause scope correction & recurring implementation
+
+This addendum tightens two behaviours the original spec left
+ambiguous and that the live kiosk did not honour:
+
+1. **Pause scope**: spec 007 US3 / FR-008 originally said that
+   `pause` freezes both the content timer **and** the ad-band
+   timer. That coupling was wrong — the ad band is the sponsor
+   revenue surface and must keep its cadence regardless of the
+   content pause flag. The corrected wording (per US3 / FR-008
+   above) restricts `pause` to the content timer only; the ad
+   timer keeps rotating on its own cadence as it already does in
+   `iframe` and `fixed` modes (spec 014 US2). FR-008 was
+   re-stated accordingly.
+
+2. **Recurring implementation**: spec 007 US2 described the
+   recurring behaviour at the data level
+   (`recurring_every_x_iterations`, mutual exclusion with
+   `is_fixed`) and at the kiosk acceptance level (SC-002: "A
+   recurring content at cadence N appears exactly every N
+   advances in a 4N-advance window") but the original controller
+   never consulted `recurring_every_x_iterations` when picking
+   the next item. This addendum adds FR-008a which makes the
+   kiosk controller honour the cadence counter and surface the
+   recurring content in place of the next regular advance. The
+   `DisplayRotationService` `pickNext(...)` helper is the
+   integration point (spec 014 addendum 2 names the public
+   surface).

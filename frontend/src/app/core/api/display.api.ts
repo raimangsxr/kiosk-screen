@@ -36,6 +36,8 @@ export interface DisplayContentItem {
   effectiveDurationSeconds?: number | null;
   effectiveRotationAnimation?: RotationAnimation | null;
   effectiveAnimationDurationMilliseconds?: number | null;
+  isFixed?: boolean;
+  recurringEveryXIterations?: number | null;
 }
 
 export interface DisplayAdItem {
@@ -59,8 +61,9 @@ export interface DisplayRemoteControlState {
   selectedFixedContentId?: string | null;
   adsVisible: boolean;
   fullscreenRequested?: boolean;
-  navigationCommand?: 'next' | 'previous' | 'pause' | 'resume' | null;
+  navigationCommand?: 'next' | 'previous' | 'pause' | 'resume' | 'jump_to' | null;
   navigationCommandId?: string | null;
+  jumpToContentId?: string | null;
   updatedAt: string;
 }
 
@@ -104,19 +107,20 @@ export class DisplayApiService {
   }
 }
 
-function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState): boolean {
+export function equalByDisplayFingerprint(prev: DisplayState | null, curr: DisplayState): boolean {
   if (prev === null) {
     return false;
   }
   return (
-    sameIdsAndOrder(prev.topContent, curr.topContent) &&
-    sameIdsAndOrder(prev.ads, curr.ads) &&
+    sameTopContentState(prev.topContent, curr.topContent) &&
+    sameAdsState(prev.ads, curr.ads) &&
     sameDisplayConfiguration(prev.configuration, curr.configuration) &&
     prev.remoteControl?.selectedIframeId === curr.remoteControl?.selectedIframeId &&
     prev.remoteControl?.selectedFixedContentId === curr.remoteControl?.selectedFixedContentId &&
     prev.remoteControl?.adsVisible === curr.remoteControl?.adsVisible &&
     prev.remoteControl?.fullscreenRequested === curr.remoteControl?.fullscreenRequested &&
     prev.remoteControl?.navigationCommandId === curr.remoteControl?.navigationCommandId &&
+    prev.remoteControl?.jumpToContentId === curr.remoteControl?.jumpToContentId &&
     prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
   );
@@ -144,15 +148,60 @@ function sameDisplayConfiguration(
   );
 }
 
-function sameIdsAndOrder<T extends { id: string; displayOrder: number }>(
-  prev: readonly T[],
-  curr: readonly T[],
+/**
+ * Compare two `topContent` queues for equality of the fields that the
+ * kiosk runtime actually depends on. Spec 014 addendum 2: when the
+ * admin updates a content's `recurringEveryXIterations`, `isFixed`,
+ * or `isActive`, the kiosk MUST reflect the change on the next poll
+ * without the operator refreshing the browser. The previous
+ * fingerprint (`sameIdsAndOrder`) only checked id and displayOrder
+ * and silently filtered those edits out of the polling stream; this
+ * version adds the three cadence-related fields the rotation
+ * controller reads.
+ */
+function sameTopContentState(
+  prev: readonly DisplayContentItem[],
+  curr: readonly DisplayContentItem[],
 ): boolean {
   if (prev.length !== curr.length) {
     return false;
   }
   for (let i = 0; i < prev.length; i++) {
-    if (prev[i].id !== curr[i].id || prev[i].displayOrder !== curr[i].displayOrder) {
+    const p = prev[i];
+    const c = curr[i];
+    if (
+      p.id !== c.id ||
+      p.displayOrder !== c.displayOrder ||
+      p.isActive !== c.isActive ||
+      (p.isFixed ?? false) !== (c.isFixed ?? false) ||
+      (p.recurringEveryXIterations ?? null) !== (c.recurringEveryXIterations ?? null)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Compare two `ads` queues for equality of the fields the kiosk
+ * runtime depends on. The active flag matters because a deactivated
+ * ad must immediately disappear from the bottom band.
+ */
+function sameAdsState(
+  prev: readonly DisplayAdItem[],
+  curr: readonly DisplayAdItem[],
+): boolean {
+  if (prev.length !== curr.length) {
+    return false;
+  }
+  for (let i = 0; i < prev.length; i++) {
+    const p = prev[i];
+    const c = curr[i];
+    if (
+      p.id !== c.id ||
+      p.displayOrder !== c.displayOrder ||
+      p.isActive !== c.isActive
+    ) {
       return false;
     }
   }

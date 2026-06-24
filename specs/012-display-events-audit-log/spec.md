@@ -132,6 +132,8 @@ confirm the `api_key_changed` row with
 | `remote_control_ads_visibility_changed` | info | `display_control_state` | `backend/app/application/display_control/service.py:155` | 005 |
 | `remote_control_fullscreen_changed` | info | `display_control_state` | `backend/app/application/display_control/service.py:163` | 005 |
 | `remote_control_navigation_changed` | info | `display_control_state` | `backend/app/application/display_control/service.py:247` | 005 |
+| `remote_control_jump_to` | info | `display_control_state` | `backend/app/application/display_control/service.py:_issue_jump_to` | 005 |
+| `remote_control_invalid_jump_to` | warning | `display_control_state` | `backend/app/application/display_control/service.py:_issue_jump_to` | 005 |
 | `content_type_autodetected` | info | `top_content_item` | `backend/app/services/content_service.py:125` | 007, 009 |
 | `display_control_paused` | info | `display_control_state` | `backend/app/application/display_control/service.py:237` | 007 |
 | `display_control_resumed` | info | `display_control_state` | `backend/app/application/display_control/service.py:237` | 007 |

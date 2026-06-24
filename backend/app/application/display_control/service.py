@@ -12,7 +12,7 @@ from app.repositories.models.operator_session import OperatorSession
 
 
 ALLOWED_CONTENT_MODES = {"loop", "iframe", "fixed"}
-ALLOWED_NAVIGATION_COMMANDS = {"next", "previous", "pause", "resume"}
+ALLOWED_NAVIGATION_COMMANDS = {"next", "previous", "pause", "resume", "jump_to"}
 
 
 class DisplayControlService:
@@ -219,15 +219,23 @@ class DisplayControlService:
         user_id: str,
         *,
         command: str,
+        target_content_id: str | None = None,
     ) -> DisplayControlState:
-        # FR-010 / FR-012: pause and resume are accepted alongside next/previous.
+        # FR-010 / FR-012 / spec 005 addendum: pause, resume, jump_to alongside next/previous.
         if command not in ALLOWED_NAVIGATION_COMMANDS:
-            raise ValueError("Navigation command must be next, previous, pause, or resume.")
+            raise ValueError("Navigation command must be next, previous, pause, resume, or jump_to.")
         state = self.get_state_for_active_session(organization_id)
+        if command == "jump_to":
+            return self._issue_jump_to(state, organization_id, user_id, target_content_id)
+
         if state.content_mode != "loop":
             if command in {"pause", "resume"}:
                 raise ValueError("Pause/Resume solo es válido en modo rotación.")
             raise ValueError("Navigation commands require rotation mode.")
+
+        # Any non-jump_to command clears the cursor target so the kiosk does not
+        # re-apply a stale `jump_to` after the operator moved on.
+        state.jump_to_content_id = None
 
         state.navigation_command = command
         state.navigation_command_id = str(uuid4())
@@ -248,6 +256,75 @@ class DisplayControlService:
                 "Remote control navigation command changed",
                 metadata={"command": command, "commandId": state.navigation_command_id},
             )
+        self.session.commit()
+        return state
+
+    def _issue_jump_to(
+        self,
+        state: DisplayControlState,
+        organization_id: str,
+        user_id: str,
+        target_content_id: str | None,
+    ) -> DisplayControlState:
+        if state.content_mode != "loop":
+            self._record(
+                organization_id,
+                user_id,
+                "remote_control_invalid_jump_to",
+                "Jump-to requires rotation mode.",
+                severity="warning",
+                metadata={"contentMode": state.content_mode, "targetContentId": target_content_id},
+            )
+            self.session.commit()
+            raise ValueError("Jump-to requires rotation mode.")
+        if target_content_id is None:
+            self._record(
+                organization_id,
+                user_id,
+                "remote_control_invalid_jump_to",
+                "Jump-to requires a target content id.",
+                severity="warning",
+            )
+            self.session.commit()
+            raise ValueError("Jump-to requires a target content id.")
+        target = self._fixed_content(organization_id, target_content_id)
+        if target is None or not target.is_active:
+            self._record(
+                organization_id,
+                user_id,
+                "remote_control_invalid_jump_to",
+                "Selected content is not available.",
+                severity="warning",
+                metadata={"targetContentId": target_content_id},
+            )
+            self.session.commit()
+            raise ValueError("Selected content is not available.")
+        if target.is_fixed:
+            self._record(
+                organization_id,
+                user_id,
+                "remote_control_invalid_jump_to",
+                "Fixed content cannot be a jump target.",
+                severity="warning",
+                metadata={"targetContentId": target_content_id},
+            )
+            self.session.commit()
+            raise ValueError("Fixed content cannot be a jump target.")
+
+        state.navigation_command = "jump_to"
+        state.navigation_command_id = str(uuid4())
+        state.jump_to_content_id = target_content_id
+        state.updated_by_user_id = user_id
+        self._record(
+            organization_id,
+            user_id,
+            "remote_control_jump_to",
+            "Remote control jump-to navigation command issued",
+            metadata={
+                "targetContentId": target_content_id,
+                "commandId": state.navigation_command_id,
+            },
+        )
         self.session.commit()
         return state
 

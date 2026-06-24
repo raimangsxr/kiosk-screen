@@ -193,3 +193,86 @@ surface.
 - `004-api-keys-and-public-content-upload` consumes the public
   upload endpoint (silent ignore of `is_fixed` /
   `recurring_every_x_iterations`).
+- This addendum adds the thumbnail column to the admin Content
+  and Ads lists; see "Addendum — Thumbnails in admin lists"
+  below.
+
+## Addendum — Thumbnails in admin lists
+
+The admin Content and Ads lists gain a small thumbnail column
+so operators can visually identify items at a glance. Photos
+show the actual image; videos show the first frame (using the
+same media URL the kiosk uses); ads without an uploaded file
+show a placeholder icon.
+
+### User Story 4 — Visual identification in admin lists (Priority: P2)
+
+A `content_manager` opens `/admin/content` and sees a thumbnail
+column on the left of each row: the actual photo / video frame
+for items that were uploaded via the media upload flow, or a
+generic placeholder icon for items that reference an external
+URL (`source_reference`). The same column appears on
+`/admin/ads` for `advertising_manager`s. The thumbnail is a
+fixed-size, lazy-loaded image (or `<video>` preview frame for
+videos), rendered with `object-fit: cover` so the column has a
+consistent width regardless of the source aspect ratio.
+
+**Why this priority**: lets operators scan long content /
+ad queues without opening each item; reduces misclicks on the
+"Edit" / "Delete" actions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a content item uploaded via `POST /content/upload`
+   with a `.jpg`, **When** the operator opens `/admin/content`,
+   **Then** the thumbnail column shows the image
+   (`mediaFile.mediaUrl`) at 64×64 px with `object-fit: cover`.
+2. **Given** a content item with an external
+   `source_reference` URL (no `mediaFile`), **When** the operator
+   opens `/admin/content`, **Then** the thumbnail column shows a
+   generic `photo` / `videocam` Material icon.
+3. **Given** a video content item, **When** the operator opens
+   `/admin/content`, **Then** the thumbnail is the video's first
+   frame (rendered via a `<video preload="metadata" muted>` or
+   the same `<img>` URL fallback if the browser cannot decode
+   the video metadata).
+4. **Given** an ad item uploaded via `POST /ads/upload`, **When**
+   the operator opens `/admin/ads`, **Then** the thumbnail
+   column shows the image at 64×64 px.
+5. **Given** a long list (50+ items), **When** the operator
+   scrolls, **Then** off-screen thumbnails use `loading="lazy"`
+   so the initial render stays under 1 s on a 3G connection.
+
+### New Functional Requirements
+
+- **FR-011**: The content list at `/admin/content` MUST render a
+  thumbnail column to the left of the "Order" column; the cell
+  shows `mediaFile.mediaUrl` as an `<img loading="lazy">` at a
+  fixed width of 64×64 px with `object-fit: cover`. When
+  `mediaFile` is null the cell shows a Material icon
+  (`photo` for `contentType='photo'`, `videocam` for
+  `contentType='video'`).
+- **FR-012**: The ad list at `/admin/ads` MUST render the same
+  thumbnail column for `mediaFile.mediaUrl`; ads without a
+  `mediaFile` show a generic `image` Material icon.
+- **FR-013**: The `<img>` elements MUST carry `alt=""` (the
+  thumbnail is decorative; the row's title carries the
+  accessible name) and `loading="lazy"` so off-screen rows do
+  not block the initial paint.
+- **FR-014**: The card view (mobile / narrow viewport) MUST show
+  the thumbnail at the top of each card with the same
+  `object-fit: cover` styling.
+
+### Behavioural Notes
+
+- The thumbnail URL is the existing
+  `mediaFile.mediaUrl` (which is the `public_reference` of the
+  uploaded media file, per spec 003). No new backend columns or
+  endpoints are required for the thumbnail itself — the data is
+  already on `ContentItemSchema.mediaFile.mediaUrl` /
+  `AdItemSchema.mediaFile.mediaUrl`.
+- The Content list also gains a "Show on screen now" action
+  button that issues a `jump_to` navigation command (per spec
+  005 addendum). This is co-located with the thumbnail so the
+  operator can both identify the item and trigger it in one
+  glance.

@@ -1,5 +1,7 @@
 import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -31,7 +33,12 @@ describe('ContentListComponent (Material)', () => {
 
     await TestBed.configureTestingModule({
       imports: [ContentListComponent, NoopAnimationsModule],
-      providers: [{ provide: ContentApiService, useValue: api }, provideRouter([])]
+      providers: [
+        { provide: ContentApiService, useValue: api },
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ContentListComponent);
@@ -80,7 +87,12 @@ describe('ContentFormComponent (Reactive Forms + Material)', () => {
 
     await TestBed.configureTestingModule({
       imports: [ContentFormComponent, NoopAnimationsModule],
-      providers: [{ provide: ContentApiService, useValue: api }, provideRouter([])]
+      providers: [
+        { provide: ContentApiService, useValue: api },
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     }).compileComponents();
   });
 

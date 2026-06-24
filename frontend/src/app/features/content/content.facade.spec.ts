@@ -157,6 +157,42 @@ describe('ContentFacade', () => {
     expect(facade.saving()).toBeFalse();
   });
 
+  it('removeMany issues a DELETE for each id and refreshes the list', () => {
+    facade.removeMany(['item-1', 'item-2', 'item-3']).subscribe();
+    const first = httpController.expectOne('/api/content/item-1');
+    expect(first.request.method).toBe('DELETE');
+    first.flush(null);
+    const second = httpController.expectOne('/api/content/item-2');
+    second.flush(null);
+    const third = httpController.expectOne('/api/content/item-3');
+    third.flush(null);
+    httpController.expectOne('/api/content').flush([]);
+    expect(facade.empty()).toBeTrue();
+    expect(facade.saving()).toBeFalse();
+  });
+
+  it('removeMany short-circuits on an empty input', () => {
+    let emitted = false;
+    facade.removeMany([]).subscribe(() => (emitted = true));
+    expect(emitted).toBeTrue();
+    expect(facade.saving()).toBeFalse();
+  });
+
+  it('removeMany surfaces the first error and stops issuing deletes', () => {
+    facade.removeMany(['item-1', 'item-2', 'item-3']).subscribe();
+    httpController.expectOne('/api/content/item-1').flush(null);
+    const failed = httpController.expectOne('/api/content/item-2');
+    failed.flush(
+      { code: 'conflict_state', message: 'Cannot delete referenced content.' },
+      { status: 409, statusText: 'Conflict' }
+    );
+    // The third delete must NOT have been issued: concatMap aborts the
+    // pipeline on the first error.
+    httpController.expectNone('/api/content/item-3');
+    expect(facade.error()?.category).toBe('conflict');
+    expect(facade.saving()).toBeFalse();
+  });
+
   it('clearError resets the error signal', () => {
     facade.refresh().subscribe({ error: () => undefined });
     httpController.expectOne('/api/content').flush(
@@ -173,7 +209,12 @@ describe('ContentFacade', () => {
     api.list.and.returnValue(throwError(() => 'totally unknown'));
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
-      providers: [{ provide: ContentApiService, useValue: api }, ContentFacade]
+      providers: [
+        { provide: ContentApiService, useValue: api },
+        ContentFacade,
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
     });
     const isolated = TestBed.inject(ContentFacade);
     isolated.refresh().subscribe({ error: () => undefined });

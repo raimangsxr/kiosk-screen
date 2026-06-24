@@ -12,6 +12,14 @@ class DisplayControlState(IdMixin, TimestampMixin, Base):
             "selected_fixed_content_id IS NOT NULL OR content_mode != 'fixed'",
             name="ck_display_control_fixed_has_target",
         ),
+        CheckConstraint(
+            "navigation_command IS NULL OR navigation_command IN ('next', 'previous', 'pause', 'resume', 'jump_to')",
+            name="ck_display_control_navigation_command",
+        ),
+        CheckConstraint(
+            "jump_to_content_id IS NOT NULL OR navigation_command != 'jump_to'",
+            name="ck_display_control_jump_to_has_target",
+        ),
         UniqueConstraint("display_session_id", name="uq_display_control_state_session"),
     )
 
@@ -26,4 +34,7 @@ class DisplayControlState(IdMixin, TimestampMixin, Base):
     fullscreen_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     navigation_command: Mapped[str | None] = mapped_column(String(16), nullable=True)
     navigation_command_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    jump_to_content_id: Mapped[str | None] = mapped_column(
+        ForeignKey("top_content_items.id", ondelete="SET NULL"), nullable=True
+    )
     updated_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)

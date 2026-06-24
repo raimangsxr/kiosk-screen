@@ -140,7 +140,7 @@ describe('RemoteControlFacade', () => {
 
     const request = http.expectOne('/api/display/remote-control/navigation');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ command: 'next' });
+    expect(request.request.body).toEqual({ command: 'next', targetContentId: null });
     request.flush({ ...state, navigationCommand: 'next', navigationCommandId: '11111111-1111-4111-8111-111111111111' });
 
     expect(facade.state()?.navigationCommand).toBe('next');

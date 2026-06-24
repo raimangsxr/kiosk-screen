@@ -94,4 +94,21 @@ describe('AuthService', () => {
     });
     expect(service.initials()).toBe('OP');
   });
+
+  it('clearSession() wipes local state and storage', () => {
+    service['persist']({
+      id: 'user-3',
+      email: 'admin@example.com',
+      displayName: 'Ada Lovelace',
+      roles: ['administrator']
+    });
+    expect(service.isAuthenticated()).toBeTrue();
+
+    service.clearSession();
+
+    expect(localStorage.getItem('kiosk_authenticated')).toBeNull();
+    expect(localStorage.getItem('kiosk_user')).toBeNull();
+    expect(service.isAuthenticated()).toBeFalse();
+    expect(service.user()).toBeNull();
+  });
 });

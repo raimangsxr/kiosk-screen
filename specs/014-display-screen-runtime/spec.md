@@ -79,7 +79,10 @@ The ad band rotates independently of the content mode — even in
    **When** the kiosk polls, **Then** the ad band is NOT in the
    DOM.
 5. **Given** a paused state, **When** 30 s elapse, **Then** the
-   ad band timer is frozen.
+   content timer is frozen but the ad band timer keeps rotating
+   on its configured cadence (per spec 007 FR-008 and its
+   addendum — the ad band is the sponsor revenue surface and is
+   orthogonal to the content pause flag).
 
 ### User Story 3 — Branding overlay (Priority: P1)
 
@@ -199,6 +202,33 @@ extra PUT.
   `video_end_delay_seconds` knob from the polled state and wait
   the right number of seconds before advancing on
   `<video> ended`.
+- **FR-012**: The kiosk MUST rotate ads on a single fixed cadence
+  of `default_ad_duration_seconds` from the polled
+  configuration. Per-ad `effectiveDurationSeconds` is
+  intentionally NOT honored — the kiosk configuration is the
+  single source of truth for the ad rotation cadence.
+- **FR-013**: The CSS animation duration for the ad transition
+  MUST be `effective_animation_duration_milliseconds` from the
+  polled ad item, falling back to
+  `default_ad_animation_duration_milliseconds` from the polled
+  configuration (default 300 ms). The kiosk MUST NOT derive the
+  animation duration from `default_ad_duration_seconds`.
+- **FR-014**: When `contentMode='fixed'`, the kiosk MUST resolve
+  `selectedFixedContentId` against `state.topContent` and render
+  that single item in place of the loop cursor. On `video ended`
+  in fixed mode, the kiosk MUST restart the video
+  (`currentTime=0; play()`); the fixed target MUST remain
+  pinned until the operator switches mode.
+- **FR-015**: When `contentMode` transitions back from `fixed`
+  to `loop`, the kiosk MUST restore the cursor that was active
+  immediately before entering fixed (per spec 007 US1
+  acceptance 4).
+- **FR-016**: The display-screen component MUST drive the
+  `KioskRotationController` via
+  `KioskRotationController.attach(KioskControllerInputs)` and
+  read all rotation state through the controller's public
+  signals. Direct access to controller private fields via type
+  casts is forbidden.
 
 ### Key Entities
 
@@ -237,3 +267,178 @@ None.
 ## Superseded by
 
 None yet.
+
+## Addendum (kiosk rotation bug fixes)
+
+This addendum was added in response to a triage of three live
+bugs found in the kiosk display:
+
+1. **Ad rotation did not honour the configured ad cadence.**
+   The previous implementation derived the ad timer duration
+   from the per-ad `effectiveDurationSeconds` of whatever ad
+   happened to be current when the timer was first armed, then
+   re-used that frozen value on every subsequent tick. This
+   added a per-ad override that the spec never required and
+   that drifted away from the admin-configured
+   `default_ad_duration_seconds`. Fix: FR-012 makes the
+   configured value the single source of truth.
+
+2. **Production Chrome rendered a white ad block.** The ad
+   `<img>` carried an inline `[style.animation-duration.ms]`
+   that fell back to `defaultAdDurationSeconds * 1000` (10 s)
+   when `effectiveAnimationDurationMilliseconds` was missing.
+   Combined with `ease-in` and `animation-fill-mode: both`,
+   the opacity stayed near 0 for ~5 s and only flashed to 1
+   at the end of each 10 s cycle. Chrome's stricter CSS
+   interpolation rendered the figure essentially blank. Fix:
+   FR-013 forces the animation duration to
+   `default_ad_animation_duration_milliseconds` (300 ms) as
+   the spec for spec 002 already prescribes.
+
+3. **Fixed mode never pinned the content.** The component
+   never consulted `selectedFixedContentId` when applying a
+   poll, and the controller's `enterFixedMode` /
+   `exitFixedMode` were never invoked. The kiosk therefore
+   kept rendering the previous loop cursor. Fix: FR-014 and
+   FR-015 wire the controller's fixed-mode entry / exit and
+   the cursor preservation contract.
+
+## Addendum 2 — Recurring content & jump-to navigation command
+
+This addendum covers three behaviours the original spec did not
+implement and that the live kiosk needed:
+
+1. **Recurring content rotation.** Spec 007 US2 / SC-002 / FR-008a
+   say that a content with `recurringEveryXIterations=N` must
+   appear every N advances of the regular rotation queue. The
+   original controller never consulted `recurring_every_x_iterations`
+   when picking the next item; the rotation was strictly
+   `next → next → next` over `topContent`. This addendum wires
+   the cadence counter through `KioskRotationController` and
+   through `DisplayRotationService.pickNext(...)` so the
+   recurring item is shown in place of every Nth advance and the
+   cadence counter resets to 0 after the recurring item is
+   displayed (per FR-008a).
+
+2. **Jump-to navigation command.** Spec 005 addendum extends the
+   `navigationCommand` enum with `jump_to` and the polled
+   `RemoteControlStateSchema` with `jump_to_content_id`. This
+   addendum makes `KioskRotationController.applyNavigationCommand(...)`
+   consume `jump_to`: the controller resets `currentContentId`
+   to the target id, resets the cadence counter to 0, and
+   re-arms the content timer with the target's
+   `effectiveDurationSeconds`. The kiosk must be in `loop` mode
+   for `jump_to` to take effect; the backend already rejects
+   `jump_to` outside `loop` (per spec 005 FR-013), so the
+   kiosk only needs to handle the in-loop case.
+
+3. **Coordinated admin action.** The "Show on screen now"
+   button on the admin Content list (spec 009 addendum FR-015)
+   posts the `jump_to` command; this is the kiosk-side
+   counterpart. The button is gated by
+   `REMOTE_CONTROL_ROLES` on the frontend.
+
+### New User Story 6 — Honour recurring content (Priority: P2)
+
+The kiosk honours every active top content item's
+`recurringEveryXIterations` flag. The `KioskRotationController`
+keeps an integer cadence counter; on every advance of the
+regular rotation queue the counter is incremented, and when it
+reaches the smallest `recurringEveryXIterations` across active
+recurring items, the next advance is replaced by the recurring
+item instead of the next regular item, the counter is reset to
+0, and the regular loop continues from the following regular
+item.
+
+**Why this priority**: surfaces event sponsors or recurring
+reminders (e.g. an event programme image) without disrupting
+the main rotation.
+
+**Acceptance Scenarios**:
+
+1. **Given** a recurring item with `recurringEveryXIterations=3`
+   and 4 regular items, **When** the kiosk advances 12 times,
+   **Then** the recurring item appears 4 times (at advances 4, 8,
+   12) and the cadence counter reads `0, 1, 2, 0, 1, 2, 0, 1, 2,
+   0, 1, 2` across the 12 advances.
+2. **Given** the kiosk in `loop` with cadence counter 2, **When**
+   the operator enters `iframe` and returns to `loop`, **Then**
+   the cadence counter is 2 (not 0) — the counter survives mode
+   transitions exactly like the rotation cursor does (per spec
+   007 US2 acceptance 2).
+3. **Given** a recurring item that is a video, **When** it is
+   displayed in place of the Nth advance, **Then** the kiosk
+   waits for `<video> ended` (or `effectiveDurationSeconds` for
+   photos) and resets the cadence counter only after the
+   recurring item has actually been shown.
+4. **Given** two active recurring items with cadences 3 and 5,
+   **When** the kiosk advances, **Then** the item with cadence 3
+   is shown at every 3rd advance; the item with cadence 5 is
+   only shown at advances that are multiples of 5 but not 3
+   (the controller picks the smallest matching cadence per
+   advance).
+
+### New User Story 7 — Consume jump-to navigation command (Priority: P2)
+
+The operator clicks "Show on screen now" on a content row in the
+admin Content list. The frontend posts
+`POST /display/remote-control/navigation` with
+`{command: 'jump_to', targetContentId: <UUID>}`; the kiosk
+polls the new `navigationCommand` and `jump_to_content_id`
+fields, resets the rotation cursor to the target id, resets the
+cadence counter to 0, and re-arms the content timer.
+
+**Why this priority**: gives the operator one-click spotlighting
+of a content item from the admin Content list.
+
+**Acceptance Scenarios**:
+
+1. **Given** the kiosk in `loop` with 5 active items and the
+   cursor on item 2, **When** the operator issues `jump_to` for
+   item 4, **Then** the next poll carries
+   `navigationCommand='jump_to', jumpToContentId=<item 4>` and
+   the controller advances to item 4 on the next effect tick,
+   resets the cadence counter to 0, and continues the loop from
+   there.
+2. **Given** the kiosk already showing item 4, **When** the
+   operator issues `jump_to` for item 4, **Then** the controller
+   treats it as a no-op cursor reset (still resets cadence),
+   so the same item remains on screen for its full
+   `effectiveDurationSeconds` and the next advance is item 5.
+3. **Given** the kiosk in `loop` with item `X` missing from the
+   polled `topContent` (e.g. it was deleted between the operator
+   click and the next poll), **When** the controller applies the
+   `jump_to`, **Then** the controller silently ignores the
+   command (does not crash) and the kiosk keeps the previous
+   cursor; the backend audit event still records the attempt.
+
+### New Functional Requirements
+
+- **FR-017**: The `KioskRotationController` MUST consult
+  `recurring_every_x_iterations` for every active top content
+  item; after every N advances of the regular rotation queue
+  (where N is the smallest positive recurring cadence across
+  the active recurring items, or the only one if there is just
+  one), the controller MUST show the recurring content in place
+  of the next regular advance and reset the cadence counter to
+  0. Implementation lives in
+  `DisplayRotationService.pickNext(...)` so the controller stays
+  a thin effect-driven wrapper.
+- **FR-018**: The `KioskRotationController.applyNavigationCommand(...)`
+  MUST accept `'jump_to'` and, when in `loop`, reset
+  `currentContentId` to `jumpToContentId`, reset the cadence
+  counter to 0, and re-arm the content timer with the target's
+  `effectiveDurationSeconds`. If the target id is not in
+  `topContent`, the controller MUST silently ignore the command.
+- **FR-019**: The polled `RemoteControlStateSchema` MUST surface
+  `jumpToContentId` (UUID, nullable); the
+  `display-screen.component.ts` MUST read it via
+  `DisplayApiService.watchState(...)` and forward it to the
+  controller.
+- **FR-020**: The Content list at `/admin/content` MUST expose a
+  "Show on screen now" button per row that posts
+  `POST /display/remote-control/navigation` with
+  `{command: 'jump_to', targetContentId: <id>}`. The button MUST
+  be disabled while `facade.saving()` is true and MUST show a
+  snackbar with success / error feedback (consistent with the
+  existing reorder / delete UX).

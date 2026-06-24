@@ -152,6 +152,34 @@ describe('AdsFacade', () => {
     expect(facade.error()?.category).toBe('conflict');
   });
 
+  it('removeMany issues a DELETE for each id and refreshes the list', () => {
+    facade.removeMany(['ad-1', 'ad-2', 'ad-3']).subscribe();
+    httpController.expectOne('/api/ads/ad-1').flush(null);
+    httpController.expectOne('/api/ads/ad-2').flush(null);
+    httpController.expectOne('/api/ads/ad-3').flush(null);
+    httpController.expectOne('/api/ads').flush([]);
+    expect(facade.empty()).toBeTrue();
+    expect(facade.saving()).toBeFalse();
+  });
+
+  it('removeMany short-circuits on an empty input', () => {
+    let emitted = false;
+    facade.removeMany([]).subscribe(() => (emitted = true));
+    expect(emitted).toBeTrue();
+    expect(facade.saving()).toBeFalse();
+  });
+
+  it('removeMany surfaces the first error and stops issuing deletes', () => {
+    facade.removeMany(['ad-1', 'ad-2', 'ad-3']).subscribe();
+    httpController.expectOne('/api/ads/ad-1').flush(null);
+    httpController
+      .expectOne('/api/ads/ad-2')
+      .flush({ code: 'conflict_state', message: 'Cannot delete.' }, { status: 409, statusText: 'Conflict' });
+    httpController.expectNone('/api/ads/ad-3');
+    expect(facade.error()?.category).toBe('conflict');
+    expect(facade.saving()).toBeFalse();
+  });
+
   it('clearError resets the error signal', () => {
     facade.refresh().subscribe({ error: () => undefined });
     httpController.expectOne('/api/ads').flush(

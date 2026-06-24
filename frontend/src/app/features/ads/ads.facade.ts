@@ -111,6 +111,32 @@ export class AdsFacade {
     );
   }
 
+  /**
+   * Delete a batch of ads sequentially (via concatMap, same pattern
+   * as `uploadMany`). On the first error the remaining ids are
+   * skipped and the error is surfaced through the `error` signal.
+   */
+  removeMany(ids: readonly string[]) {
+    if (ids.length === 0) {
+      return of(null);
+    }
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return from(ids).pipe(
+      concatMap((id) => this.api.deleteAd(id)),
+      toArray(),
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return of(null);
+      })
+    );
+  }
+
   reorder(orderedIds: string[]) {
     this.savingState.set(true);
     this.errorState.set(null);

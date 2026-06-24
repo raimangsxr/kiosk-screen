@@ -50,6 +50,19 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyActionRoute="/admin/ads/new"
       emptyIcon="campaign"
     >
+      <button
+        *ngIf="selection().size > 0"
+        dataListActions
+        mat-stroked-button
+        color="warn"
+        type="button"
+        (click)="removeSelected()"
+        [disabled]="facade.saving()"
+        data-testid="ad-delete-selected"
+      >
+        <mat-icon aria-hidden="true">delete_sweep</mat-icon>
+        Delete {{ selection().size }} selected
+      </button>
       <ng-template #dataListTable>
         <div
           cdkDropList
@@ -59,14 +72,39 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         >
           <table mat-table [dataSource]="facade.ads()" [trackBy]="trackById" aria-label="Ads" class="app-table ad-list__table">
             <ng-container matColumnDef="select">
-              <th mat-header-cell *matHeaderCellDef class="ad-list__select-cell"></th>
+              <th mat-header-cell *matHeaderCellDef class="ad-list__select-cell">
+                <mat-checkbox
+                  [checked]="allChecked()"
+                  [indeterminate]="someChecked()"
+                  (change)="toggleAll($event.checked)"
+                  aria-label="Select all ads"
+                  data-testid="ad-select-all"
+                />
+              </th>
               <td mat-cell *matCellDef="let ad" class="ad-list__select-cell">
                 <mat-checkbox
                   [checked]="isSelected(ad.id)"
                   (change)="toggleSelection(ad.id, $event.checked)"
-                  [attr.aria-label]="'Select ad for bulk reorder'"
+                  [attr.aria-label]="'Select ad ' + ad.id + ' for bulk actions'"
                   data-testid="ad-select"
                 />
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="thumbnail">
+              <th mat-header-cell *matHeaderCellDef class="ad-list__thumb-cell" scope="col">Preview</th>
+              <td mat-cell *matCellDef="let ad" class="ad-list__thumb-cell">
+                @if (ad.mediaFile?.mediaUrl) {
+                  <img
+                    class="ad-list__thumb"
+                    [src]="ad.mediaFile?.mediaUrl ?? ''"
+                    alt=""
+                    loading="lazy"
+                    data-testid="ad-thumbnail"
+                  />
+                } @else {
+                  <mat-icon class="ad-list__thumb-placeholder" aria-hidden="true">image</mat-icon>
+                }
               </td>
             </ng-container>
 
@@ -147,6 +185,14 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       <ng-template #dataListCards>
         @for (ad of facade.ads(); track ad.id) {
           <mat-card appearance="outlined" class="ad-list__card-item">
+            @if (ad.mediaFile?.mediaUrl) {
+              <img
+                class="ad-list__card-thumb"
+                [src]="ad.mediaFile?.mediaUrl ?? ''"
+                alt=""
+                loading="lazy"
+              />
+            }
             <mat-card-content>
               <div class="ad-list__card-header">
                 <h3 class="ad-list__card-title">Ad #{{ ad.displayOrder }}</h3>
@@ -205,6 +251,29 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         padding-left: 8px;
         padding-right: 0;
       }
+      .ad-list__thumb-cell {
+        width: 80px;
+        padding-right: 8px;
+      }
+      .ad-list__thumb {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 4px;
+        display: block;
+        background: var(--mat-sys-surface-container);
+      }
+      .ad-list__thumb-placeholder {
+        width: 64px;
+        height: 64px;
+        font-size: 32px;
+        line-height: 64px;
+        text-align: center;
+        display: inline-block;
+        color: var(--mat-sys-on-surface-variant);
+        background: var(--mat-sys-surface-container);
+        border-radius: 4px;
+      }
       .ad-list__row {
         cursor: grab;
       }
@@ -226,6 +295,13 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         min-width: 0;
         overflow: hidden;
         background: var(--mat-sys-surface);
+      }
+      .ad-list__card-thumb {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+        background: var(--mat-sys-surface-container);
       }
       .ad-list__card-header {
         display: flex;
@@ -282,6 +358,7 @@ export class AdListComponent implements OnInit {
   protected readonly refreshAction = { route: '/admin/ads', label: 'Refresh' };
   protected readonly displayedColumns = [
     'select',
+    'thumbnail',
     'order',
     'advertiser',
     'media',
@@ -292,6 +369,13 @@ export class AdListComponent implements OnInit {
 
   protected readonly selection = signal<ReadonlySet<string>>(new Set());
   private readonly rows = computed(() => this.facade.ads());
+  protected readonly allChecked = computed(() => {
+    const items = this.rows();
+    if (items.length === 0) return false;
+    const selected = this.selection();
+    return items.every((item) => selected.has(item.id));
+  });
+  protected readonly someChecked = computed(() => this.selection().size > 0);
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -309,6 +393,53 @@ export class AdListComponent implements OnInit {
       next.delete(id);
     }
     this.selection.set(next);
+  }
+
+  /**
+   * Toggle every visible row. The selection is bounded to the current
+   * page (the full list, since the API does not paginate), so an empty
+   * list is a no-op.
+   */
+  protected toggleAll(checked: boolean): void {
+    const items = this.rows();
+    if (items.length === 0) return;
+    if (checked) {
+      this.selection.set(new Set(items.map((item) => item.id)));
+    } else {
+      this.selection.set(new Set());
+    }
+  }
+
+  /**
+   * Confirm and remove every selected row. After the call resolves we
+   * drop the selection unconditionally — even on partial failure —
+   * so the UI never keeps ids that the backend has already deleted.
+   */
+  protected removeSelected(): void {
+    const ids = Array.from(this.selection());
+    if (ids.length === 0) return;
+    const ref = this.dialog.open({
+      title: `Delete ${ids.length} ad${ids.length === 1 ? '' : 's'}?`,
+      message: 'These ads will be removed from rotation. The action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
+      }
+      this.facade.removeMany(ids).subscribe(() => {
+        this.selection.set(new Set());
+        if (this.facade.error() === null) {
+          this.snackBar.open(
+            `Deleted ${ids.length} ad${ids.length === 1 ? '' : 's'}.`,
+            'Dismiss',
+            { duration: 3000 }
+          );
+        }
+      });
+    });
   }
 
   protected trackById(_index: number, ad: AdItem): string {

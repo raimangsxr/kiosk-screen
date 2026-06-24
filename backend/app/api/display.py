@@ -58,6 +58,7 @@ def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControl
         fullscreenRequested=state.fullscreen_requested,
         navigationCommand=state.navigation_command,
         navigationCommandId=state.navigation_command_id,
+        jumpToContentId=state.jump_to_content_id,
         updatedAt=state.updated_at,
     )
 
@@ -74,6 +75,7 @@ def to_remote_control_admin_schema(
         adsVisible=state.ads_visible,
         navigationCommand=state.navigation_command,
         navigationCommandId=state.navigation_command_id,
+        jumpToContentId=state.jump_to_content_id,
         updatedAt=state.updated_at,
         displaySessionActive=True,
     )
@@ -235,6 +237,7 @@ def remote_control_navigation_route(
             user.organization_id,
             user.id,
             command=payload.command,
+            target_content_id=str(payload.target_content_id) if payload.target_content_id else None,
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:

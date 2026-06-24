@@ -204,6 +204,67 @@ def test_display_control_service_issues_navigation_command_in_loop_mode(db_sessi
     assert events[0].event_metadata["command"] == "next"
 
 
+@pytest.mark.parametrize("command", ["pause", "resume"])
+def test_display_control_service_issues_pause_and_resume_in_loop_mode(db_session, command: str) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    state = DisplayControlService(db_session).issue_navigation_command(
+        result.organization.id,
+        result.administrator.id,
+        command=command,
+    )
+
+    assert state.navigation_command == command
+    assert state.navigation_command_id is not None
+    events = db_session.query(DisplayEvent).filter_by(event_type=f"display_control_{command}d").all()
+    assert len(events) == 1
+    assert events[0].event_metadata == {"contentMode": "loop"}
+
+
+@pytest.mark.parametrize("command", ["pause", "resume"])
+def test_display_control_service_rejects_pause_and_resume_in_iframe_mode(db_session, command: str) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    iframe = Iframe(
+        organization_id=result.organization.id,
+        url="https://example.org/agenda",
+        created_by_user_id=result.administrator.id,
+        updated_by_user_id=result.administrator.id,
+    )
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add_all([iframe, session])
+    db_session.commit()
+
+    service = DisplayControlService(db_session)
+    service.update_state(
+        result.organization.id,
+        session.id,
+        result.administrator.id,
+        content_mode="iframe",
+        selected_iframe_id=iframe.id,
+        ads_visible=True,
+    )
+
+    with pytest.raises(ValueError, match="Pause/Resume solo es válido en modo rotación."):
+        service.issue_navigation_command(result.organization.id, result.administrator.id, command=command)
+
+
 def test_display_control_service_rejects_navigation_command_in_iframe_mode(db_session) -> None:
     from app.application.display_control.service import DisplayControlService
 
@@ -300,3 +361,169 @@ def test_display_control_service_rejects_invalid_iframe_selection(db_session) ->
             selected_iframe_id="missing",
             ads_visible=True,
         )
+
+
+def test_display_control_service_issues_jump_to_in_loop_mode(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    state = DisplayControlService(db_session).issue_navigation_command(
+        result.organization.id,
+        result.administrator.id,
+        command="jump_to",
+        target_content_id=result.top_content.id,
+    )
+
+    assert state.navigation_command == "jump_to"
+    assert state.jump_to_content_id == result.top_content.id
+    assert state.navigation_command_id is not None
+    events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_jump_to").all()
+    assert len(events) == 1
+    assert events[0].event_metadata["targetContentId"] == result.top_content.id
+
+
+def test_display_control_service_rejects_jump_to_in_iframe_mode(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    iframe = Iframe(
+        organization_id=result.organization.id,
+        url="https://example.org/agenda",
+        created_by_user_id=result.administrator.id,
+        updated_by_user_id=result.administrator.id,
+    )
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add_all([iframe, session])
+    db_session.commit()
+
+    service = DisplayControlService(db_session)
+    service.update_state(
+        result.organization.id,
+        session.id,
+        result.administrator.id,
+        content_mode="iframe",
+        selected_iframe_id=iframe.id,
+        ads_visible=True,
+    )
+
+    with pytest.raises(ValueError, match="Jump-to requires rotation mode."):
+        service.issue_navigation_command(
+            result.organization.id,
+            result.administrator.id,
+            command="jump_to",
+            target_content_id=result.top_content.id,
+        )
+    events = db_session.query(DisplayEvent).filter_by(event_type="remote_control_invalid_jump_to").all()
+    assert len(events) == 1
+
+
+def test_display_control_service_rejects_jump_to_without_target(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="Jump-to requires a target content id."):
+        DisplayControlService(db_session).issue_navigation_command(
+            result.organization.id,
+            result.administrator.id,
+            command="jump_to",
+            target_content_id=None,
+        )
+
+
+def test_display_control_service_rejects_jump_to_unknown_target(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="Selected content is not available."):
+        DisplayControlService(db_session).issue_navigation_command(
+            result.organization.id,
+            result.administrator.id,
+            command="jump_to",
+            target_content_id="00000000-0000-0000-0000-000000000000",
+        )
+
+
+def test_display_control_service_rejects_jump_to_fixed_target(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    result.top_content.is_fixed = True
+    db_session.commit()
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="Fixed content cannot be a jump target."):
+        DisplayControlService(db_session).issue_navigation_command(
+            result.organization.id,
+            result.administrator.id,
+            command="jump_to",
+            target_content_id=result.top_content.id,
+        )
+
+
+def test_display_control_service_clears_jump_to_on_next_command(db_session) -> None:
+    from app.application.display_control.service import DisplayControlService
+
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    session = OperatorSession(
+        organization_id=result.organization.id,
+        user_id=result.operator.id,
+        display_configuration_id=result.configuration.id,
+        valid_until=utc_now() + timedelta(minutes=30),
+    )
+    db_session.add(session)
+    db_session.commit()
+
+    service = DisplayControlService(db_session)
+    service.issue_navigation_command(
+        result.organization.id,
+        result.administrator.id,
+        command="jump_to",
+        target_content_id=result.top_content.id,
+    )
+    state = service.issue_navigation_command(
+        result.organization.id,
+        result.administrator.id,
+        command="next",
+    )
+
+    assert state.navigation_command == "next"
+    assert state.jump_to_content_id is None

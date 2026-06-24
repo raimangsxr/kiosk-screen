@@ -52,6 +52,19 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyActionRoute="/admin/content/new"
       emptyIcon="photo_library"
     >
+      <button
+        *ngIf="selection().size > 0"
+        dataListActions
+        mat-stroked-button
+        color="warn"
+        type="button"
+        (click)="removeSelected()"
+        [disabled]="facade.saving()"
+        data-testid="content-delete-selected"
+      >
+        <mat-icon aria-hidden="true">delete_sweep</mat-icon>
+        Delete {{ selection().size }} selected
+      </button>
       <ng-template #dataListTable>
         <div
           cdkDropList
@@ -61,14 +74,41 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         >
           <table mat-table [dataSource]="facade.items()" [trackBy]="trackById" aria-label="Top content items" class="app-table content-list__table">
             <ng-container matColumnDef="select">
-              <th mat-header-cell *matHeaderCellDef class="content-list__select-cell"></th>
+              <th mat-header-cell *matHeaderCellDef class="content-list__select-cell">
+                <mat-checkbox
+                  [checked]="allChecked()"
+                  [indeterminate]="someChecked()"
+                  (change)="toggleAll($event.checked)"
+                  aria-label="Select all content"
+                  data-testid="content-select-all"
+                />
+              </th>
               <td mat-cell *matCellDef="let item" class="content-list__select-cell">
                 <mat-checkbox
                   [checked]="isSelected(item.id)"
                   (change)="toggleSelection(item.id, $event.checked)"
-                  [attr.aria-label]="'Select content for bulk reorder'"
+                  [attr.aria-label]="'Select content ' + item.id + ' for bulk actions'"
                   data-testid="content-select"
                 />
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="thumbnail">
+              <th mat-header-cell *matHeaderCellDef class="content-list__thumb-cell" scope="col">Preview</th>
+              <td mat-cell *matCellDef="let item" class="content-list__thumb-cell">
+                @if (item.mediaFile?.mediaUrl) {
+                  <img
+                    class="content-list__thumb"
+                    [src]="item.mediaFile?.mediaUrl ?? ''"
+                    alt=""
+                    loading="lazy"
+                    data-testid="content-thumbnail"
+                  />
+                } @else {
+                  <mat-icon class="content-list__thumb-placeholder" aria-hidden="true">
+                    {{ item.contentType === 'video' ? 'videocam' : 'photo' }}
+                  </mat-icon>
+                }
               </td>
             </ng-container>
 
@@ -126,6 +166,18 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let item">
+                <button
+                  mat-button
+                  color="primary"
+                  type="button"
+                  (click)="showOnScreen(item)"
+                  [disabled]="facade.saving() || !item.isActive || item.isFixed === true"
+                  [attr.aria-label]="'Show content ' + item.title + ' on screen now'"
+                  data-testid="content-show-on-screen"
+                >
+                  <mat-icon aria-hidden="true">play_circle</mat-icon>
+                  Show on screen
+                </button>
                 <a
                   mat-button
                   color="primary"
@@ -169,6 +221,14 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       <ng-template #dataListCards>
         @for (item of facade.items(); track item.id) {
           <mat-card appearance="outlined" class="content-list__card-item">
+            @if (item.mediaFile?.mediaUrl) {
+              <img
+                class="content-list__card-thumb"
+                [src]="item.mediaFile?.mediaUrl ?? ''"
+                alt=""
+                loading="lazy"
+              />
+            }
             <mat-card-content>
               <div class="content-list__card-header">
                 <h3 class="content-list__card-title">{{ item.title }}</h3>
@@ -185,6 +245,16 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               <p class="content-list__card-rotation">{{ rotationSummary(item) }}</p>
             </mat-card-content>
             <mat-card-actions class="app-card-actions content-list__card-actions">
+              <button
+                mat-button
+                color="primary"
+                type="button"
+                (click)="showOnScreen(item)"
+                [disabled]="facade.saving() || !item.isActive || item.isFixed === true"
+              >
+                <mat-icon aria-hidden="true">play_circle</mat-icon>
+                Show on screen
+              </button>
               <a
                 mat-button
                 color="primary"
@@ -226,6 +296,29 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         padding-left: 8px;
         padding-right: 0;
       }
+      .content-list__thumb-cell {
+        width: 80px;
+        padding-right: 8px;
+      }
+      .content-list__thumb {
+        width: 64px;
+        height: 64px;
+        object-fit: cover;
+        border-radius: 4px;
+        display: block;
+        background: var(--mat-sys-surface-container);
+      }
+      .content-list__thumb-placeholder {
+        width: 64px;
+        height: 64px;
+        font-size: 32px;
+        line-height: 64px;
+        text-align: center;
+        display: inline-block;
+        color: var(--mat-sys-on-surface-variant);
+        background: var(--mat-sys-surface-container);
+        border-radius: 4px;
+      }
       .content-list__rotation {
         display: inline-flex;
         flex-wrap: wrap;
@@ -251,6 +344,15 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       .content-list__card-item {
         display: block;
         background: var(--mat-sys-surface);
+      }
+      .content-list__card-thumb {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+        background: var(--mat-sys-surface-container);
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
       }
       .content-list__card-header {
         display: flex;
@@ -298,6 +400,7 @@ export class ContentListComponent implements OnInit {
   protected readonly refreshAction = { route: '/admin/content', label: 'Refresh' };
   protected readonly displayedColumns = [
     'select',
+    'thumbnail',
     'order',
     'title',
     'type',
@@ -309,6 +412,13 @@ export class ContentListComponent implements OnInit {
 
   protected readonly selection = signal<ReadonlySet<string>>(new Set());
   private readonly rows = computed(() => this.facade.items());
+  protected readonly allChecked = computed(() => {
+    const items = this.rows();
+    if (items.length === 0) return false;
+    const selected = this.selection();
+    return items.every((item) => selected.has(item.id));
+  });
+  protected readonly someChecked = computed(() => this.selection().size > 0);
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -326,6 +436,53 @@ export class ContentListComponent implements OnInit {
       next.delete(id);
     }
     this.selection.set(next);
+  }
+
+  /**
+   * Toggle every visible row. The selection is bounded to the current
+   * page (the full list, since the API does not paginate), so an empty
+   * list is a no-op.
+   */
+  protected toggleAll(checked: boolean): void {
+    const items = this.rows();
+    if (items.length === 0) return;
+    if (checked) {
+      this.selection.set(new Set(items.map((item) => item.id)));
+    } else {
+      this.selection.set(new Set());
+    }
+  }
+
+  /**
+   * Confirm and remove every selected row. After the call resolves we
+   * drop the selection unconditionally — even on partial failure —
+   * so the UI never keeps ids that the backend has already deleted.
+   */
+  protected removeSelected(): void {
+    const ids = Array.from(this.selection());
+    if (ids.length === 0) return;
+    const ref = this.dialog.open({
+      title: `Delete ${ids.length} item${ids.length === 1 ? '' : 's'}?`,
+      message: 'These items will be removed from rotation. The action cannot be undone.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      destructive: true
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
+      }
+      this.facade.removeMany(ids).subscribe(() => {
+        this.selection.set(new Set());
+        if (this.facade.error() === null) {
+          this.snackBar.open(
+            `Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}.`,
+            'Dismiss',
+            { duration: 3000 }
+          );
+        }
+      });
+    });
   }
 
   protected trackById(_index: number, item: ContentItem): string {
@@ -407,6 +564,29 @@ export class ContentListComponent implements OnInit {
           this.snackBar.open(`Deleted ${item.title}.`, 'Dismiss', { duration: 3000 });
         }
       });
+    });
+  }
+
+  /**
+   * Spec 014 addendum 2 (FR-020) / spec 009 addendum: posts a `jump_to`
+   * navigation command so the kiosk rotation cursor lands on this
+   * content id on the next poll.
+   */
+  protected showOnScreen(item: ContentItem): void {
+    this.facade.showOnScreen(item.id).subscribe(() => {
+      if (this.facade.error() === null) {
+        this.snackBar.open(
+          `Showing ${item.title} on screen now.`,
+          'Dismiss',
+          { duration: 3000 }
+        );
+      } else {
+        this.snackBar.open(
+          `Could not show ${item.title}: ${this.facade.error()?.message ?? 'unknown error'}.`,
+          'Dismiss',
+          { duration: 5000 }
+        );
+      }
     });
   }
 }

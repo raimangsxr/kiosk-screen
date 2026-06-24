@@ -58,12 +58,23 @@ export class AuthService {
 
   logout(): Observable<void> {
     return this.http.post<void>('/api/auth/logout', {}, { withCredentials: true }).pipe(
-      tap(() => this.clear()),
+      tap(() => this.clearSession()),
       catchError(() => {
-        this.clear();
+        this.clearSession();
         return of(void 0);
       })
     );
+  }
+
+  clearSession(): void {
+    try {
+      globalThis.localStorage?.removeItem(AUTH_STORAGE_KEY);
+      globalThis.localStorage?.removeItem(USER_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    this.userState.set(null);
+    this.readyState.set(false);
   }
 
   refresh(): Observable<AuthenticatedUser | null> {
@@ -81,7 +92,7 @@ export class AuthService {
         this.persist(user);
       }),
       catchError(() => {
-        this.clear();
+        this.clearSession();
         return of(null);
       })
     );
@@ -96,17 +107,6 @@ export class AuthService {
     }
     this.userState.set(user);
     this.readyState.set(true);
-  }
-
-  private clear(): void {
-    try {
-      globalThis.localStorage?.removeItem(AUTH_STORAGE_KEY);
-      globalThis.localStorage?.removeItem(USER_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-    this.userState.set(null);
-    this.readyState.set(false);
   }
 
   private readAuthFlag(): boolean {

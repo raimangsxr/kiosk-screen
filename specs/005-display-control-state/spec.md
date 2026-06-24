@@ -211,6 +211,113 @@ log has the fallback event.
 - The auto-fallback runs lazily on read, not via a trigger; a
   target deletion does not synchronously push the state to `loop`.
 
+## Addendum — Jump-to navigation command
+
+The remote control can issue a `jump_to` navigation command that
+points the kiosk rotation cursor at a specific top content item
+and resumes the regular loop from there. This makes the
+"Show on screen now" button on the admin Content list a first
+class operation alongside `next` and `previous`.
+
+### User Story 5 — Issue a jump-to navigation command (Priority: P2)
+
+The operator clicks "Show on screen now" on a content row in the
+admin Content list. The frontend posts a `jump_to` navigation
+command with the content id; the backend validates that the
+content exists, is active, belongs to the caller's organization,
+and is not a fixed target (`is_fixed=false`), updates the
+`display_control_states` row, and the kiosk picks the command up
+on its next poll, resets the rotation cursor to that content id,
+and continues the regular loop from there.
+
+**Why this priority**: gives the operator one-click
+spotlighting of a sponsor or announcement without entering
+`fixed` mode (which would freeze the queue).
+
+**Acceptance Scenarios**:
+
+1. **Given** an active content `X` with `is_fixed=false`, **When**
+   the operator posts `jump_to` with `targetContentId=X`, **Then**
+   the response is 200, a fresh `navigationCommandId` (UUID v4)
+   is stamped, and a `remote_control_jump_to` info event is
+   recorded.
+2. **Given** an unknown content id, **When** the operator posts
+   `jump_to`, **Then** the response is 400 with
+   "Selected content is not available." and a
+   `remote_control_invalid_jump_to` warning event is recorded.
+3. **Given** a content id belonging to a different organization,
+   **When** the operator posts `jump_to`, **Then** the response
+   is 400 with "Selected content is not available." and a
+   `remote_control_invalid_jump_to` warning event is recorded.
+4. **Given** `is_fixed=true`, **When** the operator posts
+   `jump_to`, **Then** the response is 400 with
+   "Fixed content cannot be a jump target." and a
+   `remote_control_invalid_jump_to` warning event is recorded.
+5. **Given** `contentMode='loop'`, **When** GET `/display/state`
+   is polled after the `jump_to` was issued, **Then** the
+   `navigationCommand` is `'jump_to'`, the
+   `navigationCommandId` matches, and the kiosk resumes the loop
+   with the cursor on the target content.
+6. **Given** `contentMode='iframe'` or `'fixed'`, **When** the
+   operator posts `jump_to`, **Then** the response is 400 with
+   "Jump-to requires rotation mode." (the kiosk will read the
+   `navigationCommand` after the operator returns to `loop`).
+
+### Updated FR-002 (navigationCommand enum)
+
+The `navigationCommand` enum MUST be one of
+`next | previous | pause | resume | jump_to` (nullable when no
+command is pending). The new `jump_to_content_id` column MUST be
+a nullable UUID FK to `top_content_items.id` (ON DELETE SET NULL)
+populated only when `navigationCommand='jump_to'`; it MUST be
+NULL otherwise. The existing CHECK constraint
+`ck_display_control_navigation_command` MUST be widened to
+include `'jump_to'`.
+
+### New Functional Requirements
+
+- **FR-011**: POST `/display/remote-control/navigation` MUST
+  accept `{command: 'jump_to', targetContentId: <UUID>}` and
+  validate that the target exists, is active, belongs to the
+  caller's organization, and has `is_fixed=false`; otherwise 400
+  + `remote_control_invalid_jump_to` warning event.
+- **FR-012**: A successful `jump_to` MUST stamp a fresh
+  `navigationCommandId` (UUID v4), set
+  `navigation_command='jump_to'`, set
+  `jump_to_content_id=<target>`, and record a
+  `remote_control_jump_to` info event with `targetContentId`.
+- **FR-013**: `jump_to` MUST be rejected with 400 in `iframe` and
+  `fixed` content modes with the message
+  "Jump-to requires rotation mode." (a `jump_to` issued while
+  the kiosk is in another mode is a no-op and is rejected at the
+  API surface so the operator gets immediate feedback).
+- **FR-014**: The `display_control_states` row MUST carry
+  `jump_to_content_id` (UUID, nullable, FK
+  `top_content_items.id` ON DELETE SET NULL); a CHECK constraint
+  MUST enforce that `jump_to_content_id IS NOT NULL ⇒
+  navigation_command = 'jump_to'`.
+
+### New Audit Event
+
+A `remote_control_jump_to` info event MUST be added to the
+unified catalog in spec 012 with payload
+`{targetContentId: <UUID>}`; the rejected-target warning event
+MUST be added as `remote_control_invalid_jump_to` (warning).
+
+### Behavioural Notes
+
+- `jump_to` only takes effect in `loop` mode. Issuing it in
+  another mode returns 400 (per FR-013); the cursor is not
+  updated.
+- On a successful `jump_to`, the kiosk resets its rotation
+  cursor to the target content id and continues the regular loop
+  from there. The cadence counter (spec 007) is reset to 0 so
+  the recurring content cadence starts fresh.
+- `jump_to` does not bypass the kiosk polling cadence; the
+  command is delivered via the same
+  `navigationCommand`/`navigationCommandId` poll that carries
+  `next`, `previous`, `pause`, and `resume`.
+
 ## Supersedes
 
 None.
@@ -224,3 +331,6 @@ None.
 - `006-preconfigured-iframes-and-video-end` adds the
   `remote_control_iframe_deleted` event when the selected iframe
   is removed.
+- This addendum extends the `navigationCommand` enum with
+  `jump_to`; the kiosk-side consumption lives in spec 014
+  addendum 2.

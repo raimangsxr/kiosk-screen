@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -8,7 +8,6 @@ import { Subscription } from 'rxjs';
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
-import { DisplayRotationService } from './display-rotation.service';
 import { KioskRotationController } from './kiosk-rotation.controller';
 
 type DisplayRenderableItem = Pick<
@@ -37,30 +36,32 @@ type DisplayRenderableItem = Pick<
           frameborder="0"
           allowfullscreen
         ></iframe>
-        <ng-container *ngIf="displayAvailable && !iframeUrl() && currentContent">
-          <ng-container *ngFor="let content of contentRenderItems; trackBy: trackContent" [ngSwitch]="content.contentType">
+        <ng-container *ngIf="displayAvailable && !iframeUrl() && contentRenderItems[0] as currentItem">
+          <ng-container [ngSwitch]="currentItem.contentType">
             <img
               *ngSwitchCase="'photo'"
-              [src]="mediaSource(content)"
+              [src]="mediaSource(currentItem)"
               class="display-content-media"
-              [@contentTransition]="contentTransition(content)"
+              [@contentTransition]="contentTransition(currentItem)"
               data-testid="display-content"
             />
             <video
+              #fixedVideo
               *ngSwitchCase="'video'"
-              [src]="mediaSource(content)"
+              [src]="mediaSource(currentItem)"
               muted
               autoplay
               playsinline
-              (ended)="onVideoEnded(content)"
+              [loop]="isFixedMode"
+              (ended)="onVideoEnded(currentItem)"
               class="display-content-media"
-              [@contentTransition]="contentTransition(content)"
+              [@contentTransition]="contentTransition(currentItem)"
               data-testid="display-content"
             ></video>
           </ng-container>
-          <div class="content-label">{{ currentContent.title }}</div>
+          <div class="content-label">{{ contentRenderItems[0].title }}</div>
         </ng-container>
-        <ng-template [ngIf]="!displayAvailable || (!iframeUrl() && !currentContent)">
+        <ng-template [ngIf]="!displayAvailable || (!iframeUrl() && !contentRenderItems.length)">
           <div class="fallback" data-testid="display-fallback">
             {{ displayAvailable ? 'Content unavailable' : 'Display unavailable' }}
           </div>
@@ -79,27 +80,29 @@ type DisplayRenderableItem = Pick<
                 (error)="hideBrokenLogo(logoUrl)"
               />
           </ng-container>
-          <!--<span *ngIf="branding().organizerName" class="branding-overlay__text">
-            {{ branding().organizerName }}
-          </span>-->
-          <!--<span *ngIf="showBrandingSeparator()" class="branding-overlay__separator" aria-hidden="true">•</span>-->
           <span *ngIf="branding().eventName" class="branding-overlay__event-name">
             {{ branding().eventName }}
           </span>
         </div>
       </section>
 
-      <div class="ad-region__title">Patrocinadores del evento</div>
       <section *ngIf="adsVisible" class="ad-region" aria-label="Patrocinadores del evento">
+        <h2 class="ad-region__title">Patrocinadores del evento</h2>
         <ng-container *ngIf="visibleAds.length; else adFallback">
-          <figure *ngFor="let ad of visibleAds">
-            <img
-              [src]="mediaSource(ad)"
-              [alt]="ad.advertiser ?? 'Ad'"
-              [class]="adAnimationClass(ad)"
-              [style.animation-duration.ms]="animationDurationMs(ad)"
-            />
-          </figure>
+          <div
+            class="ad-region__list"
+            [style.--ad-count]="visibleAds.length"
+            data-testid="ad-region-list"
+          >
+            <figure *ngFor="let ad of visibleAds; trackBy: trackAdById" class="ad-region__item">
+              <img
+                [src]="mediaSource(ad)"
+                [alt]="ad.advertiser ?? 'Ad'"
+                [class]="adAnimationClass(ad)"
+                [style.animation-duration.ms]="animationDurationMs(ad)"
+              />
+            </figure>
+          </div>
         </ng-container>
         <ng-template #adFallback>
           <div class="fallback">Ads unavailable</div>
@@ -145,30 +148,49 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
   private readonly eventBranding = inject(EventBrandingService);
   private readonly displaySync = inject(DisplayControlSyncService);
-  private readonly rotation = inject(DisplayRotationService);
   protected readonly kioskRotation = inject(KioskRotationController);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly cdr = inject(ChangeDetectorRef);
 
-  private contentTimer: ReturnType<typeof setTimeout> | null = null;
+  constructor() {
+    // Subscribe to the controller's content-advance ticks. The controller
+    // already exposes a hook (onContentAdvanceListeners) used by the
+    // ad-rotation logic. We use the same hook to keep the component's
+    // render array in sync with the cursor, regardless of which path
+    // advanced it (timer, remote-control next/previous, fixed-mode).
+    this.kioskRotation.onContentAdvanceListeners.push(() => {
+      this.syncContentRenderItems();
+    });
+  }
+
+  /**
+   * Mirror the controller's current content into the template's array.
+   * Read directly from the controller's internal contentQueue + cursor
+   * so the value is correct even if the component's effect hasn't
+   * observed the latest controller-side effect yet.
+   */
+  private syncContentRenderItems(): void {
+    const queue = this.state?.topContent ?? [];
+    const id = this.kioskRotation.currentContentId();
+    const item = id ? queue.find((c) => c.id === id) ?? null : null;
+    this.contentRenderItems = item ? [item] : [];
+    this.cdr.detectChanges();
+  }
+
+
+  @ViewChild('fixedVideo') private fixedVideoRef?: ElementRef<HTMLVideoElement>;
+
   private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollSub: Subscription | null = null;
   private syncSub: Subscription | null = null;
   private currentPollIntervalMs = 0;
-  private adAnimationRun = 0;
-  protected get adAnimationRun$(): number {
-    return this.kioskRotation.adAnimationRun();
-  }
-  private currentContentRenderSignature = '';
   private lastNavigationCommandId: string | null = null;
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
   private lastFullscreenRequested: boolean | null = null;
   private hiddenLogoUrl: string | null = null;
-  // Track the last ads list identity to avoid re-arming the controller's ad
-  // timer on every poll (FR-001 / FR-002 / TD-008).
-  private lastAdsRef: DisplayAdItem[] | null = null;
-  private lastAdDurationSeconds = 0;
+  private lastFixedContentId: string | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -176,32 +198,39 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
   };
 
+  /**
+   * The polled state lives in a plain field so the existing template
+   * bindings (`this.state?.X`) keep working. We expose a private
+   * `stateVersion` signal that the controller's effect tracks; the
+   * component bumps it whenever the state changes, which forces the
+   * effect to re-evaluate the input accessors.
+   */
   state: DisplayState | null = null;
-  currentContent: DisplayContentItem | null = null;
+  private readonly stateVersion = signal(0);
   contentRenderItems: DisplayContentItem[] = [];
-  defaultTopDurationSeconds = 10;
   fullscreenPromptVisible = false;
   readonly branding = this.eventBranding.branding;
 
-  get currentAd(): DisplayAdItem | null {
-    if (!this.adsVisible) {
-      return null;
-    }
-    return this.kioskRotation.currentAd() as DisplayAdItem | null;
+  get currentContent(): DisplayContentItem | null {
+    return this.kioskRotation.currentContent();
   }
 
   get visibleAds(): DisplayAdItem[] {
     if (!this.adsVisible) {
       return [];
     }
-    const ads = this.rotation.ordered(this.state?.ads ?? []);
-    if (!ads.length) {
-      return [];
+    return this.kioskRotation.visibleAds() as unknown as DisplayAdItem[];
+  }
+
+  get currentAd(): DisplayAdItem | null {
+    if (!this.adsVisible) {
+      return null;
     }
-    const inlineCount = this.state?.configuration.inlineAdCount ?? ads.length;
-    const adIndex = this.kioskRotation.adIndex();
-    const rotated = [...ads.slice(adIndex), ...ads.slice(0, adIndex)];
-    return rotated.slice(0, Math.min(inlineCount, rotated.length));
+    return this.kioskRotation.currentAd() as unknown as DisplayAdItem | null;
+  }
+
+  get isFixedMode(): boolean {
+    return this.kioskRotation.contentMode() === 'fixed';
   }
 
   get adsVisible(): boolean {
@@ -215,8 +244,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
     this.eventBranding.refresh().subscribe();
-    this.kioskRotation.onContentAdvanceListeners.push(() => {
-      this.adAnimationRun = (this.adAnimationRun + 1) % 2;
+    this.kioskRotation.attach({
+      contentMode: () => { this.stateVersion(); return this.state?.remoteControl?.contentMode ?? 'loop'; },
+      contentQueue: () => { this.stateVersion(); return this.state?.topContent ?? []; },
+      ads: () => { this.stateVersion(); return (this.state?.ads ?? []) as unknown as ReadonlyArray<{ id: string; displayOrder: number }>; },
+      fixedContentId: () => { this.stateVersion(); return this.state?.remoteControl?.selectedFixedContentId ?? null; },
+      effectiveDurationSeconds: (item) => this.computeContentDurationSeconds(item),
+      adDurationSeconds: () => { this.stateVersion(); return this.state?.configuration.defaultAdDurationSeconds ?? 10; },
+      inlineAdCount: () => { this.stateVersion(); return this.state?.configuration.inlineAdCount ?? 1; },
+      videoEndDelaySeconds: () => { this.stateVersion(); return this.state?.configuration.videoEndDelaySeconds ?? 2; },
     });
     this.api.openDisplay().subscribe((state) => {
       this.applyState(state, { resetRotation: true });
@@ -232,7 +268,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.pollSub = null;
     this.syncSub?.unsubscribe();
     this.syncSub = null;
-    this.rotation.reset();
     this.kioskRotation.detach();
   }
 
@@ -245,7 +280,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   adAnimationClass(item: DisplayRenderableItem): string {
-    return `${this.animationClass(item)} ad-animation-run-${this.adAnimationRun$ % 2 === 0 ? 'a' : 'b'}`;
+    return `${this.animationClass(item)} ad-animation-run-${this.kioskRotation.adAnimationRun() % 2 === 0 ? 'a' : 'b'}`;
   }
 
   contentTransition(item: DisplayContentItem): {
@@ -268,11 +303,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   animationDurationMs(item: DisplayRenderableItem): number | null {
     const ms = item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds;
     if (ms && ms > 0) return ms;
-    // FR-004 / TD-008 / T030: provide a Chrome-safe fallback so the inline
-    // [style.animation-duration.ms] never receives `null` (Chrome drops the
-    // animation entirely when the inline value is null).
-    const defaultSeconds = this.state?.configuration.defaultAdDurationSeconds ?? 10;
-    return defaultSeconds * 1000;
+    // FR-013: never derive the CSS animation duration from defaultAdDurationSeconds
+    // (the rotation cadence). Fall back to the kiosk animation default.
+    return this.state?.configuration.defaultAdAnimationDurationMilliseconds ?? 300;
   }
 
   iframeUrl(): string | null {
@@ -309,65 +342,148 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.hiddenLogoUrl = url;
   }
 
-  private applyState(state: DisplayState, options: { resetRotation: boolean; preserveContentTimer?: boolean }): void {
-    const previousContent = this.currentContent;
+  onVideoEnded(item: DisplayContentItem): void {
+    if (item.id !== this.currentContent?.id || this.state?.remoteControl?.contentMode === 'iframe') {
+      return;
+    }
+    if (this.kioskRotation.contentMode() === 'fixed') {
+      // FR-014: in fixed mode the kiosk restarts the video in place; the
+      // [loop] attribute on the <video> element already restarts it, but we
+      // also explicitly seek to 0 so a fresh `ended` event can re-fire if the
+      // browser ever drops the loop attribute.
+      const video = this.fixedVideoRef?.nativeElement;
+      if (video) {
+        video.currentTime = 0;
+        const play = video.play();
+        if (play && typeof play.catch === 'function') {
+          play.catch(() => undefined);
+        }
+      }
+      return;
+    }
+    this.kioskRotation.onVideoEnded();
+  }
+
+  readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
+
+  readonly trackAdById = (_index: number, ad: DisplayAdItem): string => ad.id;
+
+  private applyState(state: DisplayState, options: { resetRotation: boolean }): void {
     const previousContentMode = this.state?.remoteControl?.contentMode;
     const previousDisplayAvailable = this.displayAvailable;
     this.state = state;
-    this.defaultTopDurationSeconds = state.configuration.defaultTopDurationSeconds;
+    this.stateVersion.update((v) => v + 1);
     this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
 
+    const newContentMode = state.remoteControl?.contentMode ?? 'loop';
+    const newFixedContentId = state.remoteControl?.selectedFixedContentId ?? null;
+
     if (options.resetRotation) {
-      this.rotation.initialize(state.topContent);
-      this.setCurrentContent(this.rotation.getFullState()[0] ?? null);
       this.kioskRotation.adIndex.set(0);
       this.lastNavigationCommandId = state.remoteControl?.navigationCommandId ?? null;
+      if (newContentMode === 'fixed' && newFixedContentId) {
+        const fixedItem = state.topContent.find((c) => c.id === newFixedContentId) ?? null;
+        this.kioskRotation.enterFixedMode(newFixedContentId);
+        this.setCurrentContent(fixedItem);
+      } else if (newContentMode === 'loop') {
+        const first = state.topContent[0] ?? null;
+        this.kioskRotation.setCursor(first?.id ?? null);
+        this.setCurrentContent(first);
+      } else {
+        this.setCurrentContent(null);
+      }
+      this.lastFixedContentId = newFixedContentId;
     } else {
-      this.rotation.applyPollState(state.topContent);
-      this.setCurrentContent(this.currentContent);
-      if (
-        previousContent &&
-        state.remoteControl?.contentMode !== 'iframe' &&
-        !state.topContent.find((item) => item.id === previousContent.id)
-      ) {
-        this.advanceNow();
-        return;
-      }
-      if (this.applyNavigationCommand()) {
-        this.scheduleNextAd();
-        this.reconfigurePollingIfNeeded();
-        return;
-      }
+      this.handleFixedModeTransition(previousContentMode ?? 'loop', newContentMode, newFixedContentId);
+      this.applyNavigationCommand();
+      this.syncCurrentContentForModeChange(previousContentMode ?? 'loop', newContentMode, newFixedContentId, state);
     }
 
-    const contentModeChanged = previousContentMode !== state.remoteControl?.contentMode;
+    const contentModeChanged = previousContentMode !== newContentMode;
     const displayAvailabilityChanged = previousDisplayAvailable !== this.displayAvailable;
-    if (options.resetRotation || !options.preserveContentTimer || contentModeChanged || displayAvailabilityChanged) {
-      this.scheduleTransition(this.durationOfCurrent());
+    if (contentModeChanged || displayAvailabilityChanged) {
+      this.schedulePreTransitionPoll();
     }
-    this.scheduleNextAd();
     this.reconfigurePollingIfNeeded();
   }
 
-  private scheduleTransition(durationMs: number): void {
-    this.clearContentTimers();
-    if (!this.displayAvailable || this.state?.remoteControl?.contentMode === 'iframe') {
+  private handleFixedModeTransition(
+    previousMode: 'loop' | 'iframe' | 'fixed',
+    newMode: 'loop' | 'iframe' | 'fixed',
+    newFixedContentId: string | null,
+  ): void {
+    if (newMode === 'fixed' && newFixedContentId) {
+      if (previousMode !== 'fixed' || this.lastFixedContentId !== newFixedContentId) {
+        this.kioskRotation.enterFixedMode(newFixedContentId);
+      }
+      this.lastFixedContentId = newFixedContentId;
       return;
     }
-    if (this.currentContent?.contentType === 'video') {
+    if (newMode === 'loop' && previousMode === 'fixed') {
+      this.kioskRotation.exitFixedMode();
+      this.lastFixedContentId = null;
       return;
     }
-    if (durationMs > 1000) {
-      this.preTransitionPollTimer = setTimeout(() => {
-        this.eventBranding.refresh().subscribe();
-        this.api.getState().subscribe((state) => {
-          if (this.state !== null) {
-            this.applyState(state, { resetRotation: false, preserveContentTimer: true });
-          }
-        });
-      }, durationMs - 1000);
+    if (newMode !== 'fixed') {
+      this.lastFixedContentId = null;
     }
-    this.contentTimer = setTimeout(() => this.advanceNow(), durationMs);
+  }
+
+  private syncCurrentContentForModeChange(
+    previousMode: 'loop' | 'iframe' | 'fixed',
+    newMode: 'loop' | 'iframe' | 'fixed',
+    newFixedContentId: string | null,
+    state: DisplayState,
+  ): void {
+    if (newMode === 'fixed' && newFixedContentId) {
+      const item = state.topContent.find((c) => c.id === newFixedContentId) ?? null;
+      this.setCurrentContent(item);
+      return;
+    }
+    if (previousMode === 'fixed' && newMode === 'loop') {
+      const restored = this.kioskRotation.currentContentId();
+      const item = restored ? state.topContent.find((c) => c.id === restored) ?? null : null;
+      this.setCurrentContent(item);
+    }
+  }
+
+  private applyNavigationCommand(): boolean {
+    const commandId = this.state?.remoteControl?.navigationCommandId ?? null;
+    const command = this.state?.remoteControl?.navigationCommand ?? null;
+    if (!commandId || commandId === this.lastNavigationCommandId) {
+      return false;
+    }
+    if (command === 'pause' || command === 'resume') {
+      // FR-011: forward pause/resume only when in loop.
+      this.lastNavigationCommandId = commandId;
+      this.kioskRotation.applyNavigationCommand(command);
+      return true;
+    }
+    if (command === 'jump_to') {
+      // Spec 014 addendum 2 (US7): forward jump_to with the polled
+      // `jumpToContentId`. The controller ignores commands that target an
+      // id no longer in the polled topContent.
+      this.lastNavigationCommandId = commandId;
+      const targetId = this.state?.remoteControl?.jumpToContentId ?? null;
+      this.kioskRotation.applyNavigationCommand('jump_to', targetId);
+      return true;
+    }
+    if (this.state?.remoteControl?.contentMode !== 'loop') {
+      return false;
+    }
+    this.lastNavigationCommandId = commandId;
+    if (command === 'next' || command === 'previous') {
+      this.kioskRotation.applyNavigationCommand(command);
+    }
+    return true;
+  }
+
+  private computeContentDurationSeconds(item: DisplayContentItem | null): number {
+    if (!item) {
+      return this.state?.configuration.defaultTopDurationSeconds ?? 10;
+    }
+    const effective = item.effectiveDurationSeconds ?? item.durationSeconds;
+    return effective ?? this.state?.configuration.defaultTopDurationSeconds ?? 10;
   }
 
   private applyFullscreenPreference(requested: boolean): void {
@@ -410,101 +526,33 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       });
   }
 
-  onVideoEnded(item: DisplayContentItem): void {
-    if (item.id !== this.currentContent?.id || this.state?.remoteControl?.contentMode === 'iframe') {
-      return;
-    }
-    this.clearContentTimers();
-    const delaySeconds = this.state?.configuration.videoEndDelaySeconds ?? 2;
-    this.contentTimer = setTimeout(() => this.advanceNow(), delaySeconds * 1000);
+  private schedulePreTransitionPoll(): void {
+    this.clearPreTransitionPoll();
+    if (!this.displayAvailable) return;
+    const mode = this.state?.remoteControl?.contentMode ?? 'loop';
+    if (mode !== 'loop') return;
+    if (!this.currentContent || this.currentContent.contentType === 'video') return;
+    const durationMs = this.computeContentDurationSeconds(this.currentContent) * 1000;
+    if (durationMs <= 1000) return;
+    this.preTransitionPollTimer = setTimeout(() => {
+      this.eventBranding.refresh().subscribe();
+      this.api.getState().subscribe((pollState) => {
+        if (this.state !== null) {
+          this.applyState(pollState, { resetRotation: false });
+        }
+      });
+    }, durationMs - 1000);
   }
 
-  readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
-
-  private scheduleNextAd(): void {
-    // FR-001 / FR-002 / FR-005 / TD-008: the kiosk-rotation-controller owns the
-    // single ad timer. We only push fresh inputs when the ads list identity
-    // (or its duration) actually changes; otherwise the existing timer keeps
-    // running untouched, which is the root fix for the "ad index doesn't
-    // advance" bug.
-    const ads = (this.state?.ads ?? []) as unknown as DisplayContentItem[];
-    if (!this.adsVisible || ads.length === 0) {
-      return;
+  private clearPreTransitionPoll(): void {
+    if (this.preTransitionPollTimer) {
+      clearTimeout(this.preTransitionPollTimer);
+      this.preTransitionPollTimer = null;
     }
-    // Resolve duration from the current ad's effective duration (per-item) or
-    // fall back to the kiosk configuration default.
-    const currentAd = this.kioskRotation.currentAd() as unknown as {
-      effectiveDurationSeconds?: number | null;
-      durationSeconds?: number | null;
-      displayOrder?: number;
-    } | null;
-    const fallbackSeconds = this.state?.configuration.defaultAdDurationSeconds ?? 10;
-    const durationSeconds =
-      currentAd?.effectiveDurationSeconds ?? currentAd?.durationSeconds ?? fallbackSeconds;
-    const durationSecondsMs = durationSeconds * 1000;
-    const adsChanged = this.lastAdsRef !== ads;
-    const durationChanged = this.lastAdDurationSeconds !== durationSeconds;
-    this.lastAdsRef = ads;
-    this.lastAdDurationSeconds = durationSeconds;
-    if (!adsChanged && !durationChanged) {
-      return;
-    }
-    // Push to the controller; the controller re-arms its single ad timer.
-    (this.kioskRotation as unknown as { _ads: { set: (v: DisplayContentItem[]) => void } })._ads.set(ads);
-    (this.kioskRotation as unknown as { _adDurationSeconds: { set: (v: number) => void } })._adDurationSeconds.set(durationSeconds);
-    // The controller's _armAdTimerOnly multiplies by 1000; pass seconds.
-    (this.kioskRotation as unknown as { _armAdTimerOnly: () => void })._armAdTimerOnly();
-    this.adAnimationRun += 1;
-    void durationSecondsMs; // referenced for clarity; controller already uses seconds
   }
 
-  private advanceNow(): void {
-    if (!this.displayAvailable || this.state?.remoteControl?.contentMode === 'iframe') {
-      return;
-    }
-    this.setCurrentContent(this.rotation.pickNext());
-    if (this.currentContent === null && this.state && this.state.topContent.length > 0) {
-      this.rotation.initialize(this.state.topContent);
-      this.setCurrentContent(this.rotation.pickNext());
-    }
-    this.scheduleTransition(this.durationOfCurrent());
-  }
-
-  private previousNow(): void {
-    if (!this.displayAvailable || this.state?.remoteControl?.contentMode === 'iframe') {
-      return;
-    }
-    this.setCurrentContent(this.rotation.pickPrevious());
-    if (this.currentContent === null && this.state && this.state.topContent.length > 0) {
-      this.rotation.initialize(this.state.topContent);
-      this.setCurrentContent(this.rotation.pickPrevious());
-    }
-    this.scheduleTransition(this.durationOfCurrent());
-  }
-
-  private applyNavigationCommand(): boolean {
-    const commandId = this.state?.remoteControl?.navigationCommandId ?? null;
-    const command = this.state?.remoteControl?.navigationCommand ?? null;
-    if (!commandId || commandId === this.lastNavigationCommandId || this.state?.remoteControl?.contentMode !== 'loop') {
-      return false;
-    }
-    this.lastNavigationCommandId = commandId;
-    if (command === 'next') {
-      this.advanceNow();
-      return true;
-    }
-    if (command === 'previous') {
-      this.previousNow();
-      return true;
-    }
-    return false;
-  }
-
-  private durationOfCurrent(): number {
-    if (this.currentContent === null) {
-      return this.defaultTopDurationSeconds * 1000;
-    }
-    return this.rotation.duration(this.currentContent, this.defaultTopDurationSeconds) * 1000;
+  private clearTimers(): void {
+    this.clearPreTransitionPoll();
   }
 
   private pollIntervalMs(): number {
@@ -516,7 +564,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.currentPollIntervalMs = this.pollIntervalMs();
     this.pollSub = this.api.watchState(this.currentPollIntervalMs).subscribe((pollState) => {
       this.eventBranding.refresh().subscribe();
-      this.applyState(pollState, { resetRotation: false, preserveContentTimer: true });
+      this.applyState(pollState, { resetRotation: false });
     });
   }
 
@@ -526,7 +574,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     this.eventBranding.refresh().subscribe();
     this.api.getState().subscribe((state) => {
-      this.applyState(state, { resetRotation: false, preserveContentTimer: true });
+      this.applyState(state, { resetRotation: false });
     });
   }
 
@@ -540,29 +588,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
   }
 
-  private clearContentTimers(): void {
-    if (this.contentTimer) {
-      clearTimeout(this.contentTimer);
-      this.contentTimer = null;
-    }
-    if (this.preTransitionPollTimer) {
-      clearTimeout(this.preTransitionPollTimer);
-      this.preTransitionPollTimer = null;
-    }
-  }
-
-  private clearTimers(): void {
-    this.clearContentTimers();
-    // adTimer is owned by KioskRotationController; nothing to clear here.
-  }
-
   private setCurrentContent(item: DisplayContentItem | null): void {
-    const nextSignature = item ? this.contentRenderKey(item) : '';
-    if (nextSignature !== this.currentContentRenderSignature) {
-      this.currentContentRenderSignature = nextSignature;
-    }
-    this.currentContent = item;
+    // Use setCursor() so the controller also syncs its internal regular
+    // cursor; otherwise the next advance would lose the position and
+    // restart from the first item (per spec 014 addendum 2).
+    this.kioskRotation.setCursor(item?.id ?? null);
     this.contentRenderItems = item ? [item] : [];
+    this.cdr.markForCheck();
   }
 
   private contentRenderKey(item: DisplayContentItem): string {

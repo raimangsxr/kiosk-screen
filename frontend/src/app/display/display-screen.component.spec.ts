@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
-import { DisplayApiService, DisplayState } from '../core/api/display.api';
+import { DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { EventBrandingService } from '../core/event-branding.service';
 import { DisplayScreenComponent } from './display-screen.component';
 
@@ -242,9 +242,9 @@ describe('DisplayScreenComponent', () => {
         updatedAt: '2026-06-18T00:00:00Z',
       },
       topContent: [
-        { ...readyState.topContent[0], id: 'content-1', title: 'First', durationSeconds: 10, effectiveDurationSeconds: 10 },
-        { ...readyState.topContent[0], id: 'content-2', title: 'Second', displayOrder: 2, durationSeconds: 10, effectiveDurationSeconds: 10 },
-        { ...readyState.topContent[0], id: 'content-3', title: 'Third', displayOrder: 3, durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'content-1', sourceReference: 'https://example.com/1.jpg', title: 'First', durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'content-2', sourceReference: 'https://example.com/2.jpg', title: 'Second', displayOrder: 2, durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'content-3', sourceReference: 'https://example.com/3.jpg', title: 'Third', displayOrder: 3, durationSeconds: 10, effectiveDurationSeconds: 10 },
       ],
     };
 
@@ -268,6 +268,7 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.currentContent?.title).toBe('First');
+    expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
 
     poll$.next({
       ...state,
@@ -280,14 +281,18 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+    // The DOM must reflect the new cursor, not just the component's getter.
+    expect(getContentSrc(fixture)).toBe('https://example.com/2.jpg');
 
     tick(9999);
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+    expect(getContentSrc(fixture)).toBe('https://example.com/2.jpg');
 
     tick(1);
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.title).toBe('Third');
+    expect(getContentSrc(fixture)).toBe('https://example.com/3.jpg');
 
     poll$.next({
       ...state,
@@ -300,6 +305,118 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance.currentContent?.title).toBe('Second');
+    expect(getContentSrc(fixture)).toBe('https://example.com/2.jpg');
+  }));
+
+  it('honors remote pause and resume in the DOM', fakeAsync(() => {
+    const poll$ = new Subject<DisplayState>();
+    const state: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+      topContent: [
+        { ...readyState.topContent[0], id: 'content-1', sourceReference: 'https://example.com/1.jpg', title: 'First', durationSeconds: 5, effectiveDurationSeconds: 5 },
+        { ...readyState.topContent[0], id: 'content-2', sourceReference: 'https://example.com/2.jpg', title: 'Second', displayOrder: 2, durationSeconds: 5, effectiveDurationSeconds: 5 },
+      ],
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(state),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(state),
+          }
+        },
+        eventBrandingProvider(),
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+    expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
+
+    // Pause: 60s of fake time must not advance the cursor.
+    poll$.next({
+      ...state,
+      remoteControl: {
+        ...state.remoteControl!,
+        navigationCommand: 'pause',
+        navigationCommandId: 'pause-1',
+      },
+    });
+    fixture.detectChanges();
+    tick(60_000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+    expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
+
+    // Resume: the cursor must advance normally.
+    poll$.next({
+      ...state,
+      remoteControl: {
+        ...state.remoteControl!,
+        navigationCommand: 'resume',
+        navigationCommandId: 'resume-1',
+      },
+    });
+    fixture.detectChanges();
+    tick(4_999);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+    tick(1);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-2');
+    expect(getContentSrc(fixture)).toBe('https://example.com/2.jpg');
+  }));
+
+  it('renders the new content in the DOM after the timer advances the cursor', fakeAsync(() => {
+    const poll$ = new Subject<DisplayState>();
+    const state: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+      topContent: [
+        { ...readyState.topContent[0], id: 'content-1', sourceReference: 'https://example.com/1.jpg', title: 'First', durationSeconds: 1, effectiveDurationSeconds: 1 },
+        { ...readyState.topContent[0], id: 'content-2', sourceReference: 'https://example.com/2.jpg', title: 'Second', displayOrder: 2, durationSeconds: 1, effectiveDurationSeconds: 1 },
+      ],
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(state),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(state),
+          }
+        },
+        eventBrandingProvider(),
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+    expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
+
+    tick(1000);
+    fixture.detectChanges();
+    expect(getContentSrc(fixture)).toBe('https://example.com/2.jpg');
   }));
 
   it('does not postpone rotation when the pre-transition poll returns state', fakeAsync(() => {
@@ -380,6 +497,93 @@ describe('DisplayScreenComponent', () => {
     });
 
     expect(fixture.componentInstance.visibleAds.length).toBe(1);
+  });
+
+  it('distributes every visible ad across the ad-region width (6 ads)', () => {
+    // The ad-region MUST render exactly N evenly-sized blocks for N
+    // visible ads. The block count is exposed via the `--ad-count`
+    // CSS custom property on the inner `.ad-region__list` so the
+    // grid template can build `repeat(N, minmax(0, 1fr))` columns.
+    const ads = Array.from({ length: 6 }, (_, i) => ({
+      ...readyState.ads[0],
+      id: `ad-${i + 1}`,
+      displayOrder: i + 1,
+    }));
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, inlineAdCount: 6 },
+      ads,
+    });
+    fixture.detectChanges();
+
+    const list = fixture.nativeElement.querySelector(
+      '[data-testid="ad-region-list"]',
+    ) as HTMLElement | null;
+    expect(list).not.toBeNull();
+    expect(list!.getAttribute('style')).toContain('--ad-count: 6');
+
+    const figures = fixture.nativeElement.querySelectorAll(
+      '.ad-region__item',
+    );
+    expect(figures.length).toBe(6);
+  });
+
+  it('distributes every visible ad across the ad-region width (12 ads)', () => {
+    const ads = Array.from({ length: 12 }, (_, i) => ({
+      ...readyState.ads[0],
+      id: `ad-${i + 1}`,
+      displayOrder: i + 1,
+    }));
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, inlineAdCount: 12 },
+      ads,
+    });
+    fixture.detectChanges();
+
+    const list = fixture.nativeElement.querySelector(
+      '[data-testid="ad-region-list"]',
+    ) as HTMLElement | null;
+    expect(list).not.toBeNull();
+    expect(list!.getAttribute('style')).toContain('--ad-count: 12');
+
+    const figures = fixture.nativeElement.querySelectorAll(
+      '.ad-region__item',
+    );
+    expect(figures.length).toBe(12);
+  });
+
+  it('keeps the ad-region items on a single horizontal row regardless of count', () => {
+    // Six ads render with six columns; the grid template must not
+    // wrap them to a second row. We assert that every item shares
+    // the same offsetTop (i.e. they sit on the same row), which is
+    // only true when the grid produces a single row of equal columns.
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, inlineAdCount: 6 },
+      ads: Array.from({ length: 6 }, (_, i) => ({
+        ...readyState.ads[0],
+        id: `ad-${i + 1}`,
+        displayOrder: i + 1,
+      })),
+    });
+    fixture.detectChanges();
+
+    const figures = Array.from(
+      fixture.nativeElement.querySelectorAll(
+        '.ad-region__item',
+      ) as NodeListOf<HTMLElement>,
+    );
+    expect(figures.length).toBe(6);
+    const firstTop = figures[0].getBoundingClientRect().top;
+    figures.forEach((el) => {
+      expect(el.getBoundingClientRect().top).toBe(firstTop);
+    });
+    // All six items must have the same width (equal column).
+    const firstWidth = figures[0].getBoundingClientRect().width;
+    figures.forEach((el) => {
+      expect(el.getBoundingClientRect().width).toBeCloseTo(firstWidth, 0);
+    });
   });
 
   it('returns to the hall when Escape is pressed', () => {
@@ -473,16 +677,21 @@ describe('DisplayScreenComponent', () => {
   it('changes the ad animation class when the ad strip rotates', fakeAsync(() => {
     const fixture = createComponent({
       ...readyState,
+      configuration: { ...readyState.configuration, defaultAdDurationSeconds: 1 },
       ads: [
-        { ...readyState.ads[0], id: 'ad-1', durationSeconds: 1, effectiveDurationSeconds: 1, effectiveRotationAnimation: 'slide' },
-        { ...readyState.ads[0], id: 'ad-2', displayOrder: 2, durationSeconds: 1, effectiveDurationSeconds: 1, effectiveRotationAnimation: 'slide' }
+        { ...readyState.ads[0], id: 'ad-1', durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' },
+        { ...readyState.ads[0], id: 'ad-2', displayOrder: 2, durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' }
       ]
     });
 
     const firstAd = fixture.componentInstance.currentAd!;
     const firstAnimationClass = fixture.componentInstance.adAnimationClass(firstAd);
 
-    tick(1000);
+    // FR-012: the kiosk rotates ads on the *configured* cadence, not the
+    // per-ad value. Per-ad duration is intentionally ignored.
+    tick(999);
+    expect(fixture.componentInstance.currentAd!.id).toBe('ad-1');
+    tick(1);
     fixture.detectChanges();
 
     const secondAd = fixture.componentInstance.currentAd!;
@@ -545,4 +754,184 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
   }));
+
+  // ---- FR-013: CSS animation duration fallback --------------------------------
+
+  it('uses defaultAdAnimationDurationMilliseconds (not ad duration) for the CSS animation fallback', () => {
+    const fixture = createComponent({
+      ...readyState,
+      configuration: {
+        ...readyState.configuration,
+        defaultAdDurationSeconds: 10,
+        defaultAdAnimationDurationMilliseconds: 425,
+      },
+      ads: [
+        { ...readyState.ads[0], id: 'no-anim', animationDurationMilliseconds: null, effectiveAnimationDurationMilliseconds: null },
+      ],
+    });
+    const ad = fixture.componentInstance.state!.ads[0];
+    // Per-ad missing → fallback must come from defaultAdAnimationDurationMilliseconds
+    // (NOT defaultAdDurationSeconds × 1000).
+    expect(fixture.componentInstance.animationDurationMs(ad)).toBe(425);
+  });
+
+  // ---- FR-014: fixed mode pins the content ----------------------------------
+
+  it('renders the fixed content when the operator pins it from the remote control', fakeAsync(() => {
+    const fixedId = 'content-1';
+    const poll$ = new Subject<DisplayState>();
+    const initial: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+      topContent: [
+        { ...readyState.topContent[0], id: 'content-1', title: 'Pinned', durationSeconds: 10, effectiveDurationSeconds: 10, isFixed: true } as DisplayContentItem,
+        { ...readyState.topContent[0], id: 'content-2', title: 'Other', displayOrder: 2, durationSeconds: 10, effectiveDurationSeconds: 10 },
+      ],
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(initial),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(initial),
+          }
+        },
+        eventBrandingProvider(),
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+
+    // Advance to content-2 in loop.
+    tick(10_000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-2');
+
+    // Operator pins content-1 via the remote control.
+    poll$.next({
+      ...initial,
+      remoteControl: {
+        ...initial.remoteControl!,
+        contentMode: 'fixed',
+        selectedFixedContentId: fixedId,
+      },
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+
+    // Many ticks later, the fixed content stays pinned.
+    tick(60_000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
+  }));
+
+  it('restores the loop cursor on transition from fixed back to loop (FR-015)', fakeAsync(() => {
+    const poll$ = new Subject<DisplayState>();
+    const initial: DisplayState = {
+      ...readyState,
+      remoteControl: {
+        contentMode: 'loop',
+        selectedIframeId: null,
+        adsVisible: true,
+        updatedAt: '2026-06-18T00:00:00Z',
+      },
+      topContent: [
+        { ...readyState.topContent[0], id: 'A', title: 'A', displayOrder: 1, durationSeconds: 10, effectiveDurationSeconds: 10, isFixed: true } as DisplayContentItem,
+        { ...readyState.topContent[0], id: 'B', title: 'B', displayOrder: 2, durationSeconds: 10, effectiveDurationSeconds: 10 },
+        { ...readyState.topContent[0], id: 'C', title: 'C', displayOrder: 3, durationSeconds: 10, effectiveDurationSeconds: 10 },
+      ],
+    };
+
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(initial),
+            watchState: () => poll$.asObservable(),
+            getState: () => of(initial),
+          }
+        },
+        eventBrandingProvider(),
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('A');
+
+    // Move to B in loop.
+    tick(10_000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('B');
+
+    // Pin A in fixed mode.
+    poll$.next({
+      ...initial,
+      remoteControl: {
+        ...initial.remoteControl!,
+        contentMode: 'fixed',
+        selectedFixedContentId: 'A',
+      },
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('A');
+
+    // Return to loop — the cursor that was active BEFORE pinning (B) is
+    // restored, not A.
+    poll$.next({
+      ...initial,
+      remoteControl: {
+        ...initial.remoteControl!,
+        contentMode: 'loop',
+        selectedFixedContentId: null,
+      },
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentContent?.id).toBe('B');
+  }));
+
+  it('rotates ads on the configured defaultAdDurationSeconds (FR-012), ignoring per-ad duration', fakeAsync(() => {
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, defaultAdDurationSeconds: 1 },
+      ads: [
+        { ...readyState.ads[0], id: 'a1', durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' },
+        { ...readyState.ads[0], id: 'a2', displayOrder: 2, durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' },
+      ],
+    });
+    expect(fixture.componentInstance.currentAd!.id).toBe('a1');
+    tick(1000);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.currentAd!.id).toBe('a2');
+  }));
 });
+
+/**
+ * Reads the current top-region media element's source from the rendered DOM.
+ * Used by the rotation / remote-control tests to assert that the template
+ * reflects the controller's cursor (not just the component's getter).
+ */
+function getContentSrc(fixture: ComponentFixture<DisplayScreenComponent>): string | null {
+  // The <img> and <video> elements both carry class="display-content-media"
+  // and data-testid="display-content". The animation wrappers don't strip the
+  // attribute, so a direct querySelector works.
+  const el = fixture.nativeElement.querySelector(
+    '.display-content-media[data-testid="display-content"]',
+  ) as HTMLImageElement | HTMLVideoElement | null;
+  return el?.getAttribute('src') ?? null;
+}

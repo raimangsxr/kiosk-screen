@@ -3,11 +3,13 @@ import { catchError, concatMap, from, of, tap, throwError, toArray } from 'rxjs'
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { ContentApiService, ContentItem, ContentItemRequest } from '../../core/api/content.api';
+import { RemoteControlFacade } from '../remote-control/remote-control.facade';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })
 export class ContentFacade {
   private readonly api = inject(ContentApiService);
+  private readonly remoteControl = inject(RemoteControlFacade);
   private readonly itemsState = signal<readonly ContentItem[]>([]);
   private readonly currentState = signal<ContentItem | null>(null);
   private readonly loadingState = signal(false);
@@ -122,6 +124,33 @@ export class ContentFacade {
     );
   }
 
+  /**
+   * Delete a batch of content items sequentially (via concatMap, same
+   * pattern as `uploadMany`). On the first error the remaining items
+   * are skipped and the error is surfaced through the `error` signal;
+   * already-completed deletes are not rolled back.
+   */
+  removeMany(ids: readonly string[]) {
+    if (ids.length === 0) {
+      return of(null);
+    }
+    this.savingState.set(true);
+    this.errorState.set(null);
+    return from(ids).pipe(
+      concatMap((id) => this.api.delete(id)),
+      toArray(),
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return of(null);
+      })
+    );
+  }
+
   reorder(orderedIds: string[]) {
     this.savingState.set(true);
     this.errorState.set(null);
@@ -145,5 +174,14 @@ export class ContentFacade {
 
   clearCurrent(): void {
     this.currentState.set(null);
+  }
+
+  /**
+   * Spec 014 addendum 2 (FR-020) / spec 009 addendum: posts a
+   * `jump_to` navigation command to the remote-control backend so the
+   * kiosk rotation cursor lands on this content id on the next poll.
+   */
+  showOnScreen(id: string) {
+    return this.remoteControl.navigate('jump_to', id);
   }
 }

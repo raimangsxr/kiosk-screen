@@ -96,14 +96,14 @@ export class RemoteControlFacade {
     );
   }
 
-  navigate(command: RemoteControlNavigationCommand) {
+  navigate(command: RemoteControlNavigationCommand, targetContentId?: string | null) {
     this.savingSignal.set(true);
     this.errorSignal.set(null);
     // FR-011 / FR-012a: locally track pause state so the UI reflects it before
     // the next poll round-trip.
     if (command === 'pause') this.pausedSignal.set(true);
     if (command === 'resume') this.pausedSignal.set(false);
-    return this.api.navigate({ command }).pipe(
+    return this.api.navigate({ command, targetContentId: targetContentId ?? null }).pipe(
       tap((state) => {
         this.stateSignal.set(state);
         this.displaySync.notifyRemoteControlChanged();
