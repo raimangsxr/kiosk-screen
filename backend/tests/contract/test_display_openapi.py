@@ -19,8 +19,8 @@ def openapi_schema(api_client: TestClient) -> dict:
 
 def test_auth_and_display_paths_exist_in_openapi_contract(openapi_schema: dict):
     paths = openapi_schema["paths"]
-    assert "/auth/login" in paths
-    assert "/auth/me" in paths
-    assert "/auth/logout" in paths
-    assert "/display/open" in paths
-    assert "/display/state" in paths
+    assert "/api/auth/login" in paths
+    assert "/api/auth/me" in paths
+    assert "/api/auth/logout" in paths
+    assert "/api/display/open" in paths
+    assert "/api/display/state" in paths

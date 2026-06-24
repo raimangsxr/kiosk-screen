@@ -22,10 +22,10 @@ def openapi_schema(api_client: TestClient) -> dict:
 
 def test_ads_paths_exist_in_openapi_contract(openapi_schema: dict):
     paths = openapi_schema["paths"]
-    assert "/ads" in paths
-    assert "/ads/{ad_id}" in paths
-    assert "/ads/upload" in paths
-    assert "/ads/reorder" in paths
+    assert "/api/ads" in paths
+    assert "/api/ads/{ad_id}" in paths
+    assert "/api/ads/upload" in paths
+    assert "/api/ads/reorder" in paths
     assert "AdItemRequest" in openapi_schema["components"]["schemas"]
 
 
@@ -33,3 +33,5 @@ def test_clients_paths_removed_from_openapi_contract(openapi_schema: dict):
     paths = openapi_schema["paths"]
     assert "/clients" not in paths
     assert "/clients/{clientId}" not in paths
+    assert "/api/clients" not in paths
+    assert "/api/clients/{clientId}" not in paths

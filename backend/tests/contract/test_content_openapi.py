@@ -19,8 +19,8 @@ def openapi_schema(api_client: TestClient) -> dict:
 
 def test_content_paths_exist_in_openapi_contract(openapi_schema: dict):
     paths = openapi_schema["paths"]
-    assert "/content" in paths
-    assert "/content/{content_id}" in paths
-    assert "/content/upload" in paths
-    assert "/content/reorder" in paths
+    assert "/api/content" in paths
+    assert "/api/content/{content_id}" in paths
+    assert "/api/content/upload" in paths
+    assert "/api/content/reorder" in paths
     assert "ContentItemRequest" in openapi_schema["components"]["schemas"]

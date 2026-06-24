@@ -23,11 +23,11 @@ def openapi_schema(api_client: TestClient) -> dict:
 def test_admin_paths_exist_in_openapi_contract(openapi_schema: dict):
     paths = openapi_schema["paths"]
     for path in [
-        "/readiness",
-        "/display/configuration",
-        "/events",
-        "/users",
-        "/users/{user_id}",
+        "/api/readiness",
+        "/api/display/configuration",
+        "/api/events",
+        "/api/users",
+        "/api/users/{user_id}",
     ]:
         assert path in paths, f"missing OpenAPI path: {path}"
 
@@ -36,3 +36,5 @@ def test_approved_domains_paths_removed_from_openapi_contract(openapi_schema: di
     paths = openapi_schema["paths"]
     assert "/approved-domains" not in paths
     assert "/approved-domains/{domainId}" not in paths
+    assert "/api/approved-domains" not in paths
+    assert "/api/approved-domains/{domainId}" not in paths
