@@ -1,142 +1,87 @@
 # Implementation Plan: [FEATURE]
 
+**Input**: Feature specification from `/specs/changes/[###-feature-name]/spec.md`  
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+## Context Grounding
 
-**Note**: This template is filled in by the `/speckit-plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+- Manifest read: [yes/no]
+- Active contracts read: [list]
+- Change specs read: [list]
+- Context pack read or created: [path]
+- ADRs read: [list]
+- Code entrypoints verified: [list]
+- Tests identified: [list]
+- Archived or consolidated specs read: [list and justification, or none]
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[Extract from feature spec: primary requirement + technical approach]
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
-
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
-
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
-
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
-
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
-
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
-
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: [e.g., Python 3.12, TypeScript/Angular]  
+**Primary Dependencies**: [e.g., FastAPI, SQLAlchemy, Angular]  
+**Storage**: [if applicable]  
+**Testing**: [pytest, Angular/Karma, contract tests]  
+**Target Platform**: [backend/frontend/browser/deploy target]  
+**Project Type**: [web app]  
+**Performance Goals**: [domain-specific]  
+**Constraints**: [latency, security, accessibility, token context limits]  
+**Scale/Scope**: [users, data, screens]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- **Spec traceability**: Plan references the approved specification, user stories,
-  requirements, and measurable success criteria that drive this work.
-- **Requirement clarity**: Open ambiguities are resolved or explicitly marked as
-  blockers before implementation tasks are generated.
-- **Plan alignment**: Technical approach, dependencies, architecture, and task
-  boundaries stay within the approved specification scope.
-- **Simplicity**: Architecture is modular and maintainable, with new dependencies
-  or abstractions justified by current requirements.
-- **Contracts**: Public, integration, data, and UI boundaries have documented
-  contracts or expectations.
-- **Testing**: Changed behavior has a planned validation path, including unit
-  tests for business logic and integration, contract, or end-to-end tests for
-  external boundaries.
-- **Security, observability, accessibility**: Risks and required work are
-  considered from the start and reflected in research, design, or tasks.
-- **No speculative scope**: Deferred or unapproved features are excluded from the
-  implementation plan.
-- **Conflict handling**: If implementation reality conflicts with this plan, work
-  stops until the conflict is documented and the spec or plan is updated.
-- **Capability boundary (Principle VII)**: This plan's `spec.md` declares a single
-  `capability:` frontmatter. Cross-capability changes are split into two specs
-  or link through a `bridge.md`.
-- **Supersession (Principle VI)**: If this spec amends an approved spec, the
-  amended spec's footer `> Superseded by: <NNN>-<name> (<US>)` is in place and a
-  `supersedes.md` file documents the change.
-- **Size budget (Principle VIII)**: `spec.md` ≤ 250, `plan.md` ≤ 300, `tasks.md`
-  ≤ 400 lines (frontmatter excluded). Over-budget artefacts carry `oversize:
-  true` and a `## Oversize justification` block.
-- **Conflict log clean**: `<active-spec>/validation/implementation-conflicts.md`
-  has no unresolved rows from prior work.
+- Active contract identified and read: [pass/fail]
+- Manifest update needed and planned: [pass/fail]
+- Context pack created/updated: [pass/fail]
+- Contract update required before implementation: [yes/no]
+- Tests planned for changed behavior: [pass/fail]
+- Security and user-facing error exposure considered: [pass/fail]
+- Observability/audit impact considered: [pass/fail]
+- No archived or superseded specs used without justification: [pass/fail]
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation for this change
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit-plan command output)
-├── research.md          # Phase 0 output (/speckit-plan command)
-├── data-model.md        # Phase 1 output (/speckit-plan command)
-├── quickstart.md        # Phase 1 output (/speckit-plan command)
-├── contracts/           # Phase 1 output (/speckit-plan command)
-└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
+specs/changes/[###-feature]/
+├── spec.md
+├── context-pack.md
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+└── tasks.md
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source code touched
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
 backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
 frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+## Phase 0: Outline & Research
+
+- [Research questions and decisions]
+
+## Phase 1: Design & Contracts
+
+- [Data model]
+- [API/UI contracts]
+- [Active contract updates]
+- [ADR updates]
+
+## Phase 2: Task Planning Approach
+
+- [How tasks map to user stories]
+- [Test strategy]
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |

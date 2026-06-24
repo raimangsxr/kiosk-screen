@@ -1,0 +1,366 @@
+version: 1
+model: contract-centric-token-aware-sdd
+
+context_policy:
+  entrypoint: specs/manifest.yml
+  default_read_order:
+    - specs/manifest.yml
+    - affected active contract under specs/contracts/**/contract.md
+    - active or in-progress change spec only when directly related
+    - context-pack.md for the active change if present
+  never_read_by_default:
+    - specs/archive/**
+    - specs/changes/** with status consolidated
+    - backend/**/__pycache__/**
+    - frontend/**/._*
+
+contracts:
+  - id: AUTH.RBAC
+    path: specs/contracts/auth-rbac/contract.md
+    status: active
+    owns:
+      - backend/app/auth/**
+      - backend/app/domain/roles.py
+      - backend/app/api/auth.py
+      - backend/app/api/v1/auth/**
+      - backend/app/api/v1/users/**
+      - backend/app/application/users/**
+      - frontend/src/app/auth/**
+      - frontend/src/app/core/auth/**
+      - frontend/src/app/features/users/**
+    related_changes:
+      - CHG-001
+      - CHG-010
+
+  - id: DISPLAY.CONFIG_SESSION
+    path: specs/contracts/display-config-session/contract.md
+    status: active
+    owns:
+      - backend/app/application/display_config/**
+      - backend/app/services/display_service.py
+      - backend/app/api/configuration.py
+      - backend/app/api/display.py
+      - backend/app/api/v1/display/**
+      - backend/app/repositories/models/operator_session.py
+      - frontend/src/app/features/display-config/**
+      - frontend/src/app/features/hall/**
+      - frontend/src/app/core/api/display.api.ts
+    related_changes:
+      - CHG-002
+      - CHG-011
+
+  - id: MEDIA.UPLOADS
+    path: specs/contracts/media-uploads/contract.md
+    status: active
+    owns:
+      - backend/app/api/media.py
+      - backend/app/api/v1/media/**
+      - backend/app/domain/media.py
+      - backend/app/repositories/media.py
+      - backend/app/repositories/models/media.py
+      - frontend/src/app/shared/media-upload.models.ts
+      - frontend/src/app/shared/ui/file-input.component.ts
+    related_changes:
+      - CHG-003
+
+  - id: PUBLIC_CONTENT.API_KEYS
+    path: specs/contracts/public-content-api-keys/contract.md
+    status: active
+    owns:
+      - backend/app/api/v1/api_keys/**
+      - backend/app/api/v1/public_content/**
+      - backend/app/repositories/api_keys.py
+      - backend/app/application/content/**
+      - frontend/src/app/features/api-keys/**
+      - docs/postman/kiosk-screen-public-content.postman_collection.json
+    related_changes:
+      - CHG-004
+
+  - id: DISPLAY.CONTROL
+    path: specs/contracts/display-control/contract.md
+    status: active
+    owns:
+      - backend/app/application/display_control/**
+      - backend/app/api/display.py
+      - backend/app/repositories/models/display_control_state.py
+      - frontend/src/app/features/remote-control/**
+      - frontend/src/app/core/display-control-sync.service.ts
+      - frontend/src/app/display/kiosk-rotation.controller.ts
+      - frontend/src/app/display/display-screen.component.ts
+    related_changes:
+      - CHG-005
+      - CHG-006
+      - CHG-007
+      - CHG-014
+
+  - id: IFRAMES.VIDEO_END
+    path: specs/contracts/iframes-video-end/contract.md
+    status: active
+    owns:
+      - backend/app/api/iframes.py
+      - backend/app/repositories/models/iframe.py
+      - backend/app/application/display_config/**
+      - frontend/src/app/features/iframes/**
+      - frontend/src/app/display/display-screen.component.ts
+    related_changes:
+      - CHG-006
+
+  - id: CONTENT.ROTATION
+    path: specs/contracts/content-rotation/contract.md
+    status: active
+    owns:
+      - backend/app/domain/rotation.py
+      - backend/app/api/mappers.py
+      - frontend/src/app/display/display-rotation.service.ts
+      - frontend/src/app/display/kiosk-rotation.controller.ts
+      - frontend/src/app/display/display-screen.component.ts
+      - frontend/src/app/features/content/**
+    related_changes:
+      - CHG-007
+      - CHG-014
+
+  - id: EVENT.BRANDING
+    path: specs/contracts/event-branding/contract.md
+    status: active
+    owns:
+      - backend/app/api/event_configuration.py
+      - backend/app/api/event_branding.py
+      - backend/app/repositories/models/event_configuration.py
+      - frontend/src/app/core/event-branding.service.ts
+      - frontend/src/app/features/event-config/**
+      - frontend/src/app/display/display-screen.component.ts
+      - frontend/src/app/display/display-screen.component.css
+    related_changes:
+      - CHG-008
+      - CHG-019
+
+  - id: CONTENT.ADS.ADMIN
+    path: specs/contracts/content-ads-admin/contract.md
+    status: active
+    owns:
+      - backend/app/api/content.py
+      - backend/app/api/ads.py
+      - backend/app/api/v1/content/**
+      - backend/app/api/v1/ads/**
+      - backend/app/application/content/**
+      - backend/app/application/ads/**
+      - frontend/src/app/features/content/**
+      - frontend/src/app/features/ads/**
+    related_changes:
+      - CHG-009
+      - CHG-003
+      - CHG-007
+
+  - id: USERS.ROLES.ADMIN
+    path: specs/contracts/users-roles-admin/contract.md
+    status: active
+    owns:
+      - backend/app/api/users.py
+      - backend/app/api/v1/users/**
+      - backend/app/application/users/**
+      - backend/app/domain/roles.py
+      - frontend/src/app/features/users/**
+      - frontend/src/app/core/auth/**
+    related_changes:
+      - CHG-010
+      - CHG-001
+
+  - id: READINESS.SETUP
+    path: specs/contracts/readiness-setup/contract.md
+    status: active
+    owns:
+      - backend/app/domain/readiness.py
+      - backend/app/application/readiness/**
+      - backend/app/api/readiness.py
+      - backend/app/api/v1/readiness/**
+      - frontend/src/app/features/readiness/**
+      - frontend/src/app/features/dashboard/**
+      - frontend/src/app/features/hall/**
+    related_changes:
+      - CHG-011
+
+  - id: DISPLAY.EVENTS.AUDIT
+    path: specs/contracts/display-events-audit/contract.md
+    status: active
+    owns:
+      - backend/app/domain/display_events.py
+      - backend/app/repositories/events.py
+      - backend/app/repositories/models/display_event.py
+      - backend/app/api/events.py
+      - backend/app/api/v1/events/**
+      - frontend/src/app/features/**
+    related_changes:
+      - CHG-012
+      - CHG-004
+      - CHG-005
+      - CHG-007
+      - CHG-014
+
+  - id: ADMIN.SHELL.NAVIGATION
+    path: specs/contracts/admin-shell-navigation/contract.md
+    status: active
+    owns:
+      - frontend/src/app/features/admin-shell/**
+      - frontend/src/app/core/layout/**
+      - frontend/src/app/core/routing/**
+      - frontend/src/app/features/dashboard/**
+      - frontend/src/app/shared/dirty-form.guard.ts
+      - frontend/src/app/shared/ui/**
+    related_changes:
+      - CHG-013
+
+  - id: DISPLAY.RUNTIME
+    path: specs/contracts/display-runtime/contract.md
+    status: active
+    owns:
+      - frontend/src/app/display/display-screen.component.ts
+      - frontend/src/app/display/display-screen.component.css
+      - frontend/src/app/display/display-screen.component.spec.ts
+      - frontend/src/app/display/display-api.service.ts
+      - frontend/src/app/display/display-rotation.service.ts
+      - frontend/src/app/display/kiosk-rotation.controller.ts
+      - frontend/src/app/core/display-control-sync.service.ts
+      - frontend/src/app/core/event-branding.service.ts
+    related_changes:
+      - CHG-014
+      - CHG-019
+      - CHG-005
+      - CHG-007
+      - CHG-008
+
+changes:
+  - id: CHG-001
+    path: specs/changes/001-foundation-auth-and-rbac/spec.md
+    status: consolidated
+    modifies:
+      - AUTH.RBAC
+    consolidated_into:
+      - AUTH.RBAC
+    read_by_default: false
+
+  - id: CHG-002
+    path: specs/changes/002-kiosk-display-config-and-session/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.CONFIG_SESSION
+    consolidated_into:
+      - DISPLAY.CONFIG_SESSION
+    read_by_default: false
+
+  - id: CHG-003
+    path: specs/changes/003-admin-media-uploads/spec.md
+    status: consolidated
+    modifies:
+      - MEDIA.UPLOADS
+    consolidated_into:
+      - MEDIA.UPLOADS
+    read_by_default: false
+
+  - id: CHG-004
+    path: specs/changes/004-api-keys-and-public-content-upload/spec.md
+    status: consolidated
+    modifies:
+      - PUBLIC_CONTENT.API_KEYS
+    consolidated_into:
+      - PUBLIC_CONTENT.API_KEYS
+    read_by_default: false
+
+  - id: CHG-005
+    path: specs/changes/005-display-control-state/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.CONTROL
+    consolidated_into:
+      - DISPLAY.CONTROL
+    read_by_default: false
+
+  - id: CHG-006
+    path: specs/changes/006-preconfigured-iframes-and-video-end/spec.md
+    status: consolidated
+    modifies:
+      - IFRAMES.VIDEO_END
+    consolidated_into:
+      - IFRAMES.VIDEO_END
+    read_by_default: false
+
+  - id: CHG-007
+    path: specs/changes/007-content-rotation-modes/spec.md
+    status: consolidated
+    modifies:
+      - CONTENT.ROTATION
+    consolidated_into:
+      - CONTENT.ROTATION
+    read_by_default: false
+
+  - id: CHG-008
+    path: specs/changes/008-event-branding/spec.md
+    status: consolidated
+    modifies:
+      - EVENT.BRANDING
+    consolidated_into:
+      - EVENT.BRANDING
+    read_by_default: false
+
+  - id: CHG-009
+    path: specs/changes/009-content-and-ads-admin/spec.md
+    status: consolidated
+    modifies:
+      - CONTENT.ADS.ADMIN
+    consolidated_into:
+      - CONTENT.ADS.ADMIN
+    read_by_default: false
+
+  - id: CHG-010
+    path: specs/changes/010-users-and-roles-admin/spec.md
+    status: consolidated
+    modifies:
+      - USERS.ROLES.ADMIN
+    consolidated_into:
+      - USERS.ROLES.ADMIN
+    read_by_default: false
+
+  - id: CHG-011
+    path: specs/changes/011-readiness-setup-check/spec.md
+    status: consolidated
+    modifies:
+      - READINESS.SETUP
+    consolidated_into:
+      - READINESS.SETUP
+    read_by_default: false
+
+  - id: CHG-012
+    path: specs/changes/012-display-events-audit-log/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.EVENTS.AUDIT
+    consolidated_into:
+      - DISPLAY.EVENTS.AUDIT
+    read_by_default: false
+
+  - id: CHG-013
+    path: specs/changes/013-admin-shell-and-navigation/spec.md
+    status: consolidated
+    modifies:
+      - ADMIN.SHELL.NAVIGATION
+    consolidated_into:
+      - ADMIN.SHELL.NAVIGATION
+    read_by_default: false
+
+  - id: CHG-014
+    path: specs/changes/014-display-screen-runtime/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.RUNTIME
+    consolidated_into:
+      - DISPLAY.RUNTIME
+    read_by_default: false
+
+  - id: CHG-019
+    path: specs/changes/019-display-responsive-runtime/spec.md
+    status: in-progress
+    modifies:
+      - DISPLAY.RUNTIME
+    consolidated_into: []
+    read_by_default: true
+
+archive: []

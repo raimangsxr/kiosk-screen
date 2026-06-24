@@ -15,4 +15,5 @@ venv/
 .env
 .env.*
 !.env.example
-
+._*
+.DS_Store

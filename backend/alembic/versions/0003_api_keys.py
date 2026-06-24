@@ -5,7 +5,7 @@ Revises: 0002_admin_media_uploads
 Create Date: 2026-06-18
 
 Adds the api_keys table for the public content upload API (spec 009).
-See specs/004-api-keys-and-public-content-upload/spec.md for the schema rationale.
+See specs/changes/004-api-keys-and-public-content-upload/spec.md for the schema rationale.
 """
 from collections.abc import Sequence
 
