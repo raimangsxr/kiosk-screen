@@ -1,15 +1,15 @@
 schema_version: "1.0"
 workflow:
   id: "speckit"
-  name: "Full SDD Cycle"
-  version: "1.0.0"
-  author: "GitHub"
-  description: "Runs specify → plan → tasks → implement with review gates"
+  name: "Token-Aware Full SDD Cycle"
+  version: "2.0.0"
+  author: "Kiosk Screen"
+  description: "Runs specify -> clarify -> checklist -> plan -> tasks -> analyze -> implement with contract and context-pack gates"
 
 requires:
-  speckit_version: ">=0.7.2"
+  speckit_version: ">=0.8.11"
   integrations:
-    any: ["copilot", "claude", "gemini"]
+    any: ["opencode", "codex"]
 
 inputs:
   spec:
@@ -18,12 +18,12 @@ inputs:
     prompt: "Describe what you want to build"
   integration:
     type: string
-    default: "copilot"
-    prompt: "Integration to use (e.g. claude, copilot, gemini)"
+    default: "opencode"
+    prompt: "Integration to use (opencode or codex)"
   scope:
     type: string
     default: "full"
-    enum: ["full", "backend-only", "frontend-only"]
+    enum: ["full", "backend-only", "frontend-only", "sdd-only"]
 
 steps:
   - id: specify
@@ -32,9 +32,21 @@ steps:
     input:
       args: "{{ inputs.spec }}"
 
+  - id: clarify
+    command: speckit.clarify
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
+
+  - id: checklist
+    command: speckit.checklist
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
+
   - id: review-spec
     type: gate
-    message: "Review the generated spec before planning."
+    message: "Review spec.md, context-pack.md, manifest entry, and affected active contracts before planning."
     options: [approve, reject]
     on_reject: abort
 
@@ -46,7 +58,7 @@ steps:
 
   - id: review-plan
     type: gate
-    message: "Review the plan before generating tasks."
+    message: "Review context grounding and constitution checks before task generation."
     options: [approve, reject]
     on_reject: abort
 
@@ -55,6 +67,18 @@ steps:
     integration: "{{ inputs.integration }}"
     input:
       args: "{{ inputs.spec }}"
+
+  - id: analyze
+    command: speckit.analyze
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
+
+  - id: review-analysis
+    type: gate
+    message: "Resolve critical analysis findings before implementation."
+    options: [approve, reject]
+    on_reject: abort
 
   - id: implement
     command: speckit.implement

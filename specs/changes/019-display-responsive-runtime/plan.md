@@ -1,0 +1,184 @@
+# Implementation Plan: Display Responsive Runtime
+
+**Branch**: `019-display-responsive-runtime` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
+
+**Input**: Feature specification from `/specs/changes/019-display-responsive-runtime/spec.md`
+
+## Context Grounding
+
+- Manifest read: `specs/manifest.yml`
+- Active contracts read: `specs/contracts/display-runtime/contract.md`
+- Change specs read: `specs/changes/019-display-responsive-runtime/spec.md`
+- Context pack read: `specs/changes/019-display-responsive-runtime/context-pack.md`
+- Optional contracts: `specs/contracts/display-control/contract.md`, `specs/contracts/content-rotation/contract.md`, `specs/contracts/event-branding/contract.md`
+- ADRs read: `docs/adr/0001-token-aware-sdd-governance.md`, `docs/adr/0002-display-runtime-region-ratios.md`
+- Code entrypoints verified: `frontend/src/app/display/display-screen.component.ts`, `frontend/src/app/display/display-screen.component.css`, `frontend/src/app/display/display-screen.component.spec.ts`
+- Archived/consolidated specs read by default: none
+
+## Summary
+
+Refactor the kiosk display component's CSS to be fluid,
+aspect-ratio aware, orientation aware, and cross-browser stable
+while honouring the polled `topRegionRatio` / `bottomRegionRatio`.
+Scope is restricted to presentation: the controller, services,
+backend contracts, and the admin shell are not touched.
+
+The technical approach is:
+
+1. Replace every hard-coded pixel value in
+   `display-screen.component.css` with a `clamp()` driven by
+   viewport units (`vh` / `vw`).
+2. Read the polled ratios into CSS custom properties on the host
+   element so the grid template honours the admin configuration
+   without redeploy.
+3. Apply `aspect-ratio` to every ad figure so the sponsor images
+   keep their proportions across the supported viewports.
+4. Subscribe to `matchMedia('(orientation: portrait)')` in the
+   component and surface a high-contrast prompt in portrait while
+   keeping the polled state live.
+5. Fix the branding overlay so its container carries the layout
+   class and its children never collide.
+6. Add Karma specs at fixed viewports (1280×720, 1920×1080,
+   2560×1440, 3840×2160) and at portrait to assert SC-001..SC-005.
+
+## Technical Context
+
+- **Language/Version**: TypeScript 5.8 (frontend only).
+- **Primary Dependencies**: Angular 17, RxJS, Material 3. No new
+  dependencies are introduced.
+- **Storage**: N/A (state lives in the backend; this spec
+  consumes it unchanged).
+- **Testing**: Karma + Jasmine. New specs extend
+  `frontend/src/app/display/display-screen.component.spec.ts`.
+- **Target Platform**: Chromium desktop and kiosk
+  (Chrome/Edge 108+). Firefox and Safari are not the primary QA
+  target but degrade acceptably.
+- **Project Type**: web (frontend Angular SPA).
+- **Performance Goals**: ≤ 5 % CPU when idle (inherited from
+  spec 014 SC-001); layout reflow under 16 ms (one frame) on
+  resize and orientation change.
+- **Constraints**: No new external dependencies; no backend
+  changes; the controller / rotation contract is preserved.
+- **Scale/Scope**: one component file plus its CSS and spec;
+  zero surface area added to the public API.
+
+## Constitution Check
+
+*GATE: Must pass before Phase 0 research. Re-check after Phase 1
+design.*
+
+- **Spec traceability**: this plan references spec.md, the 5 user
+  stories, the 10 FRs, and the 5 SCs that drive the work.
+- **Requirement clarity**: zero open ambiguities after the
+  `/speckit.specify` clarification round.
+- **Plan alignment**: the technical approach stays inside the
+  scope of spec 019 (presentation only).
+- **Simplicity**: no new dependencies, no new abstractions, no
+  new services; the change lives in two files
+  (`display-screen.component.ts` and `.css`) and their spec.
+- **Contracts**: the only new boundary is the CSS custom property
+  hook (`--top-ratio`, `--bottom-ratio`); documented in
+  [data-model.md](./data-model.md).
+- **Testing**: Karma specs at fixed viewports and at portrait
+  drive SC-001..SC-005; the existing spec 014 specs continue to
+  pass.
+- **Security, observability, accessibility**: portrait prompt
+  uses `aria-live="polite"` (TQ-004). Security and observability
+  are unchanged because the polled state pipeline is preserved.
+- **No speculative scope**: mobile-first redesign, animation
+  transitions, and high-contrast themes are deferred per spec
+  assumption.
+- **Conflict handling**: spec 014 is not amended; spec 019 adds
+  presentation-only changes and supersedes nothing.
+- **Capability boundary (Principle VII)**: the spec declares a
+  single `capability:` (C19-display-responsive-runtime).
+- **Supersession (Principle VI)**: spec 019 does not supersede any
+  approved spec; spec 014's `Superseded by` block remains empty.
+- **Size budget (Principle VIII)**: spec.md ≤ 250 lines
+  (current: ~210), plan.md ≤ 300 lines (current: ~120),
+  tasks.md ≤ 400 lines (to be generated by `/speckit.tasks`).
+- **Conflict log clean**: no prior conflicts to resolve.
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/changes/019-display-responsive-runtime/
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── quickstart.md        # Phase 1 output
+└── tasks.md             # Phase 2 output (/speckit.tasks)
+```
+
+### Source Code
+
+```text
+frontend/src/app/display/
+├── display-screen.component.ts        # touched (template + orientation signal)
+├── display-screen.component.css       # touched (fluid + responsive)
+├── display-screen.component.spec.ts   # touched (new responsive specs)
+├── display-rotation.service.ts        # untouched
+├── display-api.service.ts             # untouched
+├── kiosk-rotation.controller.ts       # untouched
+└── ...
+```
+
+**Structure Decision**: this feature is a frontend-only,
+single-component refactor. The touched files are limited to the
+display component and its spec; no new modules, no new
+directories, no new routes.
+
+## Implementation Order
+
+1. Add the orientation signal and the `matchMedia` listener to
+   `DisplayScreenComponent`.
+2. Bind the polled ratios to CSS custom properties on the host
+   element.
+3. Add the portrait prompt block to the template with
+   `aria-live="polite"`.
+4. Restructure the CSS:
+   - Replace `100vh` with `100dvh` plus `@supports` fallback.
+   - Replace fixed `px` font sizes and heights with `clamp()`
+     driven by `vh` / `vw`.
+   - Apply `aspect-ratio` to `.ad-region__item`.
+   - (No container queries in this spec; see research.md.)
+   - Scope `object-fit: cover` to `.display-content-media` only.
+   - Move the `branding-overlay` class onto the container `<div>`.
+5. Add Karma specs:
+   - SC-001: heights at 1280×720, 1920×1080, 2560×1440, 3840×2160.
+   - SC-002: minimum font sizes at 1280×720.
+   - SC-003: orientation flip with prompt visibility.
+   - SC-004: equal figure widths and heights for 6 ads.
+   - SC-005: 3:1 ratio override at 1920×1080.
+6. Run `npm --prefix frontend run build` and
+   `npm --prefix frontend run test` to validate.
+
+## Risk and Mitigation
+
+- **Risk**: replacing the global `img, video, iframe` rule with a
+  scoped `.display-content-media` rule could regress an
+  unrelated consumer.
+  **Mitigation**: grep the codebase for `img`, `video`, `iframe`
+  selectors that rely on the global `object-fit: cover`. The
+  display component is the only consumer in the kiosk app.
+- **Risk**: the `matchMedia` API is not yet available in
+  environments that polyfill it away.
+  **Mitigation**: wrap the listener in a `typeof matchMedia !==
+  'undefined'` guard so the component still renders the regions
+  in legacy environments.
+- **Risk**: `dvh` is not in older Chromium.
+  **Mitigation**: fall back to `vh` via
+  `@supports not (height: 100dvh)`; the kiosk browser is
+  Chromium 108+ per the assumption.
+
+## Out of Scope
+
+- Mobile-first redesign, phone-sized layouts below 1280×720.
+- Touch gesture handling, screen wake lock, pointer events.
+- Animated orientation transitions.
+- Operator-side high-contrast theme.
+- Changes to `KioskRotationController`, `DisplayRotationService`,
+  `DisplayControlSyncService`, `EventBrandingService`, or the
+  backend.
