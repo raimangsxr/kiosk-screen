@@ -1,4 +1,4 @@
-import { Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
+import { Injectable, Injector, computed, effect, runInInjectionContext, signal } from '@angular/core';
 import { DisplayContentItem } from '../core/api/display.api';
 import { DisplayRotationService } from './display-rotation.service';
 
@@ -8,6 +8,7 @@ export type KioskContentMode = 'loop' | 'iframe' | 'fixed';
 export interface DisplayAdLike {
   id: string;
   displayOrder: number;
+  isActive?: boolean;
 }
 
 export interface FixedEligibleContentItem {
@@ -48,7 +49,7 @@ export interface KioskControllerInputs {
  * default), FR-014 / FR-015 (fixed-mode entry / exit + cursor preservation),
  * and FR-016 (single owner of rotation timers).
  */
-@Injectable({ providedIn: 'root' })
+@Injectable()
 export class KioskRotationController {
   /** Public read-only state -------------------------------------------- */
   readonly contentMode = signal<KioskContentMode>('loop');
@@ -115,24 +116,71 @@ export class KioskRotationController {
   rotationEventSink: ((eventType: 'content_rotation_empty', payload: Record<string, unknown>) => void) | null =
     null;
 
-  private readonly injector = inject(Injector);
-
   constructor(private readonly rotation: DisplayRotationService) {}
 
-  /** Wire inputs and start the single timer effect. Call once at init. */
-  attach(inputs: KioskControllerInputs): void {
+  /**
+   * Register a listener that fires whenever the controller advances the
+   * content cursor. Returns an unsubscribe function the caller MUST invoke
+   * on teardown so the listener does not leak across component instances.
+   */
+  registerContentAdvanceListener(listener: () => void): () => void {
+    this.onContentAdvanceListeners.push(listener);
+    return () => {
+      const idx = this.onContentAdvanceListeners.indexOf(listener);
+      if (idx >= 0) {
+        this.onContentAdvanceListeners.splice(idx, 1);
+      }
+    };
+  }
+
+  /**
+   * Wire the polled inputs into the controller's signals and arm the
+   * rotation timers. The caller MUST pass the `Injector` of the
+   * component that owns this controller so the reactive `effect()` is
+   * bound to that component's lifecycle (CHG-019 fix). Previously the
+   * effect was created in the controller's injector (root injector),
+   * which leaked an effect per visit to /display and crashed the
+   * browser.
+   *
+   * The controller remains the single owner of the timers (FR-016).
+   *
+   * The effect tracks a stable JSON fingerprint of the inputs and only
+   * re-arms the timers when the fingerprint changes. This prevents the
+   * content timer from being reset on every 5 s poll that returns the
+   * same state (the previous design re-armed on every poll because the
+   * effect ran unconditionally whenever `stateVersion` bumped).
+   */
+  bindInputs(inputs: KioskControllerInputs, injector: Injector): void {
     this._effectiveDurationSeconds = inputs.effectiveDurationSeconds;
 
-    runInInjectionContext(this.injector, () => {
+    let lastFingerprint = '';
+    runInInjectionContext(injector, () => {
       effect(() => {
         const queue = inputs.contentQueue();
-        this.contentMode.set(inputs.contentMode());
+        const mode = inputs.contentMode();
+        const ads = inputs.ads();
+        const fixedId = inputs.fixedContentId();
+        const adDuration = inputs.adDurationSeconds();
+        const inlineCount = inputs.inlineAdCount();
+        const videoEnd = inputs.videoEndDelaySeconds();
+
+        const fp = JSON.stringify({
+          queue: queue.map((c) => `${c.id}:${c.displayOrder}:${c.isActive}:${(c as { isFixed?: boolean }).isFixed ?? false}:${(c as { recurringEveryXIterations?: number | null }).recurringEveryXIterations ?? ''}`),
+          mode,
+          ads: ads.map((a) => `${a.id}:${a.displayOrder}:${a.isActive}`),
+          fixedId,
+          adDuration,
+          inlineCount,
+          videoEnd,
+        });
+
+        this.contentMode.set(mode);
         this._contentQueue.set(queue);
-        this._ads.set(inputs.ads());
-        this._adDurationSeconds.set(inputs.adDurationSeconds());
-        this._inlineAdCount.set(Math.max(1, inputs.inlineAdCount()));
-        this._videoEndDelaySeconds.set(inputs.videoEndDelaySeconds());
-        this.fixedContentId.set(inputs.fixedContentId());
+        this._ads.set(ads);
+        this._adDurationSeconds.set(adDuration);
+        this._inlineAdCount.set(Math.max(1, inlineCount));
+        this._videoEndDelaySeconds.set(videoEnd);
+        this.fixedContentId.set(fixedId);
 
         // Spec 014 addendum 2: when the admin updates a content's
         // `recurringEveryXIterations` (or removes a recurring item), the
@@ -146,8 +194,11 @@ export class KioskRotationController {
           this.cadenceCounter.set(0);
         }
 
-        this._armAllTimers();
-      }, { manualCleanup: false });
+        if (fp !== lastFingerprint) {
+          lastFingerprint = fp;
+          this._armAllTimers();
+        }
+      });
     });
   }
 
@@ -159,6 +210,11 @@ export class KioskRotationController {
       clearTimeout(this._emptyQueueDebounceTimer);
       this._emptyQueueDebounceTimer = null;
     }
+    // Drop every listener so a dangling reference cannot fire against a
+    // destroyed component. The component is expected to call its own
+    // unsubscribe (returned by registerContentAdvanceListener) on teardown;
+    // this is a defence-in-depth cleanup in case the caller forgot.
+    this.onContentAdvanceListeners.length = 0;
   }
 
   /** US3 — apply a remote-control navigation command. Spec 005 addendum
