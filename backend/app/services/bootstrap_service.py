@@ -62,7 +62,7 @@ def bootstrap_mvp_data(
         organization_id=organization.id,
         name="Main Kiosk",
         is_enabled=True,
-        top_region_ratio=4,
+        top_region_ratio=5,
         bottom_region_ratio=1,
         default_top_duration_seconds=15,
         default_ad_duration_seconds=10,

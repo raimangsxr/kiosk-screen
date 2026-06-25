@@ -32,6 +32,8 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 ## Current behavior
 
 - Operators can configure kiosk name, durations, animation defaults, inline ad count, polling cadence, video-end delay, and enabled state.
+- Operators can configure the region split: `topRegionRatio` and `bottomRegionRatio` are independent integer fields in `[1, 20]`, with defaults `5` (top) and `1` (bottom). The persisted columns accept any positive integer; the request schema enforces `[1, 20]` for input validation.
+- The admin form at `/admin/configuration` exposes the two ratio inputs with `min=1, max=20` and includes them in the PUT payload.
 - Opening a display creates or reuses a valid operator session for the user organization.
 - Display state polling returns configuration, top content, ads, selected iframe, remote control state, fallback status, and fixed-eligible contents.
 - Readiness blockers prevent opening the kiosk when the setup is not safe for a live event.
@@ -70,3 +72,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 
 - CHG-002
 - CHG-011
+- CHG-020

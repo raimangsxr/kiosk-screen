@@ -4,7 +4,9 @@ type: change
 status: in-progress
 modifies:
   - DISPLAY.RUNTIME
-depends_on: []
+  - EVENT.BRANDING
+depends_on:
+  - CHG-020
 extends: []
 supersedes: []
 superseded_by: []
@@ -14,7 +16,7 @@ read_by_default: true
 ---
 ## Oversize justification
 
-`spec.md` is 333 lines (limit 250) because the five user stories
+`spec.md` is 349 lines (limit 250) because the five user stories
 each carry measurable acceptance scenarios and explicit viewport
 sizes. The detail is required to make SC-001..SC-005 testable in
 Karma at fixed viewports without ambiguity; collapsing the
@@ -330,8 +332,10 @@ overlapping each other.
   QA target for this spec.
 - The viewport is in landscape; portrait is a fallback only.
 - The polled `DisplayState.configuration` continues to expose
-  `topRegionRatio` and `bottomRegionRatio` (spec 002 FR-005) and the
-  backend remains the single source of truth for these values.
+  `topRegionRatio` and `bottomRegionRatio` (CHG-020 makes these
+  independently configurable in `[1, 20]` with default 5/1; see
+  `ADR-0002` and `ADR-0004`). The backend is the single source of
+  truth for these values.
 - The CSS custom property hook is the only contract this spec
   introduces at the boundary between the polled state and the
   stylesheet.

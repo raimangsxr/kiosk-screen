@@ -17,6 +17,8 @@ export type UserRequest = Omit<UserRecord, 'id'>;
 export interface KioskConfiguration {
   id: string;
   name: string;
+  topRegionRatio: number;
+  bottomRegionRatio: number;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
   defaultTopRotationAnimation: RotationAnimation;

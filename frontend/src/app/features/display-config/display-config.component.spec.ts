@@ -12,6 +12,8 @@ import { DisplayConfigComponent } from './display-config.component';
 const configuration: KioskConfiguration = {
   id: 'config-1',
   name: 'Main kiosk',
+  topRegionRatio: 5,
+  bottomRegionRatio: 1,
   defaultTopDurationSeconds: 10,
   defaultAdDurationSeconds: 8,
   defaultTopRotationAnimation: 'fade',
@@ -105,6 +107,8 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
   it('populates the form with loaded configuration', () => {
     const form = fixture.componentInstance['form']!;
     expect(form.controls.name.value).toBe('Main kiosk');
+    expect(form.controls.topRegionRatio.value).toBe(5);
+    expect(form.controls.bottomRegionRatio.value).toBe(1);
     expect(form.controls.defaultTopDurationSeconds.value).toBe(10);
     expect(form.controls.remoteControlPollingSeconds.value).toBe(3);
   });
@@ -117,6 +121,54 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     expect(put.request.method).toBe('PUT');
     expect(put.request.body).toEqual(jasmine.objectContaining({ name: 'Renamed kiosk' }));
     put.flush(buildConfig({ name: 'Renamed kiosk' }));
+  });
+
+  it('sends the region ratio fields in the PUT payload', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.topRegionRatio.setValue(3);
+    form.controls.bottomRegionRatio.setValue(1);
+    fixture.componentInstance.submit();
+    const put = httpController.expectOne('/api/display/configuration');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body).toEqual(jasmine.objectContaining({
+      topRegionRatio: 3,
+      bottomRegionRatio: 1
+    }));
+    put.flush(buildConfig({ topRegionRatio: 3, bottomRegionRatio: 1 }));
+  });
+
+  it('round-trips the region ratio after a save', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.topRegionRatio.setValue(7);
+    form.controls.bottomRegionRatio.setValue(3);
+    fixture.componentInstance.submit();
+    const put = httpController.expectOne('/api/display/configuration');
+    put.flush(buildConfig({ topRegionRatio: 7, bottomRegionRatio: 3 }));
+    fixture.detectChanges();
+    expect(form.controls.topRegionRatio.value).toBe(7);
+    expect(form.controls.bottomRegionRatio.value).toBe(3);
+  });
+
+  it('rejects region ratios outside [1, 20]', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.topRegionRatio.setValue(0);
+    expect(form.controls.topRegionRatio.hasError('min')).toBeTrue();
+    form.controls.topRegionRatio.setValue(21);
+    expect(form.controls.topRegionRatio.hasError('max')).toBeTrue();
+    form.controls.bottomRegionRatio.setValue(0);
+    expect(form.controls.bottomRegionRatio.hasError('min')).toBeTrue();
+    form.controls.bottomRegionRatio.setValue(21);
+    expect(form.controls.bottomRegionRatio.hasError('max')).toBeTrue();
+    fixture.componentInstance.submit();
+    httpController.expectNone((req) => req.method === 'PUT');
+  });
+
+  it('accepts boundary values 1 and 20 for the region ratios', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.topRegionRatio.setValue(1);
+    form.controls.bottomRegionRatio.setValue(20);
+    expect(form.controls.topRegionRatio.valid).toBeTrue();
+    expect(form.controls.bottomRegionRatio.valid).toBeTrue();
   });
 
   it('rejects inline ad count of zero', () => {

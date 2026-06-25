@@ -8,8 +8,8 @@ import { IframeItem } from './iframe.api';
 export interface DisplayKioskConfiguration {
   id: string;
   name: string;
-  topRegionRatio: 5;
-  bottomRegionRatio: 1;
+  topRegionRatio: number;
+  bottomRegionRatio: number;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
   defaultTopRotationAnimation?: RotationAnimation;

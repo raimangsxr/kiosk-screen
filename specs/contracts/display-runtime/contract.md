@@ -36,7 +36,8 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 ## Current behavior
 
 - The runtime opens the display, starts polling, and renders top content, iframe content, fixed content, fallback, ads, fullscreen prompt, and branding according to the polled DisplayState.
-- Top and ad regions use the active configuration ratios. Default layout is stable before the first poll, and ads-hidden mode lets the top region fill the viewport.
+- Top and ad regions use the active configuration ratios (`topRegionRatio` and `bottomRegionRatio`), defaulting to `5 / 1` before the first poll. The runtime clamps defensively to `>= 1`. See `DISPLAY.CONFIG_SESSION` for the configurable contract and `ADR-0002` for the polled-source-of-truth principle.
+- Default layout is stable before the first poll, and ads-hidden mode lets the top region fill the viewport.
 - Landscape viewports 1280x720, 1920x1080, 2560x1440, and 3840x2160 render without scrollbars, clipped text, or layout shifts greater than one pixel when switching content modes.
 - Portrait viewports hide kiosk regions and show a single high-contrast rotate-device prompt while backend polling continues.
 - Ad figures reserve stable proportional cells; ad images fit without cropping, including tall portrait uploads.
@@ -79,3 +80,4 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-005
 - CHG-007
 - CHG-008
+- CHG-020

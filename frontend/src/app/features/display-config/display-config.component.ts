@@ -30,6 +30,8 @@ import { KioskConfiguration } from '../../core/api/admin.api';
 
 interface DisplayConfigFormValue {
   name: string;
+  topRegionRatio: number;
+  bottomRegionRatio: number;
   defaultTopDurationSeconds: number;
   defaultAdDurationSeconds: number;
   defaultTopRotationAnimation: RotationAnimation;
@@ -159,6 +161,34 @@ interface DisplayConfigFormValue {
         </div>
 
         <mat-divider />
+        <h3 class="display-config__section">Region ratio</h3>
+        <div class="display-config__row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Top region units</mat-label>
+            <input matInput type="number" formControlName="topRegionRatio" min="1" max="20" required />
+            <mat-hint>Numerator of the host grid (5 = default 5/6 split).</mat-hint>
+            <mat-error *ngIf="form.controls.topRegionRatio.hasError('min') || form.controls.topRegionRatio.hasError('max')">
+              Must be between 1 and 20.
+            </mat-error>
+            <mat-error *ngIf="form.controls.topRegionRatio.hasError('required')">
+              Required.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Bottom region units</mat-label>
+            <input matInput type="number" formControlName="bottomRegionRatio" min="1" max="20" required />
+            <mat-hint>Denominator of the host grid (1 = default 5/6 split).</mat-hint>
+            <mat-error *ngIf="form.controls.bottomRegionRatio.hasError('min') || form.controls.bottomRegionRatio.hasError('max')">
+              Must be between 1 and 20.
+            </mat-error>
+            <mat-error *ngIf="form.controls.bottomRegionRatio.hasError('required')">
+              Required.
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <mat-divider />
         <h3 class="display-config__section">Kiosk settings</h3>
         <div class="display-config__row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -264,6 +294,8 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
 
   protected form: FormGroup<{
     name: FormControl<string>;
+    topRegionRatio: FormControl<number>;
+    bottomRegionRatio: FormControl<number>;
     defaultTopDurationSeconds: FormControl<number>;
     defaultAdDurationSeconds: FormControl<number>;
     defaultTopRotationAnimation: FormControl<RotationAnimation>;
@@ -315,6 +347,8 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     const value = this.form.value as DisplayConfigFormValue;
     const payload: Omit<KioskConfiguration, 'id'> = {
       name: value.name.trim(),
+      topRegionRatio: value.topRegionRatio,
+      bottomRegionRatio: value.bottomRegionRatio,
       defaultTopDurationSeconds: value.defaultTopDurationSeconds,
       defaultAdDurationSeconds: value.defaultAdDurationSeconds,
       defaultTopRotationAnimation: value.defaultTopRotationAnimation,
@@ -344,6 +378,12 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
   private buildForm(): void {
     this.form = this.fb.nonNullable.group({
       name: this.fb.nonNullable.control('', { validators: [Validators.required] }),
+      topRegionRatio: this.fb.nonNullable.control(5, {
+        validators: [Validators.required, Validators.min(1), Validators.max(20)]
+      }),
+      bottomRegionRatio: this.fb.nonNullable.control(1, {
+        validators: [Validators.required, Validators.min(1), Validators.max(20)]
+      }),
       defaultTopDurationSeconds: this.fb.nonNullable.control(10, {
         validators: [Validators.required, positiveInteger('positiveInteger')]
       }),
@@ -381,6 +421,8 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     }
     this.form.patchValue({
       name: config.name,
+      topRegionRatio: config.topRegionRatio,
+      bottomRegionRatio: config.bottomRegionRatio,
       defaultTopDurationSeconds: config.defaultTopDurationSeconds,
       defaultAdDurationSeconds: config.defaultAdDurationSeconds,
       defaultTopRotationAnimation: config.defaultTopRotationAnimation,

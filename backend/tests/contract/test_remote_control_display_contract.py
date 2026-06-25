@@ -8,7 +8,7 @@ def test_configuration_contract_includes_remote_control_polling_seconds() -> Non
     configuration = KioskConfigurationSchema(
         id="00000000-0000-0000-0000-000000000001",
         name="Main",
-        topRegionRatio=4,
+        topRegionRatio=5,
         bottomRegionRatio=1,
         defaultTopDurationSeconds=10,
         defaultAdDurationSeconds=8,
@@ -60,7 +60,7 @@ def test_effective_display_state_contract_includes_remote_control_fields() -> No
         "configuration": {
             "id": "00000000-0000-0000-0000-000000000001",
             "name": "Main",
-            "topRegionRatio": 4,
+            "topRegionRatio": 5,
             "bottomRegionRatio": 1,
             "defaultTopDurationSeconds": 10,
             "defaultAdDurationSeconds": 8,

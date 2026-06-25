@@ -21,7 +21,7 @@ def test_configuration_and_iframe_models(db_session):
     db_session.add_all([configuration, event_configuration, iframe])
     db_session.commit()
 
-    assert configuration.top_region_ratio == 4
+    assert configuration.top_region_ratio == 5
     assert configuration.bottom_region_ratio == 1
     assert configuration.video_end_delay_seconds == 2
     assert event_configuration.event_duration_minutes == 60
