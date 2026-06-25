@@ -51,6 +51,8 @@ class AdminService:
             ):
                 raise PermissionError("Advertising managers cannot change main content configuration.")
         configuration.name = payload.name
+        configuration.top_region_ratio = payload.top_region_ratio
+        configuration.bottom_region_ratio = payload.bottom_region_ratio
         configuration.default_top_duration_seconds = payload.default_top_duration_seconds
         configuration.default_ad_duration_seconds = payload.default_ad_duration_seconds
         configuration.default_top_rotation_animation = payload.default_top_rotation_animation

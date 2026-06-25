@@ -8,7 +8,7 @@ def test_schemas_emit_openapi_camel_case_contract_fields():
     configuration = KioskConfigurationSchema(
         id=uuid4(),
         name="Main",
-        topRegionRatio=4,
+        topRegionRatio=5,
         bottomRegionRatio=1,
         defaultTopDurationSeconds=15,
         defaultAdDurationSeconds=10,
@@ -18,4 +18,4 @@ def test_schemas_emit_openapi_camel_case_contract_fields():
 
     assert user.model_dump(by_alias=True)["displayName"] == "Admin"
     assert user.model_dump(by_alias=True)["isActive"] is True
-    assert configuration.model_dump(by_alias=True)["topRegionRatio"] == 4
+    assert configuration.model_dump(by_alias=True)["topRegionRatio"] == 5

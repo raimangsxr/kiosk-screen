@@ -18,7 +18,7 @@ related_changes:
   - CHG-008
   - CHG-019
 related_adrs:
-  []
+  - ADR-0005
 ---
 
 # Event Branding Contract
@@ -32,7 +32,7 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - Administrators can configure event name, organizer name, organizer logo, and event duration.
 - The kiosk displays branding when configured and hides the overlay when no branding fields are available.
 - Broken organizer logos are hidden without breaking the kiosk runtime.
-- Branding remains visible and non-overlapping across supported landscape viewports.
+- Branding remains visible and non-overlapping across supported landscape viewports. The overlay container is full-width flex with `justify-content: space-between`: the organizer logo anchors to the left and the event name anchors to the right inside the same overlay container, so the two children never collide (see `ADR-0005`).
 - Branding is not shown over iframe mode.
 
 ## Public interfaces

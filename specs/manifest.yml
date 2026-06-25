@@ -48,6 +48,7 @@ contracts:
     related_changes:
       - CHG-002
       - CHG-011
+      - CHG-020
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -227,6 +228,7 @@ contracts:
       - CHG-005
       - CHG-007
       - CHG-008
+      - CHG-020
 
 changes:
   - id: CHG-001
@@ -360,7 +362,20 @@ changes:
     status: in-progress
     modifies:
       - DISPLAY.RUNTIME
+      - EVENT.BRANDING
+    depends_on:
+      - CHG-020
     consolidated_into: []
     read_by_default: true
+
+  - id: CHG-020
+    path: specs/changes/020-relax-kiosk-region-ratio/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.CONFIG_SESSION
+    depends_on: []
+    consolidated_into:
+      - DISPLAY.CONFIG_SESSION
+    read_by_default: false
 
 archive: []

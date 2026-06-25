@@ -56,7 +56,7 @@ def test_auth_and_display_flow(client: TestClient):
 
     opened = client.post("/api/display/open")
     assert opened.status_code == 200
-    assert opened.json()["configuration"]["topRegionRatio"] == 4
+    assert opened.json()["configuration"]["topRegionRatio"] == 5
     assert opened.json()["configuration"]["bottomRegionRatio"] == 1
     assert opened.json()["fallbackActive"] is False
 

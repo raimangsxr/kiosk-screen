@@ -1,5 +1,5 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import { Injector, signal } from '@angular/core';
 
 import { DisplayContentItem } from '../core/api/display.api';
 import { KioskRotationController } from './kiosk-rotation.controller';
@@ -42,10 +42,16 @@ function makeAd(
 
 describe('KioskRotationController', () => {
   let controller: KioskRotationController;
+  let testInjector: Injector;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    // The controller is no longer `providedIn: 'root'` (CHG-019 fix).
+    // Tests provide it explicitly via the test module.
+    TestBed.configureTestingModule({
+      providers: [KioskRotationController]
+    });
     controller = TestBed.inject(KioskRotationController);
+    testInjector = TestBed.inject(Injector);
   });
 
   it('starts in loop mode with no content, no ads, and adIndex=0', () => {
@@ -71,7 +77,7 @@ describe('KioskRotationController', () => {
     const adDuration = signal(10);
     const inlineCount = signal(1);
 
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [],
       ads: () => ads(),
@@ -80,7 +86,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => adDuration(),
       inlineAdCount: () => inlineCount(),
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
 
     expect(controller.adIndex()).toBe(0);
@@ -129,7 +135,7 @@ describe('KioskRotationController', () => {
     const ads = signal<ReadonlyArray<DisplayContentItem>>([makeAd('ad-1', 1), makeAd('ad-2', 2)]);
     const mode = signal<'loop' | 'iframe' | 'fixed'>('loop');
 
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => mode(),
       contentQueue: () => [makeContent('A', 1)],
       ads: () => ads(),
@@ -138,7 +144,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 1,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
 
     // Enter fixed mode; the ad index must keep advancing.
@@ -160,7 +166,7 @@ describe('KioskRotationController', () => {
     const ads = signal<ReadonlyArray<DisplayContentItem>>([makeAd('a', 1), makeAd('b', 2), makeAd('c', 3)]);
     const inlineCount = signal(2);
 
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [makeContent('A', 1)],
       ads: () => ads(),
@@ -169,7 +175,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 1,
       inlineAdCount: () => inlineCount(),
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
 
     expect(controller.visibleAds().map((ad) => ad.id)).toEqual(['a', 'b']);
@@ -194,7 +200,7 @@ describe('KioskRotationController', () => {
     const mode = signal<'loop' | 'iframe' | 'fixed'>('loop');
     const fixedId = signal<string | null>(null);
 
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => mode(),
       contentQueue: () => queue(),
       ads: () => [],
@@ -203,7 +209,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 1,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
 
     // The component is responsible for setting the initial cursor; the
@@ -243,7 +249,7 @@ describe('KioskRotationController', () => {
     const mode = signal<'loop' | 'iframe' | 'fixed'>('loop');
     const fixedId = signal<string | null>(null);
 
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => mode(),
       contentQueue: () => queue(),
       ads: () => [],
@@ -252,7 +258,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 1,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
 
     mode.set('fixed');
@@ -271,7 +277,7 @@ describe('KioskRotationController', () => {
   it('debounces the empty-queue rotation event to once per 60s (FR-009 / spec 007)', fakeAsync(() => {
     const sink = jasmine.createSpy('sink');
     controller.rotationEventSink = sink;
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [],
       ads: () => [],
@@ -280,7 +286,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
     tick(500);
     expect(sink).toHaveBeenCalledTimes(1);
@@ -295,7 +301,7 @@ describe('KioskRotationController', () => {
 
   it('pause freezes the content timer but keeps the ad timer rotating (spec 007 FR-008 addendum)', fakeAsync(() => {
     const ads = signal<ReadonlyArray<DisplayContentItem>>([makeAd('ad-1', 1), makeAd('ad-2', 2), makeAd('ad-3', 3)]);
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [makeContent('A', 1)],
       ads: () => ads(),
@@ -304,7 +310,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 1,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.currentContentId.set('A');
     TestBed.tick();
@@ -330,7 +336,7 @@ describe('KioskRotationController', () => {
   }));
 
   it('resume re-arms the content timer after pause (spec 007 FR-008 addendum)', fakeAsync(() => {
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [makeContent('A', 1), makeContent('B', 2)],
       ads: () => [],
@@ -339,7 +345,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     TestBed.tick();
@@ -367,7 +373,7 @@ describe('KioskRotationController', () => {
       makeContent('D', 4),
       recurring,
     ]);
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => queue(),
       ads: () => [],
@@ -376,7 +382,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 0,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     TestBed.tick();
@@ -408,7 +414,7 @@ describe('KioskRotationController', () => {
       makeContent('D', 4),
       makeContent('E', 5),
     ]);
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => queue(),
       ads: () => [],
@@ -417,7 +423,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     controller.cadenceCounter.set(2);
@@ -432,7 +438,7 @@ describe('KioskRotationController', () => {
   }));
 
   it('silently ignores jump_to for an unknown target (spec 014 addendum 2 / US7 acceptance 3)', fakeAsync(() => {
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => [makeContent('A', 1), makeContent('B', 2)],
       ads: () => [],
@@ -441,7 +447,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 2,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     TestBed.tick();
@@ -468,7 +474,7 @@ describe('KioskRotationController', () => {
       { ...makeContent('REC', 99, 0.1), recurringEveryXIterations: 3 },
     ];
     const queue = signal<DisplayContentItem[]>(initialQueue);
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => queue(),
       ads: () => [],
@@ -477,7 +483,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 0,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     TestBed.tick();
@@ -520,7 +526,7 @@ describe('KioskRotationController', () => {
       makeContent('B', 2),
       { ...makeContent('REC', 99, 0.1), recurringEveryXIterations: 2 },
     ]);
-    controller.attach({
+    controller.bindInputs({
       contentMode: () => 'loop',
       contentQueue: () => queue(),
       ads: () => [],
@@ -529,7 +535,7 @@ describe('KioskRotationController', () => {
       adDurationSeconds: () => 10,
       inlineAdCount: () => 1,
       videoEndDelaySeconds: () => 0,
-    });
+    }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
     TestBed.tick();

@@ -7,7 +7,7 @@ description: "Task list for the display responsive runtime refactor"
 # Tasks: Display Responsive Runtime
 
 **Input**: Design documents from
-`/specs/changes/019-display-responsive-runtime/`
+`/specs/019-display-responsive-runtime/`
 
 **Prerequisites**: plan.md (required), spec.md (required for user
 stories), research.md, data-model.md, quickstart.md
@@ -31,15 +31,14 @@ independent implementation and validation of each story.
 - **Web app**: `backend/src/`, `frontend/src/`
 - Paths shown below assume the kiosk-screen web app structure.
 
-## Phase 1: SDD Governance & Context
+## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Confirm the active change, active contract, and minimal context before any implementation change is made.
+**Purpose**: Confirm the working branch and the baseline display
+component before any change is made.
 
-- [ ] T001 Verify the working branch `019-display-responsive-runtime` and the active change artefacts at `specs/changes/019-display-responsive-runtime/{spec.md,context-pack.md,plan.md,research.md,data-model.md,quickstart.md,checklists/}`.
-- [ ] T001a Read `specs/manifest.yml` and confirm `CHG-019` modifies `DISPLAY.RUNTIME` with status `in-progress`.
-- [ ] T001b Read `specs/contracts/display-runtime/contract.md` as the active source of truth for current runtime behavior.
-- [ ] T001c Keep `specs/changes/019-display-responsive-runtime/context-pack.md` synchronized with mandatory specs, optional specs, code entrypoints, tests, and excluded paths.
-- [ ] T001d Update `specs/contracts/display-runtime/contract.md` before implementation if the accepted responsive behavior changes from the current contract.
+- [ ] T001 Verify the working branch `019-display-responsive-runtime`
+      and the four spec artefacts at
+      `specs/019-display-responsive-runtime/{spec.md,plan.md,research.md,data-model.md,quickstart.md,checklists/}`.
 
 ## Phase 2: Foundational (Blocking prerequisites)
 
@@ -144,9 +143,7 @@ ad band is 540 px tall at 1920×1080.
       bottomRegionRatio=1`, at 1920×1080 the top region height
       is `Math.round(1080 × 3 / 4)` (810) within ±1 px and the
       ad band height is `Math.round(1080 × 1 / 4)` (270) within
-      ±1 px. End-to-end (real backend delivering the ratio)
-      requires `CHG-020` to be implemented; in isolation this
-      spec passes against a mocked polled state.
+      ±1 px.
 
 ## Phase 6: User Story 4 — Ad figure proportions (Priority: P2)
 
@@ -191,22 +188,11 @@ overlapping each other.
 - [ ] T013 [US5] Add `class="branding-overlay"` to the overlay
       container `<div id="branding-overlay">` in
       `frontend/src/app/display/display-screen.component.ts`,
-      and rewrite the `.branding-overlay`, `.branding-overlay__logo`,
-      and `.branding-overlay__event-name` rules per `ADR-0005`:
-      container becomes full-width flex with `justify-content:
-      space-between` (`position: absolute; top: 10px; left: 10px;
-      right: 10px; display: flex; justify-content: space-between;
-      align-items: center; gap: 10px; pointer-events: none;`); logo
-      child loses absolute positioning and becomes a flex child
-      (`height: clamp(36px, 6vh, 80px); max-width: min(40vw, 360px);
-      object-fit: contain; flex-shrink: 0;`); event-name child keeps
-      the dark pill background and becomes a flex child
-      (`padding: 8px 14px; border-radius: 6px; background: rgb(0 0 0 /
-      68%); color: #fff; font: 700 clamp(16px, 1.6vw, 28px)/1.2
-      system-ui, sans-serif; display: inline-flex; align-items:
-      center; max-height: clamp(36px, 6vh, 80px);`). The `@media
-      (max-width: 760px)` block must be updated to match the new
-      structure.
+      and reset the `.branding-overlay__logo` and
+      `.branding-overlay__event-name` rules to
+      `position: static; opacity: 1; height: auto; max-height:
+      clamp(36px, 6vh, 80px);` in
+      `frontend/src/app/display/display-screen.component.css`.
 - [ ] T014 [P] [US5] Karma spec in
       `frontend/src/app/display/display-screen.component.spec.ts`:
       assert the overlay container carries the
@@ -234,56 +220,6 @@ overlapping each other.
       exits zero.
 - [ ] T017 Run `npm --prefix frontend run test` and confirm it
       exits zero with the new specs green.
-
-## Phase 7.5: Runtime lifecycle stability (regression fix)
-
-**Purpose**: Fix the "browser becomes unresponsive when opening /display"
-bug observed by the operator. Root cause: the kiosk rotation controller
-was `providedIn: 'root'` and registered its reactive `effect()` in the
-root injector, so every visit to `/display` leaked one effect that
-survived `ngOnDestroy`. After several hall↔display cycles, the polling
-tick re-ran N effects and N `_armAllTimers()` calls, eventually hanging
-the browser.
-
-Three coupled bugs are fixed together:
-
-- **Bug 1 (effect/listener leak in the root injector)**: the controller
-  is now component-scoped (`providers: [KioskRotationController]` on
-  the component), and its reactive `effect()` is created in the
-  component's injection context via `bindInputs(inputs, injector)` so
-  it is destroyed with the component. The advance listener is now
-  registered through `registerContentAdvanceListener(fn)` which returns
-  an unsubscribe function called from `ngOnDestroy`.
-- **Bug 2 (content timer reset on every poll)**: the inputs that drive
-  the controller effect are now gated by a JSON fingerprint; when two
-  consecutive polls return the same state, the fingerprint is unchanged
-  and `_armAllTimers()` is not called.
-- **Bug 3 (HTTP subscriptions not stored)**: every `.subscribe()` in
-  `ngOnInit`, `startPolling`, `pollNow`, and `schedulePreTransitionPoll`
-  now uses `takeUntilDestroyed(this.destroyRef)` so the subscription
-  cannot outlive the component.
-
-- [x] T018 Failing regression specs in
-      `frontend/src/app/display/display-screen.component.spec.ts`
-      that reproduce the listener accumulation, the timer reset, and
-      the controller leak across component instances.
-- [x] T019 Remove `providedIn: 'root'` from
-      `KioskRotationController`; declare it as a provider on
-      `DisplayScreenComponent`. Add `registerContentAdvanceListener`
-      returning an unsubscribe function.
-- [x] T020 `KioskRotationController.bindInputs(inputs, injector)` now
-      creates the reactive `effect()` in the supplied injection context
-      (component-scoped) and gates `_armAllTimers()` on a JSON
-      fingerprint of the inputs so idempotent polls do not re-arm the
-      content timer.
-- [x] T021 All RxJS subscriptions in the display component use
-      `takeUntilDestroyed(this.destroyRef)`; no orphan subscriptions.
-- [x] T022 Adapt `kiosk-rotation.controller.spec.ts` to the new
-      `bindInputs(inputs, injector)` signature and to the explicit
-      `KioskRotationController` provider in the test module.
-- [x] T023 Validate: `npm --prefix frontend run test` (279 specs
-      green) and `npm --prefix frontend run build` (clean). Backend
-      `pytest backend/tests` (204 passed, 5 skipped) unaffected.
 
 ## Dependencies & Execution Order
 

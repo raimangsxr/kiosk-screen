@@ -53,7 +53,7 @@ def test_v1_display_state_response_uses_documented_field_names(display_state_sha
         "configuration": {
             "id": "00000000-0000-0000-0000-000000000001",
             "name": "Main",
-            "topRegionRatio": 4,
+            "topRegionRatio": 5,
             "bottomRegionRatio": 1,
             "defaultTopDurationSeconds": 10,
             "defaultAdDurationSeconds": 8,
@@ -77,7 +77,7 @@ def test_v1_display_state_roundtrip_preserves_effective_fields():
         "configuration": {
             "id": "00000000-0000-0000-0000-000000000001",
             "name": "Main",
-            "topRegionRatio": 4,
+            "topRegionRatio": 5,
             "bottomRegionRatio": 1,
             "defaultTopDurationSeconds": 10,
             "defaultAdDurationSeconds": 8,

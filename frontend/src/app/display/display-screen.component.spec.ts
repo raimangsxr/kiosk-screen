@@ -7,6 +7,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { EventBrandingService } from '../core/event-branding.service';
 import { DisplayScreenComponent } from './display-screen.component';
+import { KioskRotationController } from './kiosk-rotation.controller';
 
 describe('DisplayScreenComponent', () => {
   const readyState: DisplayState = {
@@ -85,7 +86,7 @@ describe('DisplayScreenComponent', () => {
     return fixture;
   }
 
-  it('renders a stable 4-to-1 kiosk shell without management controls', () => {
+  it('renders a stable 5-to-1 kiosk shell without management controls', () => {
     const fixture = createComponent(readyState);
     const host: HTMLElement = fixture.nativeElement;
     const screen = host.querySelector('.display-screen');
@@ -919,6 +920,322 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.currentAd!.id).toBe('a2');
   }));
+
+  describe('CHG-019 responsive runtime', () => {
+    let matchMediaSpy: jasmine.Spy | null = null;
+
+    function setViewport(width: number, height: number): void {
+      Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: width });
+      Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: height });
+    }
+
+    afterEach(() => {
+      matchMediaSpy?.and.callThrough();
+      matchMediaSpy = null;
+    });
+
+    function mockPortraitQuery(matches: boolean): { listeners: Array<(event: Partial<MediaQueryListEvent>) => void>; fire: (next: boolean) => void } {
+      const listeners: Array<(event: Partial<MediaQueryListEvent>) => void> = [];
+      const mql = {
+        matches,
+        media: '(orientation: portrait)',
+        onchange: null,
+        addEventListener: (_: string, cb: (event: Partial<MediaQueryListEvent>) => void): void => {
+          listeners.push(cb);
+        },
+        removeEventListener: (_: string, cb: (event: Partial<MediaQueryListEvent>) => void): void => {
+          const idx = listeners.indexOf(cb);
+          if (idx >= 0) listeners.splice(idx, 1);
+        },
+        dispatchEvent: () => true,
+      } as unknown as MediaQueryList;
+      if (matchMediaSpy) {
+        matchMediaSpy.and.returnValue(mql);
+      } else {
+        matchMediaSpy = spyOn(globalThis, 'matchMedia').and.returnValue(mql);
+      }
+      return {
+        listeners,
+        fire(next: boolean): void {
+          listeners.forEach((cb) => cb({ matches: next } as MediaQueryListEvent));
+        }
+      };
+    }
+
+    it('SC-001: at any viewport the top region height matches total × 5 / 6 and the ad band matches × 1 / 6 (within ±1 px)', () => {
+      const fixture = createComponent(readyState);
+      const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
+      const ads = fixture.nativeElement.querySelector('.ad-region') as HTMLElement | null;
+      expect(top).not.toBeNull();
+      expect(ads).not.toBeNull();
+      const topRect = top!.getBoundingClientRect();
+      const adsRect = ads!.getBoundingClientRect();
+      const total = topRect.height + adsRect.height;
+      expect(Math.abs(topRect.height - (total * 5) / 6)).toBeLessThanOrEqual(1);
+      expect(Math.abs(adsRect.height - (total * 1) / 6)).toBeLessThanOrEqual(1);
+      fixture.destroy();
+    });
+
+    it('SC-002: text elements in the ad band and the branding overlay respect the clamp() minimum font-size', () => {
+      const fixture = createComponent(readyState, {
+        eventName: 'Spring Summit 2026',
+        organizerName: 'ACME Events',
+        organizerLogoUrl: null
+      });
+      fixture.detectChanges();
+      const title = fixture.nativeElement.querySelector('.ad-region__title') as HTMLElement | null;
+      const branding = fixture.nativeElement.querySelector('.branding-overlay__event-name') as HTMLElement | null;
+      expect(title).not.toBeNull();
+      expect(branding).not.toBeNull();
+      const titleSize = parseFloat(globalThis.getComputedStyle(title!).fontSize);
+      const brandingSize = parseFloat(globalThis.getComputedStyle(branding!).fontSize);
+      expect(titleSize).toBeGreaterThanOrEqual(13);
+      expect(brandingSize).toBeGreaterThanOrEqual(13);
+      fixture.destroy();
+    });
+
+    it('SC-003: shows the rotate-device prompt and hides the regions in portrait; flips back on landscape', () => {
+      const mql = mockPortraitQuery(false);
+      const fixture = createComponent(readyState);
+      fixture.detectChanges();
+      let prompt = fixture.nativeElement.querySelector('[data-testid="display-rotate-device"]');
+      expect(prompt).toBeNull();
+
+      mql.fire(true);
+      fixture.detectChanges();
+      prompt = fixture.nativeElement.querySelector('[data-testid="display-rotate-device"]');
+      expect(prompt).not.toBeNull();
+      expect(prompt!.textContent).toContain('rota');
+      const topRegion = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
+      const computedTop = globalThis.getComputedStyle(topRegion!).display;
+      expect(computedTop).toBe('none');
+
+      mql.fire(false);
+      fixture.detectChanges();
+      prompt = fixture.nativeElement.querySelector('[data-testid="display-rotate-device"]');
+      expect(prompt).toBeNull();
+      const topRegionAfter = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
+      const computedTopAfter = globalThis.getComputedStyle(topRegionAfter!).display;
+      expect(computedTopAfter).not.toBe('none');
+      fixture.destroy();
+    });
+
+    it('SC-004: with 6 active ads every figure has equal width and height and no image overflows', () => {
+      setViewport(1920, 1080);
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, inlineAdCount: 6 },
+        ads: Array.from({ length: 6 }, (_, i) => ({
+          ...readyState.ads[0],
+          id: `ad-${i + 1}`,
+          displayOrder: i + 1,
+        })),
+      });
+      fixture.detectChanges();
+      const figures = Array.from(
+        fixture.nativeElement.querySelectorAll('.ad-region__item') as NodeListOf<HTMLElement>
+      );
+      expect(figures.length).toBe(6);
+      const widths = figures.map((f) => f.getBoundingClientRect().width);
+      const heights = figures.map((f) => f.getBoundingClientRect().height);
+      const widthDelta = Math.max(...widths) - Math.min(...widths);
+      const heightDelta = Math.max(...heights) - Math.min(...heights);
+      expect(widthDelta).toBeLessThanOrEqual(1);
+      expect(heightDelta).toBeLessThanOrEqual(1);
+      figures.forEach((figure) => {
+        const img = figure.querySelector('img') as HTMLImageElement | null;
+        if (!img) return;
+        const imgRect = img.getBoundingClientRect();
+        const figureRect = figure.getBoundingClientRect();
+        expect(imgRect.width).toBeLessThanOrEqual(figureRect.width + 1);
+        expect(imgRect.height).toBeLessThanOrEqual(figureRect.height + 1);
+      });
+      fixture.destroy();
+    });
+
+    it('SC-005: with polled topRegionRatio=3 / bottomRegionRatio=1 the top region occupies 3/4 and the ad band 1/4 of the viewport', () => {
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, topRegionRatio: 3, bottomRegionRatio: 1 }
+      });
+      fixture.detectChanges();
+      const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
+      const ads = fixture.nativeElement.querySelector('.ad-region') as HTMLElement | null;
+      expect(top).not.toBeNull();
+      expect(ads).not.toBeNull();
+      const topH = top!.getBoundingClientRect().height;
+      const adsH = ads!.getBoundingClientRect().height;
+      const total = topH + adsH;
+      expect(Math.abs(topH / total - 3 / 4)).toBeLessThan(0.01);
+      expect(Math.abs(adsH / total - 1 / 4)).toBeLessThan(0.01);
+      fixture.destroy();
+    });
+
+    it('binds --top-ratio and --bottom-ratio CSS custom properties from the polled state', () => {
+      setViewport(1920, 1080);
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, topRegionRatio: 7, bottomRegionRatio: 3 }
+      });
+      fixture.detectChanges();
+      const host = fixture.nativeElement.querySelector('.display-screen') as HTMLElement | null;
+      expect(host).not.toBeNull();
+      expect(host!.style.getPropertyValue('--top-ratio')).toBe('7fr');
+      expect(host!.style.getPropertyValue('--bottom-ratio')).toBe('3fr');
+      fixture.destroy();
+    });
+
+    it('falls back to the documented default ratio when the polled value is < 1', () => {
+      const fixture = createComponent({
+        ...readyState,
+        configuration: {
+          ...readyState.configuration,
+          topRegionRatio: 0,
+          bottomRegionRatio: 0
+        }
+      });
+      fixture.detectChanges();
+      expect(fixture.componentInstance.ratioTop()).toBe('5fr');
+      expect(fixture.componentInstance.ratioBottom()).toBe('1fr');
+      fixture.destroy();
+    });
+
+    it('positions the branding overlay container with full-width flex so the logo and event name do not overlap', () => {
+      const fixture = createComponent(readyState, {
+        eventName: 'Spring Summit 2026',
+        organizerName: 'ACME Events',
+        organizerLogoUrl: '/api/media/logo-1'
+      });
+      fixture.detectChanges();
+      const overlay = fixture.nativeElement.querySelector('.branding-overlay') as HTMLElement | null;
+      expect(overlay).not.toBeNull();
+      expect(overlay!.classList.contains('branding-overlay')).toBeTrue();
+      const logo = overlay!.querySelector('.branding-overlay__logo') as HTMLElement | null;
+      const name = overlay!.querySelector('.branding-overlay__event-name') as HTMLElement | null;
+      expect(logo).not.toBeNull();
+      expect(name).not.toBeNull();
+      const overlayStyle = globalThis.getComputedStyle(overlay!);
+      expect(overlayStyle.display).toBe('flex');
+      expect(overlayStyle.justifyContent).toBe('space-between');
+      expect(overlayStyle.position).toBe('absolute');
+      const logoStyle = globalThis.getComputedStyle(logo!);
+      expect(logoStyle.position).toBe('static');
+      const nameStyle = globalThis.getComputedStyle(name!);
+      expect(nameStyle.position).toBe('static');
+      fixture.destroy();
+    });
+
+    it('removes the polling subscription in ngOnDestroy and removes the orientation listener', () => {
+      setViewport(1920, 1080);
+      const mql = mockPortraitQuery(false);
+      const fixture = createComponent(readyState);
+      fixture.detectChanges();
+      expect(mql.listeners.length).toBe(1);
+      fixture.destroy();
+      expect(mql.listeners.length).toBe(0);
+    });
+  });
+
+  describe('CHG-019 runtime lifecycle stability', () => {
+    function buildModule(): void {
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(readyState),
+              watchState: () => of(readyState),
+              getState: () => of(readyState),
+            }
+          },
+          eventBrandingProvider(),
+          provideRouter([]),
+          provideNoopAnimations()
+        ]
+      });
+    }
+
+    it('REGRESIÓN: no acumula listeners de content-advance entre instancias del componente', () => {
+      buildModule();
+      let lastController: KioskRotationController | undefined;
+      for (let i = 0; i < 5; i++) {
+        const f = TestBed.createComponent(DisplayScreenComponent);
+        f.detectChanges();
+        lastController = (f.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+        const beforeDestroy = lastController.onContentAdvanceListeners.length;
+        f.destroy();
+        // Tras destruir, ese controller concreto debe estar limpio.
+        expect(lastController.onContentAdvanceListeners.length).toBe(0);
+        expect(beforeDestroy).toBeGreaterThanOrEqual(1);
+      }
+      const f = TestBed.createComponent(DisplayScreenComponent);
+      f.detectChanges();
+      const controller = (f.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      // La instancia viva tiene su listener. Los controllers zombis ya
+      // quedaron limpios en los pasos anteriores.
+      expect(controller.onContentAdvanceListeners.length).toBe(1);
+      f.destroy();
+    });
+
+    it('REGRESIÓN: cada nueva instancia obtiene su propio KioskRotationController (acotado al componente)', () => {
+      buildModule();
+      const first = TestBed.createComponent(DisplayScreenComponent);
+      first.detectChanges();
+      const firstController = (first.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      first.destroy();
+      const second = TestBed.createComponent(DisplayScreenComponent);
+      second.detectChanges();
+      const secondController = (second.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      // El controller debe ser component-scoped: una instancia nueva del
+      // componente debe recibir un controller nuevo, no reusar el singleton
+      // anterior con estado stale.
+      expect(secondController).not.toBe(firstController);
+      second.destroy();
+    });
+
+    it('REGRESIÓN: stateFingerprint permanece estable para polls idempotentes (no re-arma el content timer)', () => {
+      buildModule();
+      const f = TestBed.createComponent(DisplayScreenComponent);
+      f.detectChanges();
+      const component = f.componentInstance as unknown as {
+        stateFingerprint: () => Record<string, unknown> | null;
+        applyState: (s: DisplayState, o: { resetRotation: boolean }) => void;
+        kioskRotation: { adIndex: { (): number; set: (n: number) => void } };
+      };
+      // Capturamos el adIndex y el fingerprint justo después del openDisplay.
+      // Si dos applyState con la misma respuesta NO cambian el fingerprint,
+      // el effect del componente no se re-ejecuta y por tanto bindInputs no
+      // se llama, lo que evita resetear el content timer en cada poll.
+      const initialAdIndex = component.kioskRotation.adIndex();
+      const fp1 = JSON.stringify(component.stateFingerprint());
+      component.applyState(readyState, { resetRotation: false });
+      const fp2 = JSON.stringify(component.stateFingerprint());
+      component.applyState(readyState, { resetRotation: false });
+      const fp3 = JSON.stringify(component.stateFingerprint());
+      expect(fp1).toEqual(fp2);
+      expect(fp2).toEqual(fp3);
+      expect(component.kioskRotation.adIndex()).toBe(initialAdIndex);
+      f.destroy();
+    });
+
+    it('REGRESIÓN: el controller queda totalmente limpio tras ngOnDestroy (timers + listeners)', () => {
+      buildModule();
+      const f = TestBed.createComponent(DisplayScreenComponent);
+      f.detectChanges();
+      const controller = (f.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      f.destroy();
+      // El controller debe estar detached: timers a null y listeners vacío.
+      const internals = controller as unknown as {
+        _contentTimer: ReturnType<typeof setTimeout> | null;
+        _adTimer: ReturnType<typeof setTimeout> | null;
+        onContentAdvanceListeners: Array<unknown>;
+      };
+      expect(internals._contentTimer).toBeNull();
+      expect(internals._adTimer).toBeNull();
+      expect(internals.onContentAdvanceListeners.length).toBe(0);
+    });
+  });
 });
 
 /**

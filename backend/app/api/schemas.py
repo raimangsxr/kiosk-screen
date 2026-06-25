@@ -65,6 +65,8 @@ class KioskConfigurationSchema(CamelModel):
 
 class KioskConfigurationRequest(CamelModel):
     name: str
+    top_region_ratio: int = Field(default=5, alias="topRegionRatio", ge=1, le=20)
+    bottom_region_ratio: int = Field(default=1, alias="bottomRegionRatio", ge=1, le=20)
     default_top_duration_seconds: int = Field(alias="defaultTopDurationSeconds", ge=1)
     default_ad_duration_seconds: int = Field(alias="defaultAdDurationSeconds", ge=1)
     default_top_rotation_animation: str = Field(default="none", alias="defaultTopRotationAnimation")

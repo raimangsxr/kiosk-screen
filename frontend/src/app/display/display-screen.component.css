@@ -1,14 +1,38 @@
 .display-screen {
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   display: grid;
-  grid-template-rows: 4.2fr 0.8fr;
-  overflow: hidden;
+  grid-template-rows: var(--top-ratio, 5fr) var(--bottom-ratio, 1fr);
   color: #000;
 }
 
+@supports not (height: 100dvh) {
+  .display-screen {
+    height: 100vh;
+  }
+}
+
 .display-screen--ads-hidden {
-  grid-template-rows: 0.8fr;
+  grid-template-rows: var(--top-ratio, 5fr);
+}
+
+.display-screen--portrait .top-region,
+.display-screen--portrait .ad-region,
+.display-screen--portrait .branding-overlay {
+  display: none;
+}
+
+.rotate-device {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: #102832;
+  color: #f2b84a;
+  font: 800 clamp(28px, 5vh, 64px)/1.1 system-ui, sans-serif;
+  text-align: center;
+  padding: 24px;
 }
 
 .top-region,
@@ -22,11 +46,11 @@
 .ad-region {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 4px;
-  padding: 8px 24px 12px;
+  gap: clamp(2px, 0.5vh, 4px);
+  padding: clamp(4px, 1vh, 12px) clamp(12px, 2vw, 24px) clamp(8px, 1.2vh, 12px);
   background: #f2b84a;
   color: hsl(180, 33%, 99%);
-  font-size: 32px;
+  font-size: clamp(20px, 2.4vh, 32px);
   font-weight: 800;
 }
 
@@ -40,20 +64,21 @@
 .ad-region__list {
   display: grid;
   grid-template-columns: repeat(var(--ad-count, 1), minmax(0, 1fr));
-  gap: 20px;
+  gap: clamp(8px, 1.4vw, 20px);
   align-items: stretch;
   min-height: 0;
   width: 100%;
 }
 
 .ad-region__item {
-  display: grid;
-  grid-template-rows: 0.8fr auto;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-color: white;
-  padding: 4px;
-  border-radius: 12px;
+  padding: clamp(2px, 0.4vh, 4px);
+  border-radius: clamp(6px, 0.8vh, 12px);
   overflow: hidden;
+  aspect-ratio: 4 / 3;
 }
 
 .ad-region__title {
@@ -61,10 +86,10 @@
   grid-row: 1;
   align-self: center;
   justify-self: start;
-  margin: 0 0 4px;
-  padding: 4px 0px;
+  margin: 0 0 clamp(2px, 0.4vh, 4px);
+  padding: clamp(2px, 0.4vh, 4px) 0;
   color: #102832;
-  font: 900 22px/1 system-ui, sans-serif;
+  font: 900 clamp(14px, 2vh, 22px)/1 system-ui, sans-serif;
   text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
@@ -76,7 +101,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  font: 700 24px/1.2 system-ui, sans-serif;
+  font: 700 clamp(16px, 2vh, 24px)/1.2 system-ui, sans-serif;
   color: rgba(255, 255, 255, 0.65);
   background: rgba(0, 0, 0, 0.4);
   z-index: 1;
@@ -96,73 +121,64 @@
   object-fit: contain;
 }
 
+/**
+ * Branding overlay (ADR-0005): full-width flex container with
+ * `justify-content: space-between`. The organizer logo anchors to
+ * the left edge and the event name anchors to the right edge inside
+ * the same container. Both children are flex children (no longer
+ * absolutely positioned) so they cannot collide.
+ */
 .branding-overlay {
   position: absolute;
   top: 10px;
+  left: 10px;
   right: 10px;
   z-index: 3;
-  max-width: min(70vw, 680px);
-  min-height: 44px;
-  display: inline-flex;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
-  border-radius: 6px;
-  background: rgb(0 0 0 / 68%);
-  color: #fff;
-  font: 700 20px/1.2 system-ui, sans-serif;
   pointer-events: none;
 }
 
 .branding-overlay__logo {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 3;
-  width: auto;
-  height: 80px;
+  height: clamp(36px, 6vh, 80px);
+  max-width: min(40vw, 360px);
   object-fit: contain;
-  border-radius: 15px;
-  opacity: 0.4;
+  flex-shrink: 0;
 }
 
 .branding-overlay__event-name {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 3;
-  height: 80px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 68%);
+  color: #fff;
+  font: 700 clamp(16px, 1.6vw, 28px)/1.2 system-ui, sans-serif;
   display: inline-flex;
   align-items: center;
-  padding: 0px 20px;
-  border-radius: 10px;
-  background: #fff;
-  color: #000;
-  font: 700 40px/1.2 roboto;
-  pointer-events: none;
-  opacity: 0.4;
+  max-height: clamp(36px, 6vh, 80px);
 }
 
-img,
-video,
-iframe {
+/**
+ * `object-fit: cover` is scoped to top-region media only (per
+ * FR-009). The historical global `img, video, iframe` rule was
+ * dropped because it forced ads to fill their figure with cropping.
+ */
+.display-content-media {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
   border: 0;
   object-fit: cover;
 }
 
-.display-content-media {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-}
-
 .ad-region img {
   width: 100%;
-  height: 84%;
-  max-height: 120px;
-  min-height: 60px;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
   object-fit: contain;
   display: block;
 }
@@ -173,7 +189,6 @@ iframe {
   min-width: 0;
   margin: 0;
   display: grid;
-  grid-template-rows: 1fr auto;
   place-items: center;
 }
 
@@ -233,23 +248,23 @@ iframe {
 }
 
 .fallback {
-  font-size: 40px;
+  font-size: clamp(24px, 3.2vh, 40px);
   font-weight: 800;
 }
 
 .fullscreen-prompt {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: clamp(12px, 2vw, 24px);
+  bottom: clamp(12px, 2vw, 24px);
   z-index: 20;
-  min-height: 56px;
-  padding: 0 24px;
+  min-height: clamp(40px, 6vh, 56px);
+  padding: 0 clamp(16px, 2vw, 24px);
   border: 0;
   border-radius: 6px;
   background: #ffffff;
   color: #102832;
   box-shadow: 0 12px 32px rgb(0 0 0 / 32%);
-  font: 700 20px/1 system-ui, sans-serif;
+  font: 700 clamp(14px, 1.6vw, 20px)/1 system-ui, sans-serif;
   cursor: pointer;
 }
 
@@ -261,29 +276,28 @@ iframe {
 @media (max-width: 760px) {
   .ad-region {
     grid-auto-columns: minmax(96px, 1fr);
-    gap: 16px;
-    padding: 12px 18px;
-    font-size: 22px;
+    gap: clamp(8px, 1.4vw, 16px);
+    padding: clamp(6px, 1.2vh, 12px) clamp(10px, 2vw, 18px);
+    font-size: clamp(16px, 2.4vh, 22px);
   }
 
   .branding-overlay {
-    top: 10px;
-    left: 10px;
-    max-width: calc(100vw - 20px);
-    min-height: 36px;
     gap: 7px;
-    padding: 6px 10px;
-    font-size: 15px;
   }
 
   .branding-overlay__logo {
-    height: 26px;
-    max-width: 84px;
+    height: clamp(20px, 4vh, 36px);
+    max-width: min(30vw, 200px);
+  }
+
+  .branding-overlay__event-name {
+    padding: 6px 10px;
+    font-size: clamp(13px, 1.6vw, 18px);
   }
 
   .content-label,
   .fallback {
-    font-size: 26px;
+    font-size: clamp(20px, 3vh, 26px);
   }
 
   .fullscreen-prompt {

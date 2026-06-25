@@ -1,22 +1,14 @@
 ---
-id: CHG-019
-type: change
-status: in-progress
-modifies:
-  - DISPLAY.RUNTIME
-  - EVENT.BRANDING
-depends_on:
-  - CHG-020
-extends: []
-supersedes: []
-superseded_by: []
-consolidated_into: []
-requires_contract_update: true
-read_by_default: true
+capability: C19-display-responsive-runtime
+supersedes:
+superseded_by:
+status: draft
+oversize: true
 ---
+
 ## Oversize justification
 
-`spec.md` is 349 lines (limit 250) because the five user stories
+`spec.md` is 333 lines (limit 250) because the five user stories
 each carry measurable acceptance scenarios and explicit viewport
 sizes. The detail is required to make SC-001..SC-005 testable in
 Karma at fixed viewports without ambiguity; collapsing the
@@ -28,7 +20,7 @@ which is the wrong layer for testable assertions.
 **Feature Branch**: `019-display-responsive-runtime`
 **Created**: 2026-06-25
 
-**Status**: In Progress
+**Status**: Draft
 
 **Input**: User description: "Refactor the kiosk display component CSS to be fluid, aspect-ratio aware, orientation-aware, and cross-browser stable while honoring the polled configuration ratios."
 
@@ -332,10 +324,8 @@ overlapping each other.
   QA target for this spec.
 - The viewport is in landscape; portrait is a fallback only.
 - The polled `DisplayState.configuration` continues to expose
-  `topRegionRatio` and `bottomRegionRatio` (CHG-020 makes these
-  independently configurable in `[1, 20]` with default 5/1; see
-  `ADR-0002` and `ADR-0004`). The backend is the single source of
-  truth for these values.
+  `topRegionRatio` and `bottomRegionRatio` (spec 002 FR-005) and the
+  backend remains the single source of truth for these values.
 - The CSS custom property hook is the only contract this spec
   introduces at the boundary between the polled state and the
   stylesheet.

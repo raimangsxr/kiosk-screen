@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectorRef, Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, Injector, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -24,8 +25,23 @@ type DisplayRenderableItem = Pick<
   selector: 'app-display-screen',
   standalone: true,
   imports: [CommonModule],
+  providers: [KioskRotationController],
   template: `
-    <main class="display-screen" [class.display-screen--ads-hidden]="!adsVisible" aria-label="Kiosk display">
+    <main
+      class="display-screen"
+      [class.display-screen--ads-hidden]="!adsVisible"
+      [class.display-screen--portrait]="orientation() === 'portrait'"
+      [style.--top-ratio]="ratioTop()"
+      [style.--bottom-ratio]="ratioBottom()"
+      aria-label="Kiosk display"
+    >
+      <div
+        *ngIf="orientation() === 'portrait'"
+        class="rotate-device"
+        role="status"
+        aria-live="polite"
+        data-testid="display-rotate-device"
+      >Por favor, rota el dispositivo</div>
       <section class="top-region" aria-label="Main content">
         <iframe
           *ngIf="displayAvailable && iframeUrl() as url"
@@ -68,6 +84,7 @@ type DisplayRenderableItem = Pick<
         </ng-template>
         <div
           *ngIf="hasBranding() && !iframeUrl()"
+          class="branding-overlay"
           aria-label="Organizer and event branding"
           id="branding-overlay"
         >
@@ -152,16 +169,45 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+
+  /**
+   * Subscribe to the controller's content-advance ticks via the public
+   * `registerContentAdvanceListener` API so we get back an unsubscribe
+   * handle and can release the listener in `ngOnDestroy`. The listener
+   * mirrors the controller cursor into the template's render array
+   * regardless of which path advanced it (timer, remote-control
+   * next/previous, fixed-mode).
+   */
+  private unsubscribeAdvanceListener: (() => void) | undefined;
 
   constructor() {
-    // Subscribe to the controller's content-advance ticks. The controller
-    // already exposes a hook (onContentAdvanceListeners) used by the
-    // ad-rotation logic. We use the same hook to keep the component's
-    // render array in sync with the cursor, regardless of which path
-    // advanced it (timer, remote-control next/previous, fixed-mode).
-    this.kioskRotation.onContentAdvanceListeners.push(() => {
+    this.unsubscribeAdvanceListener = this.kioskRotation.registerContentAdvanceListener(() => {
       this.syncContentRenderItems();
     });
+
+    // Wire the polled inputs into the controller. The controller creates
+    // a reactive `effect()` to re-arm timers when inputs change, but we
+    // pass the COMPONENT'S Injector so the effect is destroyed with the
+    // component (CHG-019 fix). Previously the controller was
+    // `providedIn: 'root'` and the effect leaked one per visit to
+    // /display.
+    //
+    // The inputs read `stateFingerprint` (a computed signal) so the
+    // controller effect only re-runs when the polled fingerprint ACTUALLY
+    // changes — not on every 5 s poll that returns the same state. This
+    // prevents the content timer from being reset on every poll.
+    this.kioskRotation.bindInputs({
+      contentMode: () => this.stateFingerprint()?.mode ?? 'loop',
+      contentQueue: () => this.state?.topContent ?? [],
+      ads: () => this.stateFingerprint()?.ads ?? [],
+      fixedContentId: () => this.stateFingerprint()?.fixedId ?? null,
+      effectiveDurationSeconds: (item) => this.computeContentDurationSeconds(item),
+      adDurationSeconds: () => this.stateFingerprint()?.adDuration ?? 10,
+      inlineAdCount: () => this.stateFingerprint()?.inlineAdCount ?? 1,
+      videoEndDelaySeconds: () => this.stateFingerprint()?.videoEndDelay ?? 2,
+    }, this.injector);
   }
 
   /**
@@ -201,15 +247,67 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   /**
    * The polled state lives in a plain field so the existing template
    * bindings (`this.state?.X`) keep working. We expose a private
-   * `stateVersion` signal that the controller's effect tracks; the
+   * `stateVersion` signal that the component's effect tracks; the
    * component bumps it whenever the state changes, which forces the
    * effect to re-evaluate the input accessors.
+   *
+   * The `stateFingerprint` computed wraps `stateVersion` plus a stable
+   * serialisation of the inputs that actually matter to the rotation
+   * timers. When two consecutive polls return the same state, the
+   * fingerprint string is identical, the computed's value does not
+   * change, and the effect does NOT re-run — so the content timer is
+   * NOT reset on every poll.
    */
   state: DisplayState | null = null;
   private readonly stateVersion = signal(0);
+  /**
+   * Stable, parsed view of the polled state. Each field is its own
+   * computed so the controller effect only re-runs when the relevant
+   * field changes — not on every 5 s poll that returns the same state.
+   * The `stateVersion` signal is read by every accessor so they all
+   * invalidate together when `applyState` bumps it.
+   */
+  private readonly stateFingerprint = computed<{
+    mode: 'loop' | 'iframe' | 'fixed';
+    fixedId: string | null;
+    ads: ReadonlyArray<{ id: string; displayOrder: number }>;
+    adDuration: number;
+    inlineAdCount: number;
+    videoEndDelay: number;
+  } | null>(() => {
+    this.stateVersion();
+    const s = this.state;
+    if (!s) {
+      return null;
+    }
+    return {
+      mode: s.remoteControl?.contentMode ?? 'loop',
+      fixedId: s.remoteControl?.selectedFixedContentId ?? null,
+      ads: (s.ads ?? []) as ReadonlyArray<{ id: string; displayOrder: number }>,
+      adDuration: s.configuration.defaultAdDurationSeconds ?? 10,
+      inlineAdCount: s.configuration.inlineAdCount ?? 1,
+      videoEndDelay: s.configuration.videoEndDelaySeconds ?? 2,
+    };
+  });
   contentRenderItems: DisplayContentItem[] = [];
   fullscreenPromptVisible = false;
   readonly branding = this.eventBranding.branding;
+
+  readonly orientation = signal<'landscape' | 'portrait'>('landscape');
+  private portraitQuery: MediaQueryList | null = null;
+  private readonly portraitListener = (event: MediaQueryListEvent): void => {
+    this.orientation.set(event.matches ? 'portrait' : 'landscape');
+  };
+
+  ratioTop(): string {
+    const value = this.state?.configuration?.topRegionRatio;
+    return `${value !== undefined && value >= 1 ? value : 5}fr`;
+  }
+
+  ratioBottom(): string {
+    const value = this.state?.configuration?.bottomRegionRatio;
+    return `${value !== undefined && value >= 1 ? value : 1}fr`;
+  }
 
   get currentContent(): DisplayContentItem | null {
     return this.kioskRotation.currentContent();
@@ -243,31 +341,40 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
-    this.eventBranding.refresh().subscribe();
-    this.kioskRotation.attach({
-      contentMode: () => { this.stateVersion(); return this.state?.remoteControl?.contentMode ?? 'loop'; },
-      contentQueue: () => { this.stateVersion(); return this.state?.topContent ?? []; },
-      ads: () => { this.stateVersion(); return (this.state?.ads ?? []) as unknown as ReadonlyArray<{ id: string; displayOrder: number }>; },
-      fixedContentId: () => { this.stateVersion(); return this.state?.remoteControl?.selectedFixedContentId ?? null; },
-      effectiveDurationSeconds: (item) => this.computeContentDurationSeconds(item),
-      adDurationSeconds: () => { this.stateVersion(); return this.state?.configuration.defaultAdDurationSeconds ?? 10; },
-      inlineAdCount: () => { this.stateVersion(); return this.state?.configuration.inlineAdCount ?? 1; },
-      videoEndDelaySeconds: () => { this.stateVersion(); return this.state?.configuration.videoEndDelaySeconds ?? 2; },
-    });
-    this.api.openDisplay().subscribe((state) => {
-      this.applyState(state, { resetRotation: true });
-      this.startPolling();
-    });
-    this.syncSub = this.displaySync.changes$.subscribe(() => this.pollNow());
+    if (typeof globalThis.matchMedia === 'function') {
+      this.portraitQuery = globalThis.matchMedia('(orientation: portrait)');
+      this.orientation.set(this.portraitQuery.matches ? 'portrait' : 'landscape');
+      this.portraitQuery.addEventListener?.('change', this.portraitListener);
+    }
+    // All RxJS subscriptions are tied to the component's DestroyRef so
+    // they cannot leak when the operator navigates away from /display.
+    // The previous design called .subscribe() without storing the
+    // subscription, which leaked one observable per poll.
+    this.api.openDisplay()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((state) => {
+        this.applyState(state, { resetRotation: true });
+        this.startPolling();
+      });
+    this.syncSub = this.displaySync.changes$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.pollNow());
+    this.eventBranding.refresh()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe();
   }
 
   ngOnDestroy(): void {
     globalThis.removeEventListener?.('keydown', this.escapeHandler);
+    this.portraitQuery?.removeEventListener?.('change', this.portraitListener);
+    this.portraitQuery = null;
     this.clearTimers();
     this.pollSub?.unsubscribe();
     this.pollSub = null;
     this.syncSub?.unsubscribe();
     this.syncSub = null;
+    this.unsubscribeAdvanceListener?.();
+    this.unsubscribeAdvanceListener = undefined;
     this.kioskRotation.detach();
   }
 
@@ -535,12 +642,16 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const durationMs = this.computeContentDurationSeconds(this.currentContent) * 1000;
     if (durationMs <= 1000) return;
     this.preTransitionPollTimer = setTimeout(() => {
-      this.eventBranding.refresh().subscribe();
-      this.api.getState().subscribe((pollState) => {
-        if (this.state !== null) {
-          this.applyState(pollState, { resetRotation: false });
-        }
-      });
+      this.eventBranding.refresh()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe();
+      this.api.getState()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((pollState) => {
+          if (this.state !== null) {
+            this.applyState(pollState, { resetRotation: false });
+          }
+        });
     }, durationMs - 1000);
   }
 
@@ -562,20 +673,28 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private startPolling(): void {
     this.pollSub?.unsubscribe();
     this.currentPollIntervalMs = this.pollIntervalMs();
-    this.pollSub = this.api.watchState(this.currentPollIntervalMs).subscribe((pollState) => {
-      this.eventBranding.refresh().subscribe();
-      this.applyState(pollState, { resetRotation: false });
-    });
+    this.pollSub = this.api.watchState(this.currentPollIntervalMs)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((pollState) => {
+        this.eventBranding.refresh()
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe();
+        this.applyState(pollState, { resetRotation: false });
+      });
   }
 
   private pollNow(): void {
     if (this.state === null) {
       return;
     }
-    this.eventBranding.refresh().subscribe();
-    this.api.getState().subscribe((state) => {
-      this.applyState(state, { resetRotation: false });
-    });
+    this.eventBranding.refresh()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe();
+    this.api.getState()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((state) => {
+        this.applyState(state, { resetRotation: false });
+      });
   }
 
   private reconfigurePollingIfNeeded(): void {
