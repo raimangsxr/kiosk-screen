@@ -1223,16 +1223,20 @@ describe('DisplayScreenComponent', () => {
       buildModule();
       const f = TestBed.createComponent(DisplayScreenComponent);
       f.detectChanges();
-      const controller = (f.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      const component = f.componentInstance as unknown as {
+        kioskRotation: KioskRotationController;
+      };
+      const scheduler = (component.kioskRotation as unknown as {
+        scheduler?: { hasContentTimer(): boolean; hasAdTimer(): boolean };
+      }).scheduler;
       f.destroy();
-      // El controller debe estar detached: timers a null y listeners vacío.
-      const internals = controller as unknown as {
-        _contentTimer: ReturnType<typeof setTimeout> | null;
-        _adTimer: ReturnType<typeof setTimeout> | null;
+      // CHG-021: timer state moved to RotationSchedulerService. The
+      // scheduler is cleared on `detach()` so neither timer is armed.
+      expect(scheduler?.hasContentTimer()).toBeFalse();
+      expect(scheduler?.hasAdTimer()).toBeFalse();
+      const internals = component.kioskRotation as unknown as {
         onContentAdvanceListeners: Array<unknown>;
       };
-      expect(internals._contentTimer).toBeNull();
-      expect(internals._adTimer).toBeNull();
       expect(internals.onContentAdvanceListeners.length).toBe(0);
     });
   });

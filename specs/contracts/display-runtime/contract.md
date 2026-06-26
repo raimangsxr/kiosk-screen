@@ -59,7 +59,13 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `frontend/src/app/display/display-screen.component.spec.ts`
 - `frontend/src/app/display/display-api.service.ts`
 - `frontend/src/app/display/display-rotation.service.ts`
+- `frontend/src/app/display/display-polling.service.ts`
 - `frontend/src/app/display/kiosk-rotation.controller.ts`
+- `frontend/src/app/display/cursor.service.ts`
+- `frontend/src/app/display/recurring-cadence.service.ts`
+- `frontend/src/app/display/rotation-scheduler.service.ts`
+- `frontend/src/app/display/kiosk-branding-overlay.component.ts`
+- `frontend/src/app/display/kiosk-fullscreen-prompt.component.ts`
 - `frontend/src/app/core/display-control-sync.service.ts`
 - `frontend/src/app/core/event-branding.service.ts`
 
@@ -77,6 +83,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 
 - CHG-014
 - CHG-019
+- CHG-021
 - CHG-005
 - CHG-007
 - CHG-008

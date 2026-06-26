@@ -2,7 +2,10 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { Injector, signal } from '@angular/core';
 
 import { DisplayContentItem } from '../core/api/display.api';
+import { CursorService } from './cursor.service';
 import { KioskRotationController } from './kiosk-rotation.controller';
+import { RecurringCadenceService } from './recurring-cadence.service';
+import { RotationSchedulerService } from './rotation-scheduler.service';
 
 function makeContent(
   id: string,
@@ -46,9 +49,18 @@ describe('KioskRotationController', () => {
 
   beforeEach(() => {
     // The controller is no longer `providedIn: 'root'` (CHG-019 fix).
-    // Tests provide it explicitly via the test module.
+    // Tests provide it explicitly via the test module. CHG-021 refactored
+    // the controller to delegate to CursorService, RecurringCadenceService,
+    // and RotationSchedulerService — those three are provided alongside
+    // the controller so the test injector matches the production wiring
+    // (see display-screen.component.ts providers).
     TestBed.configureTestingModule({
-      providers: [KioskRotationController]
+      providers: [
+        KioskRotationController,
+        CursorService,
+        RecurringCadenceService,
+        RotationSchedulerService
+      ]
     });
     controller = TestBed.inject(KioskRotationController);
     testInjector = TestBed.inject(Injector);

@@ -368,6 +368,16 @@ changes:
     consolidated_into: []
     read_by_default: true
 
+  - id: CHG-021
+    path: specs/changes/021-kiosk-runtime-refactor/spec.md
+    status: in-progress
+    modifies:
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-019
+    consolidated_into: []
+    read_by_default: true
+
   - id: CHG-020
     path: specs/changes/020-relax-kiosk-region-ratio/spec.md
     status: consolidated

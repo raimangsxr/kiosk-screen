@@ -9,7 +9,13 @@ import { Subscription } from 'rxjs';
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
+import { CursorService } from './cursor.service';
+import { DisplayPollingService } from './display-polling.service';
+import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
+import { KioskFullscreenPromptComponent } from './kiosk-fullscreen-prompt.component';
 import { KioskRotationController } from './kiosk-rotation.controller';
+import { RecurringCadenceService } from './recurring-cadence.service';
+import { RotationSchedulerService } from './rotation-scheduler.service';
 
 type DisplayRenderableItem = Pick<
   DisplayContentItem | DisplayAdItem,
@@ -24,8 +30,18 @@ type DisplayRenderableItem = Pick<
 @Component({
   selector: 'app-display-screen',
   standalone: true,
-  imports: [CommonModule],
-  providers: [KioskRotationController],
+  imports: [
+    CommonModule,
+    KioskBrandingOverlayComponent,
+    KioskFullscreenPromptComponent
+  ],
+  providers: [
+    KioskRotationController,
+    CursorService,
+    RecurringCadenceService,
+    RotationSchedulerService,
+    DisplayPollingService
+  ],
   template: `
     <main
       class="display-screen"
@@ -35,106 +51,102 @@ type DisplayRenderableItem = Pick<
       [style.--bottom-ratio]="ratioBottom()"
       aria-label="Kiosk display"
     >
-      <div
-        *ngIf="orientation() === 'portrait'"
-        class="rotate-device"
-        role="status"
-        aria-live="polite"
-        data-testid="display-rotate-device"
-      >Por favor, rota el dispositivo</div>
+      @if (orientation() === 'portrait') {
+        <div
+          class="rotate-device"
+          role="status"
+          aria-live="polite"
+          data-testid="display-rotate-device"
+          i18n="@@display.rotateDevice"
+        >Por favor, rota el dispositivo</div>
+      }
       <section class="top-region" aria-label="Main content">
-        <iframe
-          *ngIf="displayAvailable && iframeUrl() as url"
-          [src]="safeIframeUrl(url)"
-          title="Pinned iframe"
-          class="display-content-media"
-          data-testid="display-iframe"
-          frameborder="0"
-          allowfullscreen
-        ></iframe>
-        <ng-container *ngIf="displayAvailable && !iframeUrl() && contentRenderItems[0] as currentItem">
+        @if (displayAvailable && iframeUrl(); as url) {
+          <iframe
+            [src]="safeIframeUrl(url)"
+            title="Pinned iframe"
+            class="display-content-media"
+            data-testid="display-iframe"
+            frameborder="0"
+            allowfullscreen
+          ></iframe>
+        }
+        @if (displayAvailable && !iframeUrl() && contentRenderItems[0]; as currentItem) {
           <ng-container [ngSwitch]="currentItem.contentType">
-            <img
-              *ngSwitchCase="'photo'"
-              [src]="mediaSource(currentItem)"
-              class="display-content-media"
-              [@contentTransition]="contentTransition(currentItem)"
-              data-testid="display-content"
-            />
-            <video
-              #fixedVideo
-              *ngSwitchCase="'video'"
-              [src]="mediaSource(currentItem)"
-              muted
-              autoplay
-              playsinline
-              [loop]="isFixedMode"
-              (ended)="onVideoEnded(currentItem)"
-              class="display-content-media"
-              [@contentTransition]="contentTransition(currentItem)"
-              data-testid="display-content"
-            ></video>
+            @switch (currentItem.contentType) {
+              @case ('photo') {
+                <img
+                  [src]="mediaSource(currentItem)"
+                  class="display-content-media"
+                  [@contentTransition]="contentTransition(currentItem)"
+                  data-testid="display-content"
+                />
+              }
+              @case ('video') {
+                <video
+                  #fixedVideo
+                  [src]="mediaSource(currentItem)"
+                  muted
+                  autoplay
+                  playsinline
+                  [loop]="isFixedMode"
+                  (ended)="onVideoEnded(currentItem)"
+                  class="display-content-media"
+                  [@contentTransition]="contentTransition(currentItem)"
+                  data-testid="display-content"
+                ></video>
+              }
+            }
           </ng-container>
           <div class="content-label">{{ contentRenderItems[0].title }}</div>
-        </ng-container>
-        <ng-template [ngIf]="!displayAvailable || (!iframeUrl() && !contentRenderItems.length)">
+        }
+        @if (!displayAvailable || (!iframeUrl() && !contentRenderItems.length)) {
           <div class="fallback" data-testid="display-fallback">
             {{ displayAvailable ? 'Content unavailable' : 'Display unavailable' }}
           </div>
-        </ng-template>
-        <div
-          *ngIf="hasBranding() && !iframeUrl()"
-          class="branding-overlay"
-          aria-label="Organizer and event branding"
-          id="branding-overlay"
+        }
+        <app-kiosk-branding-overlay
+          [branding]="brandingViewModel()"
+          [hiddenLogoUrl]="hiddenLogoUrl"
+          [visible]="!iframeUrl()"
+          (logoBroken)="hideBrokenLogo($event)"
+        />
+      </section>
+
+      @if (adsVisible) {
+        <section
+          class="ad-region"
+          i18n-aria-label="@@display.adRegionAriaLabel"
+          aria-label="Patrocinadores del evento"
         >
-          <ng-container *ngIf="branding().organizerLogoUrl as logoUrl">
-              <img
-                *ngIf="logoVisible(logoUrl)"
-                [src]="logoUrl"
-                alt=""
-                class="branding-overlay__logo"
-                (error)="hideBrokenLogo(logoUrl)"
-              />
-          </ng-container>
-          <span *ngIf="branding().eventName" class="branding-overlay__event-name">
-            {{ branding().eventName }}
-          </span>
-        </div>
-      </section>
+          <h2 class="ad-region__title" i18n="@@display.adRegionTitle">Patrocinadores del evento</h2>
+          @if (visibleAds.length) {
+            <div
+              class="ad-region__list"
+              [style.--ad-count]="visibleAds.length"
+              data-testid="ad-region-list"
+            >
+              @for (ad of visibleAds; track trackAdById($index, ad)) {
+                <figure class="ad-region__item">
+                  <img
+                    [src]="mediaSource(ad)"
+                    [alt]="ad.advertiser ?? 'Ad'"
+                    [class]="adAnimationClass(ad)"
+                    [style.animation-duration.ms]="animationDurationMs(ad)"
+                  />
+                </figure>
+              }
+            </div>
+          } @else {
+            <div class="fallback">Ads unavailable</div>
+          }
+        </section>
+      }
 
-      <section *ngIf="adsVisible" class="ad-region" aria-label="Patrocinadores del evento">
-        <h2 class="ad-region__title">Patrocinadores del evento</h2>
-        <ng-container *ngIf="visibleAds.length; else adFallback">
-          <div
-            class="ad-region__list"
-            [style.--ad-count]="visibleAds.length"
-            data-testid="ad-region-list"
-          >
-            <figure *ngFor="let ad of visibleAds; trackBy: trackAdById" class="ad-region__item">
-              <img
-                [src]="mediaSource(ad)"
-                [alt]="ad.advertiser ?? 'Ad'"
-                [class]="adAnimationClass(ad)"
-                [style.animation-duration.ms]="animationDurationMs(ad)"
-              />
-            </figure>
-          </div>
-        </ng-container>
-        <ng-template #adFallback>
-          <div class="fallback">Ads unavailable</div>
-        </ng-template>
-      </section>
-
-      <button
-        *ngIf="fullscreenPromptVisible"
-        type="button"
-        class="fullscreen-prompt"
-        (click)="enterFullscreenFromDisplay()"
-        data-testid="display-fullscreen-prompt"
-      >
-        Enter fullscreen
-      </button>
+      <app-kiosk-fullscreen-prompt
+        [visible]="fullscreenPromptVisible"
+        (enter)="enterFullscreenFromDisplay()"
+      />
     </main>
   `,
   styleUrl: './display-screen.component.css',
@@ -235,7 +247,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
   private lastFullscreenRequested: boolean | null = null;
-  private hiddenLogoUrl: string | null = null;
+  protected hiddenLogoUrl: string | null = null;
   private lastFixedContentId: string | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
@@ -292,6 +304,21 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   contentRenderItems: DisplayContentItem[] = [];
   fullscreenPromptVisible = false;
   readonly branding = this.eventBranding.branding;
+
+  /**
+   * Adapter signal that hands the branding snapshot to the
+   * `<app-kiosk-branding-overlay>` child component. The child expects
+   * a `BrandingViewModel` (string + nullable url); the host owns the
+   * full branding state including `organizerName` for future extensions.
+   */
+  protected readonly brandingViewModel = computed(() => {
+    const b = this.branding();
+    return {
+      eventName: b.eventName ?? '',
+      organizerName: b.organizerName ?? '',
+      organizerLogoUrl: b.organizerLogoUrl ?? null
+    };
+  });
 
   readonly orientation = signal<'landscape' | 'portrait'>('landscape');
   private portraitQuery: MediaQueryList | null = null;

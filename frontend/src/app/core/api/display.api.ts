@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, distinctUntilChanged, shareReplay, switchMap, timer } from 'rxjs';
 
 import { MediaFileReference, RotationAnimation } from '../../shared/media-upload.models';
+import { sameAdsState, sameDisplayConfiguration, sameTopContentState } from '../../display/display-fingerprint';
 import { IframeItem } from './iframe.api';
 
 export interface DisplayKioskConfiguration {
@@ -124,86 +125,4 @@ export function equalByDisplayFingerprint(prev: DisplayState | null, curr: Displ
     prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
     prev.selectedIframe?.id === curr.selectedIframe?.id
   );
-}
-
-function sameDisplayConfiguration(
-  prev: DisplayKioskConfiguration,
-  curr: DisplayKioskConfiguration,
-): boolean {
-  return (
-    prev.id === curr.id &&
-    prev.name === curr.name &&
-    prev.topRegionRatio === curr.topRegionRatio &&
-    prev.bottomRegionRatio === curr.bottomRegionRatio &&
-    prev.defaultTopDurationSeconds === curr.defaultTopDurationSeconds &&
-    prev.defaultAdDurationSeconds === curr.defaultAdDurationSeconds &&
-    prev.defaultTopRotationAnimation === curr.defaultTopRotationAnimation &&
-    prev.defaultAdRotationAnimation === curr.defaultAdRotationAnimation &&
-    prev.defaultTopAnimationDurationMilliseconds === curr.defaultTopAnimationDurationMilliseconds &&
-    prev.defaultAdAnimationDurationMilliseconds === curr.defaultAdAnimationDurationMilliseconds &&
-    prev.inlineAdCount === curr.inlineAdCount &&
-    prev.remoteControlPollingSeconds === curr.remoteControlPollingSeconds &&
-    prev.videoEndDelaySeconds === curr.videoEndDelaySeconds &&
-    prev.isEnabled === curr.isEnabled
-  );
-}
-
-/**
- * Compare two `topContent` queues for equality of the fields that the
- * kiosk runtime actually depends on. Spec 014 addendum 2: when the
- * admin updates a content's `recurringEveryXIterations`, `isFixed`,
- * or `isActive`, the kiosk MUST reflect the change on the next poll
- * without the operator refreshing the browser. The previous
- * fingerprint (`sameIdsAndOrder`) only checked id and displayOrder
- * and silently filtered those edits out of the polling stream; this
- * version adds the three cadence-related fields the rotation
- * controller reads.
- */
-function sameTopContentState(
-  prev: readonly DisplayContentItem[],
-  curr: readonly DisplayContentItem[],
-): boolean {
-  if (prev.length !== curr.length) {
-    return false;
-  }
-  for (let i = 0; i < prev.length; i++) {
-    const p = prev[i];
-    const c = curr[i];
-    if (
-      p.id !== c.id ||
-      p.displayOrder !== c.displayOrder ||
-      p.isActive !== c.isActive ||
-      (p.isFixed ?? false) !== (c.isFixed ?? false) ||
-      (p.recurringEveryXIterations ?? null) !== (c.recurringEveryXIterations ?? null)
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-/**
- * Compare two `ads` queues for equality of the fields the kiosk
- * runtime depends on. The active flag matters because a deactivated
- * ad must immediately disappear from the bottom band.
- */
-function sameAdsState(
-  prev: readonly DisplayAdItem[],
-  curr: readonly DisplayAdItem[],
-): boolean {
-  if (prev.length !== curr.length) {
-    return false;
-  }
-  for (let i = 0; i < prev.length; i++) {
-    const p = prev[i];
-    const c = curr[i];
-    if (
-      p.id !== c.id ||
-      p.displayOrder !== c.displayOrder ||
-      p.isActive !== c.isActive
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
