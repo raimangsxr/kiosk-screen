@@ -156,6 +156,29 @@ a {
   vertical-align: middle;
 }
 
+/* Zebra striping + hover highlight for `mat-table` rows. Scoped to rows
+ * inside `app-data-list` so they only kick in for our shared list
+ * component (the dashboard cards and the kiosk screen keep their own
+ * minimal styling). The `prefers-contrast: more` media query raises the
+ * contrast for users with the OS-level accessibility flag on.
+ */
+.app-table .mat-mdc-row:nth-child(even) {
+  background: color-mix(in srgb, var(--mat-sys-surface) 92%, var(--mat-sys-surface-container));
+}
+
+.app-table .mat-mdc-row:hover {
+  background: var(--mat-sys-surface-container-low);
+}
+
+@media (prefers-contrast: more) {
+  .app-table .mat-mdc-row:nth-child(even) {
+    background: var(--mat-sys-surface-container);
+  }
+  .app-table .mat-mdc-row:hover {
+    background: var(--mat-sys-surface-container-high);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -167,7 +190,13 @@ a {
   }
 }
 
-.app-theme-dark {
+/* The ThemeService flips `<html data-theme>` between `light` and `dark`;
+ * the dark palette is re-applied here so every Material token (primary,
+ * surface, container, etc.) gets swapped atomically without the admin
+ * shell having to know about it. Operator preference is persisted in
+ * `localStorage` and falls back to `prefers-color-scheme` on first load.
+ */
+[data-theme='dark'] {
   color-scheme: dark;
 
   @include mat.theme((
@@ -180,4 +209,56 @@ a {
     density: 0,
   ));
 
+}
+
+/* On first paint, if the operator has not expressed a preference, mirror
+ * the OS-level preference so the choice "just works" without a flash.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    @include mat.theme((
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$violet-palette,
+        theme-type: dark,
+      ),
+      typography: $typography,
+      density: 0,
+    ));
+  }
+}
+
+/* Windows High Contrast / forced colors mode: rely on the system
+ * palette instead of our custom tokens so focus rings and outlines
+ * remain visible regardless of the operator's color preferences. */
+@media (forced-colors: active) {
+  :root {
+    --focus-ring-color: Highlight;
+  }
+  :focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+  }
+}
+
+/* Print stylesheet: hide chrome (sidebar/toolbar/cards) and let the
+ * content section fill the page. Useful for printing readiness reports
+ * and API-key audit pages without bespoke PDF exports. */
+@media print {
+  app-admin-toolbar,
+  mat-sidenav,
+  app-user-menu,
+  .breadcrumb {
+    display: none !important;
+  }
+  .admin-shell__main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
 }

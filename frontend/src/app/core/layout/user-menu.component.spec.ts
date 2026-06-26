@@ -25,29 +25,57 @@ describe('UserMenuComponent', () => {
 
   it('renders the initials avatar and exposes a sign-out action', () => {
     const fixture = TestBed.createComponent(UserMenuComponent);
-    fixture.componentInstance['auth']['persist']({
-      id: 'u-1',
-      email: 'ada@example.com',
-      displayName: 'Ada Lovelace',
-      roles: ['administrator']
-    });
+    fixture.componentInstance['auth']['persist'](
+      {
+        id: 'u-1',
+        email: 'ada@example.com',
+        displayName: 'Ada Lovelace',
+        roles: ['administrator']
+      },
+      false
+    );
     fixture.detectChanges();
 
-    const trigger = fixture.nativeElement.querySelector('button[aria-label]');
-    expect(trigger.getAttribute('aria-label')).toBe('Account menu for Ada Lovelace');
-    expect(trigger.classList).toContain('user-menu__trigger');
+    const accountTrigger = fixture.nativeElement.querySelector(
+      '[data-testid="user-menu-locale"] + button'
+    ) as HTMLButtonElement;
+    expect(accountTrigger.getAttribute('aria-label')).toBe('Account menu for Ada Lovelace');
+    expect(accountTrigger.classList).toContain('user-menu__trigger');
     expect(fixture.nativeElement.textContent).toContain('AL');
+  });
+
+  it('shows the active locale short code (ES by default)', () => {
+    const fixture = TestBed.createComponent(UserMenuComponent);
+    fixture.componentInstance['auth']['persist'](
+      {
+        id: 'u-1',
+        email: 'ada@example.com',
+        displayName: 'Ada Lovelace',
+        roles: ['administrator']
+      },
+      false
+    );
+    fixture.detectChanges();
+
+    const localeTrigger = fixture.nativeElement.querySelector(
+      '[data-testid="user-menu-locale"]'
+    ) as HTMLButtonElement;
+    expect(localeTrigger).toBeTruthy();
+    expect(localeTrigger.textContent).toContain('ES');
   });
 
   it('logs out through the auth service and routes to login', () => {
     const fixture = TestBed.createComponent(UserMenuComponent);
     const component = fixture.componentInstance as unknown as { signOut: () => void };
-    fixture.componentInstance['auth']['persist']({
-      id: 'u-1',
-      email: 'ada@example.com',
-      displayName: 'Ada Lovelace',
-      roles: ['administrator']
-    });
+    fixture.componentInstance['auth']['persist'](
+      {
+        id: 'u-1',
+        email: 'ada@example.com',
+        displayName: 'Ada Lovelace',
+        roles: ['administrator']
+      },
+      false
+    );
     fixture.detectChanges();
 
     component.signOut();
@@ -57,5 +85,32 @@ describe('UserMenuComponent', () => {
     request.flush(null);
 
     expect(localStorage.getItem('kiosk_authenticated')).toBeNull();
+  });
+
+  it('toggles the theme when the theme button is clicked', () => {
+    const fixture = TestBed.createComponent(UserMenuComponent);
+    fixture.componentInstance['auth']['persist'](
+      {
+        id: 'u-1',
+        email: 'ada@example.com',
+        displayName: 'Ada Lovelace',
+        roles: ['administrator']
+      },
+      false
+    );
+    fixture.detectChanges();
+
+    const themeButton = fixture.nativeElement.querySelector(
+      '[data-testid="user-menu-theme"]'
+    ) as HTMLButtonElement;
+    expect(themeButton).toBeTruthy();
+
+    themeButton.click();
+    fixture.detectChanges();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
+    themeButton.click();
+    fixture.detectChanges();
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
   });
 });
