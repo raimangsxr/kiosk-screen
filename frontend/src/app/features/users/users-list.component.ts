@@ -69,9 +69,11 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           <ng-container matColumnDef="roles">
             <th mat-header-cell *matHeaderCellDef>Roles</th>
             <td mat-cell *matCellDef="let user">
-              <mat-chip-set>
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
-              </mat-chip-set>
+<mat-chip-set>
+               @for (role of user.roles; track role) {
+                 <mat-chip>{{ role }}</mat-chip>
+               }
+             </mat-chip-set>
             </td>
           </ng-container>
 
@@ -120,7 +122,9 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                 />
               </div>
               <mat-chip-set class="users-list__card-roles">
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
+                @for (role of user.roles; track role) {
+                  <mat-chip>{{ role }}</mat-chip>
+                }
               </mat-chip-set>
             </mat-card-content>
             <mat-card-actions class="app-card-actions users-list__card-actions">

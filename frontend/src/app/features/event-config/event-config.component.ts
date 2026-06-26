@@ -53,84 +53,92 @@ const MAX_LOGO_BYTES = 1024 * 1024;
       description="Organizer, event name, logo, and operator session duration."
     />
 
-    <form
-      *ngIf="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      class="event-config"
-      novalidate
-      aria-label="Event configuration form"
-    >
-      <app-form-page [loading]="facade.loading()">
-        <app-admin-state
-          *ngIf="facade.error() as error"
-          kind="error"
-          title="Event configuration issue"
-          [message]="error.message"
-        />
+    @if (form) {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="event-config"
+        novalidate
+        aria-label="Event configuration form"
+      >
+        <app-form-page [loading]="facade.loading()">
+          @if (facade.error(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Event configuration issue"
+              [message]="error.message"
+            />
+          }
 
-        <div class="event-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Organizer name</mat-label>
-            <input matInput formControlName="organizerName" maxlength="255" autocomplete="off" />
-          </mat-form-field>
+          <div class="event-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Organizer name</mat-label>
+              <input matInput formControlName="organizerName" maxlength="255" autocomplete="off" />
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Event name</mat-label>
-            <input matInput formControlName="eventName" maxlength="255" autocomplete="off" />
-          </mat-form-field>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Event name</mat-label>
+              <input matInput formControlName="eventName" maxlength="255" autocomplete="off" />
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Event duration (minutes)</mat-label>
-            <input matInput type="number" formControlName="eventDurationMinutes" min="1" max="1440" required />
-            <mat-error *ngIf="form.controls.eventDurationMinutes.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-            <mat-error *ngIf="form.controls.eventDurationMinutes.hasError('max')">
-              Must be 1440 minutes or less.
-            </mat-error>
-          </mat-form-field>
-        </div>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Event duration (minutes)</mat-label>
+              <input matInput type="number" formControlName="eventDurationMinutes" min="1" max="1440" required />
+              @if (form.controls.eventDurationMinutes.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+              @if (form.controls.eventDurationMinutes.hasError('max')) {
+                <mat-error>
+                  Must be 1440 minutes or less.
+                </mat-error>
+              }
+            </mat-form-field>
+          </div>
 
-        <div class="event-config__logo">
-          <app-file-input
-            buttonLabel="Choose logo"
-            ariaLabel="Choose organizer logo"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            [existingFileName]="configuration()?.organizerLogoMediaFile?.originalFilename ?? null"
-            [showPreview]="true"
-            (fileSelected)="onFileSelected($event)"
-          />
+          <div class="event-config__logo">
+            <app-file-input
+              buttonLabel="Choose logo"
+              ariaLabel="Choose organizer logo"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              [existingFileName]="configuration()?.organizerLogoMediaFile?.originalFilename ?? null"
+              [showPreview]="true"
+              (fileSelected)="onFileSelected($event)"
+            />
 
-          <mat-checkbox
-            *ngIf="configuration()?.organizerLogoMediaFile"
-            formControlName="removeLogo"
-            [disabled]="selectedFile() !== null"
-          >
-            Remove logo
-          </mat-checkbox>
-        </div>
+            @if (configuration()?.organizerLogoMediaFile) {
+              <mat-checkbox
+                formControlName="removeLogo"
+                [disabled]="selectedFile() !== null"
+              >
+                Remove logo
+              </mat-checkbox>
+            }
+          </div>
 
-        <app-admin-state
-          *ngIf="fileError() as error"
-          kind="error"
-          title="Logo rejected"
-          [message]="error"
-        />
+          @if (fileError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Logo rejected"
+              [message]="error"
+            />
+          }
 
-        <div formPageActions>
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="form.invalid || facade.saving() || fileError() !== null"
-          >
-            <mat-icon aria-hidden="true">save</mat-icon>
-            {{ facade.saving() ? 'Saving...' : 'Save' }}
-          </button>
-        </div>
-      </app-form-page>
-    </form>
+          <div formPageActions>
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || facade.saving() || fileError() !== null"
+            >
+              <mat-icon aria-hidden="true">save</mat-icon>
+              {{ facade.saving() ? 'Saving...' : 'Save' }}
+            </button>
+          </div>
+        </app-form-page>
+      </form>
+    }
   `,
   styles: [
     `

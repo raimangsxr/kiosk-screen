@@ -63,83 +63,97 @@ interface UserFormValue {
       description="Create or update an authorized account. Assign at least one existing role type."
     />
 
-    <form
-      *ngIf="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      class="user-form"
-      novalidate
-      aria-label="User form"
-    >
-      <app-form-page [loading]="loading()">
-        <app-admin-state
-          *ngIf="loadError() as error"
-          kind="error"
-          title="Could not load user"
-          [message]="error.message"
-        />
+    @if (form) {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="user-form"
+        novalidate
+        aria-label="User form"
+      >
+        <app-form-page [loading]="loading()">
+          @if (loadError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not load user"
+              [message]="error.message"
+            />
+          }
 
-        <div class="user-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Email</mat-label>
-            <input matInput type="email" formControlName="email" required maxlength="255" autocomplete="off" />
-            <mat-error *ngIf="form.controls.email.hasError('required')">Email is required.</mat-error>
-            <mat-error *ngIf="form.controls.email.hasError('nonBlankString')">Email cannot be blank.</mat-error>
-          </mat-form-field>
+          <div class="user-form__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Email</mat-label>
+              <input matInput type="email" formControlName="email" required maxlength="255" autocomplete="off" />
+              @if (form.controls.email.hasError('required')) {
+                <mat-error>Email is required.</mat-error>
+              }
+              @if (form.controls.email.hasError('nonBlankString')) {
+                <mat-error>Email cannot be blank.</mat-error>
+              }
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Display name</mat-label>
-            <input matInput formControlName="displayName" required maxlength="120" autocomplete="off" />
-            <mat-error *ngIf="form.controls.displayName.hasError('required')">Name is required.</mat-error>
-            <mat-error *ngIf="form.controls.displayName.hasError('nonBlankString')">Name cannot be blank.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-
-        <section class="user-form__roles" formArrayName="roles">
-          <h3 class="user-form__section">Roles</h3>
-          <div class="user-form__role-list">
-            <mat-checkbox
-              *ngFor="let role of availableRoles; let i = index"
-              [checked]="rolesArray.at(i).value"
-              (change)="toggleRole(i, $event.checked)"
-            >
-              {{ role }}
-            </mat-checkbox>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Display name</mat-label>
+              <input matInput formControlName="displayName" required maxlength="120" autocomplete="off" />
+              @if (form.controls.displayName.hasError('required')) {
+                <mat-error>Name is required.</mat-error>
+              }
+              @if (form.controls.displayName.hasError('nonBlankString')) {
+                <mat-error>Name cannot be blank.</mat-error>
+              }
+            </mat-form-field>
           </div>
-        </section>
 
-        <mat-divider />
+          <mat-divider />
 
-        <div class="user-form__toggle">
-          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-          <span class="user-form__hint" *ngIf="!form.controls.isActive.value">
-            Inactive users cannot sign in.
-          </span>
-        </div>
+          <section class="user-form__roles" formArrayName="roles">
+            <h3 class="user-form__section">Roles</h3>
+            <div class="user-form__role-list">
+              @for (role of availableRoles; track role; let i = $index) {
+                <mat-checkbox
+                  [checked]="rolesArray.at(i).value"
+                  (change)="toggleRole(i, $event.checked)"
+                >
+                  {{ role }}
+                </mat-checkbox>
+              }
+            </div>
+          </section>
 
-        <app-admin-state
-          *ngIf="saveError() as error"
-          kind="error"
-          title="Could not save user"
-          [message]="error.message"
-        />
+          <mat-divider />
 
-        <div formPageActions>
-          <a mat-button routerLink="/admin/users">Cancel</a>
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="form.invalid || facade.saving() || loading()"
-          >
-            <mat-icon aria-hidden="true">save</mat-icon>
-            {{ facade.saving() ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
-      </app-form-page>
-    </form>
+          <div class="user-form__toggle">
+            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            @if (!form.controls.isActive.value) {
+              <span class="user-form__hint">
+                Inactive users cannot sign in.
+              </span>
+            }
+          </div>
+
+          @if (saveError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not save user"
+              [message]="error.message"
+            />
+          }
+
+          <div formPageActions>
+            <a mat-button routerLink="/admin/users">Cancel</a>
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || facade.saving() || loading()"
+            >
+              <mat-icon aria-hidden="true">save</mat-icon>
+              {{ facade.saving() ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </app-form-page>
+      </form>
+    }
   `,
   styles: [
     `

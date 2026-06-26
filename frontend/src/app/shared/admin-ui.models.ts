@@ -1,4 +1,4 @@
-export type AdminSetupStatus = 'ready' | 'blocked' | 'warning';
+export type AdminSetupStatus = 'ready' | 'blocked' | 'warning' | 'degraded';
 
 export interface AdminNavigationItem {
   label: string;
@@ -26,4 +26,6 @@ export interface AdminDashboardState {
   warnings: string[];
   quickActions: AdminQuickAction[];
   sectionSummaries: AdminSectionSummary[];
+  /** Sections whose source endpoint failed on the most recent load. */
+  degradedSections: readonly string[];
 }

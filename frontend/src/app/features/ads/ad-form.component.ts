@@ -68,128 +68,139 @@ interface AdFormValue {
       description="Upload an image ad for the bottom region. The advertiser field is optional and free-form."
     />
 
-    <form
-      *ngIf="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      class="ad-form"
-      novalidate
-      aria-label="Ad form"
-    >
-      <app-form-page [loading]="loading()">
-        <app-admin-state
-          *ngIf="loadError() as error"
-          kind="error"
-          title="Could not load ad"
-          [message]="error.message"
-        />
-
-        <div class="ad-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Advertiser</mat-label>
-            <input
-              matInput
-              formControlName="advertiser"
-              maxlength="120"
-              placeholder="Optional advertiser or sponsor name"
-              autocomplete="off"
+    @if (form) {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="ad-form"
+        novalidate
+        aria-label="Ad form"
+      >
+        <app-form-page [loading]="loading()">
+          @if (loadError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not load ad"
+              [message]="error.message"
             />
-            <mat-hint>Free-form; shows in the list. Optional.</mat-hint>
-          </mat-form-field>
-        </div>
+          }
 
-        <div class="ad-form__row">
-          <div class="ad-form__file">
-            <span class="ad-form__file-label">Upload image</span>
-            <app-file-input
-              accept="image/*"
-              buttonLabel="Choose image"
-              ariaLabel="Choose an image file to upload"
-              [existingFileName]="existingMediaName()"
-              [multiple]="!adId()"
-              [showPreview]="true"
-              (fileSelected)="onFileSelected($event)"
-              (filesSelected)="onFilesSelected($event)"
-            />
+          <div class="ad-form__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Advertiser</mat-label>
+              <input
+                matInput
+                formControlName="advertiser"
+                maxlength="120"
+                placeholder="Optional advertiser or sponsor name"
+                autocomplete="off"
+              />
+              <mat-hint>Free-form; shows in the list. Optional.</mat-hint>
+            </mat-form-field>
           </div>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>External source URL (optional)</mat-label>
-            <input
-              matInput
-              formControlName="sourceReference"
-              placeholder="https://example.com/ad.jpg"
-              autocomplete="off"
+          <div class="ad-form__row">
+            <div class="ad-form__file">
+              <span class="ad-form__file-label">Upload image</span>
+              <app-file-input
+                accept="image/*"
+                buttonLabel="Choose image"
+                ariaLabel="Choose an image file to upload"
+                [existingFileName]="existingMediaName()"
+                [multiple]="!adId()"
+                [showPreview]="true"
+                (fileSelected)="onFileSelected($event)"
+                (filesSelected)="onFilesSelected($event)"
+              />
+            </div>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>External source URL (optional)</mat-label>
+              <input
+                matInput
+                formControlName="sourceReference"
+                placeholder="https://example.com/ad.jpg"
+                autocomplete="off"
+              />
+              <mat-hint>Use when you do not upload a file.</mat-hint>
+            </mat-form-field>
+          </div>
+
+          @if (adId()) {
+            <div class="ad-form__row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Display order</mat-label>
+                <input matInput type="number" formControlName="displayOrder" min="1" />
+                <mat-hint>Reorder by dragging rows in the ads list.</mat-hint>
+                @if (form.controls.displayOrder.hasError('positiveInteger')) {
+                  <mat-error>
+                    Order must be a positive integer.
+                  </mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Rotation time (seconds)</mat-label>
+                <input matInput type="number" formControlName="durationSeconds" min="1" />
+                <mat-hint>Leave empty to use kiosk default.</mat-hint>
+              </mat-form-field>
+            </div>
+          }
+
+          <div class="ad-form__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Animation</mat-label>
+              <mat-select formControlName="rotationAnimation">
+                <mat-option [value]="null">Default</mat-option>
+                @for (animation of animations; track animation) {
+                  <mat-option [value]="animation">
+                    {{ animation }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Animation duration (ms)</mat-label>
+              <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
+              <mat-hint>Leave empty to use kiosk default.</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+
+          <div class="ad-form__toggle">
+            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            @if (!form.controls.isActive.value) {
+              <span class="ad-form__hint">
+                Inactive ads are skipped during rotation.
+              </span>
+            }
+          </div>
+
+          @if (saveError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not save ad"
+              [message]="error.message"
             />
-            <mat-hint>Use when you do not upload a file.</mat-hint>
-          </mat-form-field>
-        </div>
+          }
 
-        <div class="ad-form__row" *ngIf="adId()">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Display order</mat-label>
-            <input matInput type="number" formControlName="displayOrder" min="1" />
-            <mat-hint>Reorder by dragging rows in the ads list.</mat-hint>
-            <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
-              Order must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Rotation time (seconds)</mat-label>
-            <input matInput type="number" formControlName="durationSeconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <div class="ad-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation</mat-label>
-            <mat-select formControlName="rotationAnimation">
-              <mat-option [value]="null">Default</mat-option>
-              <mat-option *ngFor="let animation of animations" [value]="animation">
-                {{ animation }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation duration (ms)</mat-label>
-            <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-
-        <div class="ad-form__toggle">
-          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-          <span class="ad-form__hint" *ngIf="!form.controls.isActive.value">
-            Inactive ads are skipped during rotation.
-          </span>
-        </div>
-
-        <app-admin-state
-          *ngIf="saveError() as error"
-          kind="error"
-          title="Could not save ad"
-          [message]="error.message"
-        />
-
-        <div formPageActions>
-          <a mat-button routerLink="/admin/ads">Cancel</a>
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="form.invalid || facade.saving() || loading()"
-          >
-            <mat-icon aria-hidden="true">save</mat-icon>
-            {{ facade.saving() ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
-      </app-form-page>
-    </form>
+          <div formPageActions>
+            <a mat-button routerLink="/admin/ads">Cancel</a>
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || facade.saving() || loading()"
+            >
+              <mat-icon aria-hidden="true">save</mat-icon>
+              {{ facade.saving() ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </app-form-page>
+      </form>
+    }
   `,
   styles: [
     `

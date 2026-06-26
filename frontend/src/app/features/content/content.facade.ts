@@ -129,6 +129,11 @@ export class ContentFacade {
    * pattern as `uploadMany`). On the first error the remaining items
    * are skipped and the error is surfaced through the `error` signal;
    * already-completed deletes are not rolled back.
+   *
+   * Optimistic: the items are removed from the local `itemsState`
+   * immediately so the list shrinks without waiting for the round
+   * trip. On error the removed items are restored so the UI matches
+   * the backend again.
    */
   removeMany(ids: readonly string[]) {
     if (ids.length === 0) {
@@ -136,6 +141,12 @@ export class ContentFacade {
     }
     this.savingState.set(true);
     this.errorState.set(null);
+    // Optimistic local remove: drop the ids from the visible list right
+    // away. The backend confirms via `refresh()` on success; on error we
+    // restore the snapshot captured here.
+    const previousItems = this.itemsState();
+    const idSet = new Set(ids);
+    this.itemsState.set(previousItems.filter((item) => !idSet.has(item.id)));
     return from(ids).pipe(
       concatMap((id) => this.api.delete(id)),
       toArray(),
@@ -144,6 +155,7 @@ export class ContentFacade {
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
+        this.itemsState.set(previousItems);
         this.errorState.set(adaptApiError(error));
         this.savingState.set(false);
         return of(null);
@@ -151,15 +163,86 @@ export class ContentFacade {
     );
   }
 
+  /**
+   * Bulk activate/deactivate a batch of content items. Sends an `update`
+   * per item with the full payload so the backend can validate the whole
+   * record (not just the flag). Items are processed sequentially to
+   * avoid stampeding the backend with concurrent PATCH calls.
+   *
+   * Optimistic: each item's `isActive` flag flips locally before the
+   * network call. On error we restore the previous flag value.
+   */
+  setActiveMany(items: readonly ContentItem[], isActive: boolean) {
+    if (items.length === 0) {
+      return of(null);
+    }
+    this.savingState.set(true);
+    this.errorState.set(null);
+    const previousMap = new Map(items.map((item) => [item.id, item.isActive]));
+    // Optimistic local flip.
+    this.itemsState.set(
+      this.itemsState().map((item) =>
+        previousMap.has(item.id) ? { ...item, isActive } : item
+      )
+    );
+    return from(items).pipe(
+      concatMap((item) =>
+        this.api.update(item.id, this.toUpdatePayload(item, { isActive }))
+      ),
+      toArray(),
+      tap(() => {
+        this.savingState.set(false);
+        this.refresh().subscribe();
+      }),
+      catchError((error: unknown) => {
+        // Restore previous isActive values for the items we tried to flip.
+        this.itemsState.set(
+          this.itemsState().map((item) => {
+            const prev = previousMap.get(item.id);
+            return prev !== undefined ? { ...item, isActive: prev } : item;
+          })
+        );
+        this.errorState.set(adaptApiError(error));
+        this.savingState.set(false);
+        return of(null);
+      })
+    );
+  }
+
+  /**
+   * Reorder the polled queue to `orderedIds`. Optimistic: the items are
+   * rearranged locally before the round trip; the backend's response is
+   * only used as a final sanity check on error.
+   */
   reorder(orderedIds: string[]) {
     this.savingState.set(true);
     this.errorState.set(null);
+    const previousItems = this.itemsState();
+    const byId = new Map(previousItems.map((item) => [item.id, item]));
+    // Optimistic: rebuild itemsState in the new order, keeping the
+    // existing displayOrder values where possible. We re-assign
+    // displayOrder 1..N so the table reflects the new arrangement.
+    const optimistic = orderedIds
+      .map((id, idx) => {
+        const item = byId.get(id);
+        return item ? { ...item, displayOrder: idx + 1 } : null;
+      })
+      .filter((item): item is ContentItem => item !== null);
+    // Items not included in orderedIds are appended after the moved ones,
+    // preserving their original relative order.
+    const movedIds = new Set(orderedIds);
+    const tail = previousItems
+      .filter((item) => !movedIds.has(item.id))
+      .map((item, idx) => ({ ...item, displayOrder: optimistic.length + idx + 1 }));
+    this.itemsState.set([...optimistic, ...tail]);
+
     return this.api.reorderContent(orderedIds).pipe(
       tap(() => {
         this.savingState.set(false);
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
+        this.itemsState.set(previousItems);
         this.errorState.set(adaptApiError(error));
         this.savingState.set(false);
         this.refresh().subscribe();
@@ -183,5 +266,28 @@ export class ContentFacade {
    */
   showOnScreen(id: string) {
     return this.remoteControl.navigate('jump_to', id);
+  }
+
+  /**
+   * Builds a `ContentItemRequest` from an existing item with a small set
+   * of overrides. Keeps the bulk-update path resilient to backend
+   * validation: we never strip fields the backend might require just
+   * because the UI doesn't display them.
+   */
+  private toUpdatePayload(item: ContentItem, overrides: Partial<ContentItemRequest>): ContentItemRequest {
+    return {
+      title: item.title,
+      contentType: item.contentType,
+      sourceReference: item.sourceReference,
+      mediaFile: item.mediaFile ?? null,
+      displayOrder: item.displayOrder,
+      isActive: item.isActive,
+      durationSeconds: item.durationSeconds ?? null,
+      rotationAnimation: item.rotationAnimation ?? null,
+      animationDurationMilliseconds: item.animationDurationMilliseconds ?? null,
+      isFixed: item.isFixed ?? false,
+      recurringEveryXIterations: item.recurringEveryXIterations ?? null,
+      ...overrides
+    };
   }
 }

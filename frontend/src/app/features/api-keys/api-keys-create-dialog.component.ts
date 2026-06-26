@@ -50,56 +50,64 @@ export interface ApiKeyDialogResult {
 
     <mat-dialog-content>
       <!-- Phase 1: enter label (create only) -->
-      <form *ngIf="phase === 'label'" [formGroup]="labelForm" (ngSubmit)="onSubmit()">
-        <p class="api-keys-create-dialog__description">{{ description }}</p>
-        <mat-form-field appearance="outline" class="api-keys-create-dialog__field">
-          <mat-label>Label</mat-label>
-          <input
-            matInput
-            formControlName="label"
-            required
-            maxlength="120"
-            autocomplete="off"
-            data-testid="label-input"
-          />
-          <mat-hint align="end">{{ labelForm.get('label')?.value?.length || 0 }} / 120</mat-hint>
-          <mat-error *ngIf="labelForm.get('label')?.hasError('required')">
-            A label is required.
-          </mat-error>
-          <mat-error *ngIf="labelForm.get('label')?.hasError('maxlength')">
-            The label must be 120 characters or fewer.
-          </mat-error>
-        </mat-form-field>
-      </form>
+      @if (phase === 'label') {
+        <form [formGroup]="labelForm" (ngSubmit)="onSubmit()">
+          <p class="api-keys-create-dialog__description">{{ description }}</p>
+          <mat-form-field appearance="outline" class="api-keys-create-dialog__field">
+            <mat-label>Label</mat-label>
+            <input
+              matInput
+              formControlName="label"
+              required
+              maxlength="120"
+              autocomplete="off"
+              data-testid="label-input"
+            />
+            <mat-hint align="end">{{ labelForm.get('label')?.value?.length || 0 }} / 120</mat-hint>
+            @if (labelForm.get('label')?.hasError('required')) {
+              <mat-error>
+                A label is required.
+              </mat-error>
+            }
+            @if (labelForm.get('label')?.hasError('maxlength')) {
+              <mat-error>
+                The label must be 120 characters or fewer.
+              </mat-error>
+            }
+          </mat-form-field>
+        </form>
+      }
 
       <!-- Phase 2: reveal the raw key once (create and rotate) -->
-      <div *ngIf="phase === 'reveal'" class="api-keys-create-dialog__reveal">
-        <div class="api-keys-create-dialog__warning" role="alert" aria-live="polite">
-          <mat-icon>warning</mat-icon>
-          <div>
-            <strong>Copy this key now.</strong>
-            <p>You will not be able to see it again.</p>
+      @if (phase === 'reveal') {
+        <div class="api-keys-create-dialog__reveal">
+          <div class="api-keys-create-dialog__warning" role="alert" aria-live="polite">
+            <mat-icon>warning</mat-icon>
+            <div>
+              <strong>Copy this key now.</strong>
+              <p>You will not be able to see it again.</p>
+            </div>
+          </div>
+          <div class="api-keys-create-dialog__keybox" data-testid="raw-key">
+            <code>{{ rawKey }}</code>
+            <button
+              mat-button
+              type="button"
+              (click)="onCopy()"
+              data-testid="copy-raw-key"
+              aria-label="Copy raw key to clipboard"
+            >
+              <mat-icon>content_copy</mat-icon>
+              {{ copied ? 'Copied' : 'Copy' }}
+            </button>
           </div>
         </div>
-        <div class="api-keys-create-dialog__keybox" data-testid="raw-key">
-          <code>{{ rawKey }}</code>
-          <button
-            mat-button
-            type="button"
-            (click)="onCopy()"
-            data-testid="copy-raw-key"
-            aria-label="Copy raw key to clipboard"
-          >
-            <mat-icon>content_copy</mat-icon>
-            {{ copied ? 'Copied' : 'Copy' }}
-          </button>
-        </div>
-      </div>
+      }
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
       <!-- Phase 1: cancel + submit -->
-      <ng-container *ngIf="phase === 'label'">
+      @if (phase === 'label') {
         <button mat-button type="button" mat-dialog-close data-testid="cancel">Cancel</button>
         <button
           mat-flat-button
@@ -111,13 +119,13 @@ export interface ApiKeyDialogResult {
         >
           {{ facade.saving() ? 'Working…' : (data.mode === 'create' ? 'Create' : 'Rotate') }}
         </button>
-      </ng-container>
+      }
       <!-- Phase 2: only "Done" (Escape and click-outside are blocked) -->
-      <ng-container *ngIf="phase === 'reveal'">
+      @if (phase === 'reveal') {
         <button mat-flat-button color="primary" type="button" (click)="onDone()" data-testid="done">
           Done
         </button>
-      </ng-container>
+      }
     </mat-dialog-actions>
   `,
   styles: [

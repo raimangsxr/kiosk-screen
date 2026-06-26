@@ -52,19 +52,47 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyActionRoute="/admin/content/new"
       emptyIcon="photo_library"
     >
-      <button
-        *ngIf="selection().size > 0"
-        dataListActions
-        mat-stroked-button
-        color="warn"
-        type="button"
-        (click)="removeSelected()"
-        [disabled]="facade.saving()"
-        data-testid="content-delete-selected"
-      >
-        <mat-icon aria-hidden="true">delete_sweep</mat-icon>
-        Delete {{ selection().size }} selected
-      </button>
+      @if (selection().size > 0) {
+        <button
+          dataListActions
+          mat-stroked-button
+          color="primary"
+          type="button"
+          (click)="setActiveSelected(true)"
+          [disabled]="facade.saving()"
+          data-testid="content-activate-selected"
+        >
+          <mat-icon aria-hidden="true">check_circle</mat-icon>
+          Activate {{ selection().size }} selected
+        </button>
+      }
+      @if (selection().size > 0) {
+        <button
+          dataListActions
+          mat-stroked-button
+          type="button"
+          (click)="setActiveSelected(false)"
+          [disabled]="facade.saving()"
+          data-testid="content-deactivate-selected"
+        >
+          <mat-icon aria-hidden="true">pause_circle</mat-icon>
+          Deactivate {{ selection().size }} selected
+        </button>
+      }
+      @if (selection().size > 0) {
+        <button
+          dataListActions
+          mat-stroked-button
+          color="warn"
+          type="button"
+          (click)="removeSelected()"
+          [disabled]="facade.saving()"
+          data-testid="content-delete-selected"
+        >
+          <mat-icon aria-hidden="true">delete_sweep</mat-icon>
+          Delete {{ selection().size }} selected
+        </button>
+      }
       <ng-template #dataListTable>
         <div
           cdkDropList
@@ -137,18 +165,20 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               <td mat-cell *matCellDef="let item">
                 <div class="content-list__rotation">
                   <span>{{ rotationSummary(item) }}</span>
-                  <app-status-chip
-                    *ngIf="item.isFixed"
-                    label="Fijo"
-                    kind="info"
-                    ariaLabel="Contenido fijo"
-                  />
-                  <app-status-chip
-                    *ngIf="item.recurringEveryXIterations"
-                    [label]="'Recurrente cada ' + item.recurringEveryXIterations"
-                    kind="warning"
-                    [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
-                  />
+                  @if (item.isFixed) {
+                    <app-status-chip
+                      label="Fijo"
+                      kind="info"
+                      ariaLabel="Contenido fijo"
+                    />
+                  }
+                  @if (item.recurringEveryXIterations) {
+                    <app-status-chip
+                      [label]="'Recurrente cada ' + item.recurringEveryXIterations"
+                      kind="warning"
+                      [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
+                    />
+                  }
                 </div>
               </td>
             </ng-container>
@@ -477,6 +507,48 @@ export class ContentListComponent implements OnInit {
         if (this.facade.error() === null) {
           this.snackBar.open(
             `Deleted ${ids.length} item${ids.length === 1 ? '' : 's'}.`,
+            'Dismiss',
+            { duration: 3000 }
+          );
+        }
+      });
+    });
+  }
+
+  /**
+   * Bulk activate/deactivate the current selection. Reads each selected
+   * item from the current items list (rather than from the selection
+   * set) so the facade can rebuild the full payload per row. Skips the
+   * work if nothing is selected — the action buttons are also hidden
+   * via `*ngIf` in that case.
+   */
+  protected setActiveSelected(isActive: boolean): void {
+    const ids = Array.from(this.selection());
+    if (ids.length === 0) {
+      return;
+    }
+    const items = this.facade.items().filter((item) => ids.includes(item.id));
+    if (items.length === 0) {
+      return;
+    }
+    const action = isActive ? 'activate' : 'deactivate';
+    const ref = this.dialog.open({
+      title: `${isActive ? 'Activate' : 'Deactivate'} ${items.length} item${items.length === 1 ? '' : 's'}?`,
+      message: isActive
+        ? 'Selected items will start appearing in the kiosk rotation on the next poll.'
+        : 'Selected items will be skipped by the kiosk rotation until reactivated.',
+      confirmLabel: isActive ? 'Activate' : 'Deactivate',
+      cancelLabel: 'Cancel'
+    });
+    ref.afterClosed().subscribe((confirmed) => {
+      if (confirmed !== true) {
+        return;
+      }
+      this.facade.setActiveMany(items, isActive).subscribe(() => {
+        this.selection.set(new Set());
+        if (this.facade.error() === null) {
+          this.snackBar.open(
+            `${isActive ? 'Activated' : 'Deactivated'} ${items.length} item${items.length === 1 ? '' : 's'}.`,
             'Dismiss',
             { duration: 3000 }
           );

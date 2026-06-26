@@ -115,6 +115,9 @@ export class AdsFacade {
    * Delete a batch of ads sequentially (via concatMap, same pattern
    * as `uploadMany`). On the first error the remaining ids are
    * skipped and the error is surfaced through the `error` signal.
+   *
+   * Optimistic: ads disappear from the local list immediately. On
+   * error the removed rows are restored so the UI matches the backend.
    */
   removeMany(ids: readonly string[]) {
     if (ids.length === 0) {
@@ -122,6 +125,9 @@ export class AdsFacade {
     }
     this.savingState.set(true);
     this.errorState.set(null);
+    const previousAds = this.adsState();
+    const idSet = new Set(ids);
+    this.adsState.set(previousAds.filter((ad) => !idSet.has(ad.id)));
     return from(ids).pipe(
       concatMap((id) => this.api.deleteAd(id)),
       toArray(),
@@ -130,6 +136,7 @@ export class AdsFacade {
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
+        this.adsState.set(previousAds);
         this.errorState.set(adaptApiError(error));
         this.savingState.set(false);
         return of(null);
@@ -137,15 +144,35 @@ export class AdsFacade {
     );
   }
 
+  /**
+   * Reorder the polled list. Optimistic: the list is rearranged
+   * locally before the round trip. On error the previous order is
+   * restored and a refresh is fired to settle.
+   */
   reorder(orderedIds: string[]) {
     this.savingState.set(true);
     this.errorState.set(null);
+    const previousAds = this.adsState();
+    const byId = new Map(previousAds.map((ad) => [ad.id, ad]));
+    const optimistic = orderedIds
+      .map((id, idx) => {
+        const ad = byId.get(id);
+        return ad ? { ...ad, displayOrder: idx + 1 } : null;
+      })
+      .filter((ad): ad is AdItem => ad !== null);
+    const movedIds = new Set(orderedIds);
+    const tail = previousAds
+      .filter((ad) => !movedIds.has(ad.id))
+      .map((ad, idx) => ({ ...ad, displayOrder: optimistic.length + idx + 1 }));
+    this.adsState.set([...optimistic, ...tail]);
+
     return this.api.reorderAds(orderedIds).pipe(
       tap(() => {
         this.savingState.set(false);
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
+        this.adsState.set(previousAds);
         this.errorState.set(adaptApiError(error));
         this.savingState.set(false);
         this.refresh().subscribe();

@@ -36,58 +36,69 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
 
     <mat-card appearance="outlined" class="readiness__card">
       <mat-card-content>
-        <mat-progress-bar *ngIf="facade.loading()" mode="indeterminate" aria-label="Loading setup check" />
-        <app-admin-state
-          *ngIf="facade.error() as error"
-          type="error"
-          title="Setup check unavailable"
-          [message]="error.message"
-        />
+        @if (facade.loading()) {
+          <mat-progress-bar mode="indeterminate" aria-label="Loading setup check" />
+        }
+        @if (facade.error(); as error) {
+          <app-admin-state
+            type="error"
+            title="Setup check unavailable"
+            [message]="error.message"
+          />
+        }
 
-        <div *ngIf="facade.ready()" class="readiness__ready">
-          <span class="readiness__pill readiness__pill--ready">Ready to open kiosk</span>
-          <p>All required setup items are present. You can open kiosk mode from the hall.</p>
-        </div>
+        @if (facade.ready()) {
+          <div class="readiness__ready">
+            <span class="readiness__pill readiness__pill--ready">Ready to open kiosk</span>
+            <p>All required setup items are present. You can open kiosk mode from the hall.</p>
+          </div>
+        }
 
-        <div *ngIf="facade.blocked()" class="readiness__blocked">
-          <span class="readiness__pill readiness__pill--blocked">Blocked</span>
-          <p>Resolve each blocker below before opening kiosk mode.</p>
-        </div>
+        @if (facade.blocked()) {
+          <div class="readiness__blocked">
+            <span class="readiness__pill readiness__pill--blocked">Blocked</span>
+            <p>Resolve each blocker below before opening kiosk mode.</p>
+          </div>
+        }
 
-        <ng-container *ngIf="facade.blockers().length > 0">
+        @if (facade.blockers().length > 0) {
           <h3>Blockers</h3>
           <ul class="readiness__list">
-            <li *ngFor="let blocker of facade.blockers()">
-              <span class="readiness__message">{{ blocker }}</span>
-              <a mat-stroked-button color="primary" [routerLink]="resolveRoute(blocker)">
-                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                Resolve
-              </a>
-            </li>
+            @for (blocker of facade.blockers(); track blocker) {
+              <li>
+                <span class="readiness__message">{{ blocker }}</span>
+                <a mat-stroked-button color="primary" [routerLink]="resolveRoute(blocker)">
+                  <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+                  Resolve
+                </a>
+              </li>
+            }
           </ul>
-        </ng-container>
+        }
 
-        <ng-container *ngIf="facade.warnings().length > 0">
+        @if (facade.warnings().length > 0) {
           <mat-divider />
           <h3>Warnings</h3>
           <ul class="readiness__list">
-            <li *ngFor="let warning of facade.warnings()">
-              <span class="readiness__message">{{ warning }}</span>
-              <a mat-stroked-button [routerLink]="resolveRoute(warning)">
-                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                Review
-              </a>
-            </li>
+            @for (warning of facade.warnings(); track warning) {
+              <li>
+                <span class="readiness__message">{{ warning }}</span>
+                <a mat-stroked-button [routerLink]="resolveRoute(warning)">
+                  <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+                  Review
+                </a>
+              </li>
+            }
           </ul>
-        </ng-container>
+        }
 
-        <ng-container *ngIf="!facade.loading() && !facade.error() && !facade.report()">
+        @if (!facade.loading() && !facade.error() && !facade.report()) {
           <app-admin-state
             type="empty"
             title="No setup check yet"
             message="The setup check has not been computed yet."
           />
-        </ng-container>
+        }
       </mat-card-content>
     </mat-card>
   `,

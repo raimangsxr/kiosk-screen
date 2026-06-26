@@ -34,14 +34,15 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
       description="Kiosk setup status, section summaries, and quick actions."
     />
 
-    <app-admin-state
-      *ngIf="error() as err"
-      kind="error"
-      title="Dashboard unavailable"
-      [message]="err"
-    />
+    @if (error(); as err) {
+      <app-admin-state
+        kind="error"
+        title="Dashboard unavailable"
+        [message]="err"
+      />
+    }
 
-    <ng-container *ngIf="state() as s">
+    @if (state(); as s) {
       <div class="dashboard__status">
         <app-status-chip
           [label]="setupLabel(s.setupStatus)"
@@ -84,44 +85,52 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         }
       </section>
 
-      <section *ngIf="s.blockers.length || s.warnings.length" class="dashboard__alerts">
-        <h3 class="dashboard__alerts-title">Setup check</h3>
-        <ul class="dashboard__alerts-list">
-          <li *ngFor="let blocker of s.blockers" class="dashboard__alert dashboard__alert--blocked">
-            <mat-icon aria-hidden="true">error</mat-icon>
-            <span>{{ blocker }}</span>
-          </li>
-          <li *ngFor="let warning of s.warnings" class="dashboard__alert dashboard__alert--warning">
-            <mat-icon aria-hidden="true">warning</mat-icon>
-            <span>{{ warning }}</span>
-          </li>
-        </ul>
-      </section>
+      @if (s.blockers.length || s.warnings.length) {
+        <section class="dashboard__alerts">
+          <h3 class="dashboard__alerts-title">Setup check</h3>
+          <ul class="dashboard__alerts-list">
+            @for (blocker of s.blockers; track blocker) {
+              <li class="dashboard__alert dashboard__alert--blocked">
+                <mat-icon aria-hidden="true">error</mat-icon>
+                <span>{{ blocker }}</span>
+              </li>
+            }
+            @for (warning of s.warnings; track warning) {
+              <li class="dashboard__alert dashboard__alert--warning">
+                <mat-icon aria-hidden="true">warning</mat-icon>
+                <span>{{ warning }}</span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
 
-      <section *ngIf="s.quickActions.length" class="dashboard__actions" aria-label="Quick actions">
-        <h3 class="dashboard__actions-title">Quick actions</h3>
-        <div
-          class="dashboard__actions-grid"
-          [class.dashboard__actions-grid--two]="isTwoColumns()"
-          [class.dashboard__actions-grid--three]="isThreeColumns()"
-        >
-          @for (action of s.quickActions; track action.route) {
-            <mat-card appearance="outlined" class="dashboard__action">
-              <mat-card-content>
-                <strong>{{ action.label }}</strong>
-                <p>{{ action.description }}</p>
-              </mat-card-content>
-              <mat-card-actions align="end">
-                <a mat-button color="primary" [routerLink]="action.route">
-                  <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                  Open
-                </a>
-              </mat-card-actions>
-            </mat-card>
-          }
-        </div>
-      </section>
-    </ng-container>
+      @if (s.quickActions.length) {
+        <section class="dashboard__actions" aria-label="Quick actions">
+          <h3 class="dashboard__actions-title">Quick actions</h3>
+          <div
+            class="dashboard__actions-grid"
+            [class.dashboard__actions-grid--two]="isTwoColumns()"
+            [class.dashboard__actions-grid--three]="isThreeColumns()"
+          >
+            @for (action of s.quickActions; track action.route) {
+              <mat-card appearance="outlined" class="dashboard__action">
+                <mat-card-content>
+                  <strong>{{ action.label }}</strong>
+                  <p>{{ action.description }}</p>
+                </mat-card-content>
+                <mat-card-actions align="end">
+                  <a mat-button color="primary" [routerLink]="action.route">
+                    <mat-icon aria-hidden="true">arrow_forward</mat-icon>
+                    Open
+                  </a>
+                </mat-card-actions>
+              </mat-card>
+            }
+          </div>
+        </section>
+      }
+    }
   `,
   styles: [
     `

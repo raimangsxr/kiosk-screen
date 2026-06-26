@@ -12,14 +12,12 @@ class AuthServiceStub {
   private readonly flag = signal(false);
   private cleared = 0;
 
-  setAuthenticated(value: boolean, user: object | null = null): void {
+  setAuthenticated(value: boolean, _user: object | null = null): void {
     this.flag.set(value);
-    if (value && user) {
+    if (value) {
       localStorage.setItem('kiosk_authenticated', 'true');
-      localStorage.setItem('kiosk_user', JSON.stringify(user));
     } else {
       localStorage.removeItem('kiosk_authenticated');
-      localStorage.removeItem('kiosk_user');
     }
   }
 
@@ -31,7 +29,6 @@ class AuthServiceStub {
     this.cleared += 1;
     this.flag.set(false);
     localStorage.removeItem('kiosk_authenticated');
-    localStorage.removeItem('kiosk_user');
   }
 
   get clearCount(): number {
