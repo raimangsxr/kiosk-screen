@@ -1,8 +1,10 @@
+import json
 from typing import Any
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
+from app.api.schemas import BrandingLayout
 from app.config import get_settings
 from app.domain.display_events import create_display_event
 from app.domain.media import validate_logo_upload
@@ -52,6 +54,8 @@ class EventConfigurationService:
                 payload.get("event_duration_minutes", row.event_duration_minutes),
             )
         )
+        logo_layout = self._clean_layout(payload.get("logoLayout"), "logoLayout")
+        event_name_layout = self._clean_layout(payload.get("eventNameLayout"), "eventNameLayout")
 
         previous_logo_id = row.organizer_logo_media_id
         new_logo_id: str | None = previous_logo_id
@@ -63,6 +67,10 @@ class EventConfigurationService:
             changed_fields.append("organizerName")
         if event_duration_minutes != row.event_duration_minutes:
             changed_fields.append("eventDurationMinutes")
+        if logo_layout != row.logo_layout:
+            changed_fields.append("logoLayout")
+        if event_name_layout != row.event_name_layout:
+            changed_fields.append("eventNameLayout")
 
         if file is not None:
             self._validate_file(file)
@@ -80,6 +88,8 @@ class EventConfigurationService:
         row.event_name = event_name
         row.organizer_name = organizer_name
         row.event_duration_minutes = event_duration_minutes
+        row.logo_layout = logo_layout
+        row.event_name_layout = event_name_layout
         row.updated_by_user_id = user_id
         self.session.flush()
 
@@ -130,6 +140,44 @@ class EventConfigurationService:
         if minutes > MAX_EVENT_DURATION_MINUTES:
             raise ValueError("eventDurationMinutes must be 1440 or fewer.")
         return minutes
+
+    def _clean_layout(self, value: object, field_name: str) -> dict | None:
+        """Parse a layout payload into a dict suitable for JSONB storage.
+
+        Accepts the wire format produced by the PUT FormData
+        (JSON-encoded string) or an already-parsed dict (e.g. from
+        a test). Returns None when the field is absent, empty, or
+        the JSON literal `null`, so the column falls back to NULL
+        and the kiosko renders the documented visual defaults.
+        """
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "" or stripped.lower() == "null":
+                return None
+            try:
+                value = json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{field_name} must be a JSON object or null.") from exc
+        if isinstance(value, dict):
+            if value == {}:
+                return None
+            try:
+                layout = BrandingLayout.model_validate(value)
+            except Exception as exc:
+                raise ValueError(self._format_layout_error(field_name, exc)) from exc
+            return layout.model_dump(by_alias=True, exclude_none=True)
+        raise ValueError(f"{field_name} must be a JSON object or null.")
+
+    def _format_layout_error(self, field_name: str, exc: Exception) -> str:
+        """Translate a Pydantic validation error into a field-keyed
+        message the admin form can display directly.
+        """
+        message = str(exc)
+        if "BrandingLayout" in message:
+            message = message.split("BrandingLayout", 1)[-1].strip()
+        return f"{field_name}: {message}" if message else f"{field_name} is invalid."
 
     def _event_metadata(
         self,

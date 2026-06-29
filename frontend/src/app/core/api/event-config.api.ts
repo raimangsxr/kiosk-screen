@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { MediaFileReference } from '../../shared/media-upload.models';
+import { BrandingLayout } from './event-branding.api';
 
 export interface EventConfiguration {
   id: string;
@@ -11,6 +12,8 @@ export interface EventConfiguration {
   organizerName: string;
   organizerLogoMediaFile: MediaFileReference | null;
   eventDurationMinutes: number;
+  logoLayout: BrandingLayout | null;
+  eventNameLayout: BrandingLayout | null;
   createdAt: string;
   updatedAt: string;
 }

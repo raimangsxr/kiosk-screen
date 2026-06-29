@@ -6,6 +6,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { EventBrandingService } from '../core/event-branding.service';
+import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { DisplayScreenComponent } from './display-screen.component';
 import { KioskRotationController } from './kiosk-rotation.controller';
 
@@ -55,8 +56,18 @@ describe('DisplayScreenComponent', () => {
       provide: EventBrandingService,
       useValue: {
         branding: branding.asReadonly(),
-        refresh: () => of(branding()),
+        refresh: jasmine.createSpy('refresh').and.callFake(() => of(branding())),
         clear: () => branding.set({ eventName: '', organizerName: '', organizerLogoUrl: null })
+      }
+    };
+  }
+
+  function eventConfigSyncProvider(channel: Subject<void>) {
+    return {
+      provide: EventConfigSyncService,
+      useValue: {
+        changes$: channel.asObservable(),
+        notifyEventConfigChanged: () => channel.next(),
       }
     };
   }
@@ -64,27 +75,27 @@ describe('DisplayScreenComponent', () => {
   function createComponent(
     state: DisplayState,
     branding = { eventName: '', organizerName: '', organizerLogoUrl: null as string | null },
-  ): ComponentFixture<DisplayScreenComponent> {
-    TestBed.configureTestingModule({
-      imports: [DisplayScreenComponent],
-      providers: [
-        {
-          provide: DisplayApiService,
-          useValue: {
-            openDisplay: () => of(state),
-            watchState: () => of(state),
-            getState: () => of(state),
-          }
-        },
-        eventBrandingProvider(branding),
-        provideRouter([]),
-        provideNoopAnimations()
-      ]
-    });
-    const fixture = TestBed.createComponent(DisplayScreenComponent);
-    fixture.detectChanges();
-    return fixture;
-  }
+): ComponentFixture<DisplayScreenComponent> {
+  TestBed.configureTestingModule({
+    imports: [DisplayScreenComponent],
+    providers: [
+      {
+        provide: DisplayApiService,
+        useValue: {
+          openDisplay: () => of(state),
+          watchState: () => of(state),
+          getState: () => of(state),
+        }
+      },
+      eventBrandingProvider(branding),
+      provideRouter([]),
+      provideNoopAnimations()
+    ]
+  });
+  const fixture = TestBed.createComponent(DisplayScreenComponent);
+  fixture.detectChanges();
+  return fixture;
+}
 
   it('renders a stable 5-to-1 kiosk shell without management controls', () => {
     const fixture = createComponent(readyState);
@@ -125,6 +136,51 @@ describe('DisplayScreenComponent', () => {
   it('hides event branding when all fields are empty', () => {
     const fixture = createComponent(readyState);
     expect(fixture.nativeElement.querySelector('#branding-overlay')).toBeNull();
+  });
+
+  it('refreshes event branding when the event-config sync channel emits (CHG-024)', () => {
+    const channel = new Subject<void>();
+    const brandingSignal = signal({ eventName: 'Initial', organizerName: '', organizerLogoUrl: null as string | null });
+    const refreshSpy = jasmine.createSpy('refresh').and.callFake(() => {
+      brandingSignal.set({ eventName: 'Refreshed', organizerName: '', organizerLogoUrl: null });
+      return of(brandingSignal());
+    });
+    TestBed.configureTestingModule({
+      imports: [DisplayScreenComponent],
+      providers: [
+        {
+          provide: DisplayApiService,
+          useValue: {
+            openDisplay: () => of(readyState),
+            watchState: () => of(readyState),
+            getState: () => of(readyState),
+          }
+        },
+        {
+          provide: EventBrandingService,
+          useValue: {
+            branding: brandingSignal.asReadonly(),
+            refresh: refreshSpy,
+            clear: () => undefined,
+          }
+        },
+        eventConfigSyncProvider(channel),
+        provideRouter([]),
+        provideNoopAnimations()
+      ]
+    });
+    const fixture = TestBed.createComponent(DisplayScreenComponent);
+    fixture.detectChanges();
+
+    const callsBefore = refreshSpy.calls.count();
+
+    channel.next();
+    fixture.detectChanges();
+
+    expect(refreshSpy.calls.count()).toBeGreaterThan(callsBefore);
+
+    const updatedOverlay = fixture.nativeElement.querySelector('#branding-overlay') as HTMLElement;
+    expect(updatedOverlay.textContent).toContain('Refreshed');
   });
 
   it('renders the sponsor title as the first ad-region child', () => {
@@ -1100,7 +1156,7 @@ describe('DisplayScreenComponent', () => {
       fixture.destroy();
     });
 
-    it('positions the branding overlay container with full-width flex so the logo and event name do not overlap', () => {
+    it('positions the branding overlay children absolutely so the logo and event name do not overlap (CHG-023 data-driven layout)', () => {
       const fixture = createComponent(readyState, {
         eventName: 'Spring Summit 2026',
         organizerName: 'ACME Events',
@@ -1115,13 +1171,11 @@ describe('DisplayScreenComponent', () => {
       expect(logo).not.toBeNull();
       expect(name).not.toBeNull();
       const overlayStyle = globalThis.getComputedStyle(overlay!);
-      expect(overlayStyle.display).toBe('flex');
-      expect(overlayStyle.justifyContent).toBe('space-between');
       expect(overlayStyle.position).toBe('absolute');
       const logoStyle = globalThis.getComputedStyle(logo!);
-      expect(logoStyle.position).toBe('static');
+      expect(logoStyle.position).toBe('absolute');
       const nameStyle = globalThis.getComputedStyle(name!);
-      expect(nameStyle.position).toBe('static');
+      expect(nameStyle.position).toBe('absolute');
       fixture.destroy();
     });
 
@@ -1223,16 +1277,20 @@ describe('DisplayScreenComponent', () => {
       buildModule();
       const f = TestBed.createComponent(DisplayScreenComponent);
       f.detectChanges();
-      const controller = (f.componentInstance as unknown as { kioskRotation: KioskRotationController }).kioskRotation;
+      const component = f.componentInstance as unknown as {
+        kioskRotation: KioskRotationController;
+      };
+      const scheduler = (component.kioskRotation as unknown as {
+        scheduler?: { hasContentTimer(): boolean; hasAdTimer(): boolean };
+      }).scheduler;
       f.destroy();
-      // El controller debe estar detached: timers a null y listeners vacío.
-      const internals = controller as unknown as {
-        _contentTimer: ReturnType<typeof setTimeout> | null;
-        _adTimer: ReturnType<typeof setTimeout> | null;
+      // CHG-021: timer state moved to RotationSchedulerService. The
+      // scheduler is cleared on `detach()` so neither timer is armed.
+      expect(scheduler?.hasContentTimer()).toBeFalse();
+      expect(scheduler?.hasAdTimer()).toBeFalse();
+      const internals = component.kioskRotation as unknown as {
         onContentAdvanceListeners: Array<unknown>;
       };
-      expect(internals._contentTimer).toBeNull();
-      expect(internals._adTimer).toBeNull();
       expect(internals.onContentAdvanceListeners.length).toBe(0);
     });
   });

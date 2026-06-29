@@ -86,6 +86,8 @@ class EventConfigurationSchema(CamelModel):
     organizer_name: str = Field(alias="organizerName")
     organizer_logo_media_file: MediaFileReferenceSchema | None = Field(default=None, alias="organizerLogoMediaFile")
     event_duration_minutes: int = Field(alias="eventDurationMinutes", ge=1, le=1440)
+    logo_layout: "BrandingLayout | None" = Field(default=None, alias="logoLayout")
+    event_name_layout: "BrandingLayout | None" = Field(default=None, alias="eventNameLayout")
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -94,12 +96,47 @@ class EventConfigurationRequest(CamelModel):
     event_name: str = Field(default="", alias="eventName", max_length=255)
     organizer_name: str = Field(default="", alias="organizerName", max_length=255)
     event_duration_minutes: int = Field(default=240, alias="eventDurationMinutes", ge=1, le=1440)
+    logo_layout: str | None = Field(default=None, alias="logoLayout")
+    event_name_layout: str | None = Field(default=None, alias="eventNameLayout")
 
 
 class EventBrandingSchema(CamelModel):
     event_name: str = Field(default="", alias="eventName")
     organizer_name: str = Field(default="", alias="organizerName")
     organizer_logo_url: str | None = Field(default=None, alias="organizerLogoUrl")
+    logo_layout: "BrandingLayout | None" = Field(default=None, alias="logoLayout")
+    event_name_layout: "BrandingLayout | None" = Field(default=None, alias="eventNameLayout")
+
+
+class BrandingLayout(CamelModel):
+    """Visual layout for a single branding element (logo or event-name pill).
+
+    All fields are optional. A fully-empty or missing object means
+    "use the documented visual default". Values are interpreted by
+    the kiosk as viewport-relative units:
+
+      - `size`: vh for the logo, vw for the event name (1..50).
+      - `x`: vw from the overlay container's left edge (0..100).
+      - `y`: vh from the overlay container's top edge (0..100).
+      - `transparency`: percent, applied as `opacity: value / 100` (0..100).
+      - `borderRadius`: vh (0..50).
+
+    All numeric fields are stored as floats on disk for backward
+    compatibility with rows saved before CHG-024 — but the kiosk
+    admin form only ever writes integers (MatSlider `step: 1`),
+    and `model_dump` emits whole-number values once the stored
+    payload has been coerced through Pydantic's lax int parser.
+    """
+
+    size: float | None = Field(default=None, ge=1, le=50)
+    x: float | None = Field(default=None, ge=0, le=100)
+    y: float | None = Field(default=None, ge=0, le=100)
+    transparency: int | None = Field(default=None, ge=0, le=100)
+    border_radius: float | None = Field(default=None, ge=0, le=50, alias="borderRadius")
+
+
+EventConfigurationSchema.model_rebuild()
+EventBrandingSchema.model_rebuild()
 
 
 class IframeSchema(CamelModel):

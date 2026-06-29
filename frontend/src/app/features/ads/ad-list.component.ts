@@ -50,19 +50,20 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       emptyActionRoute="/admin/ads/new"
       emptyIcon="campaign"
     >
-      <button
-        *ngIf="selection().size > 0"
-        dataListActions
-        mat-stroked-button
-        color="warn"
-        type="button"
-        (click)="removeSelected()"
-        [disabled]="facade.saving()"
-        data-testid="ad-delete-selected"
-      >
-        <mat-icon aria-hidden="true">delete_sweep</mat-icon>
-        Delete {{ selection().size }} selected
-      </button>
+      @if (selection().size > 0) {
+        <button
+          dataListActions
+          mat-stroked-button
+          color="warn"
+          type="button"
+          (click)="removeSelected()"
+          [disabled]="facade.saving()"
+          data-testid="ad-delete-selected"
+        >
+          <mat-icon aria-hidden="true">delete_sweep</mat-icon>
+          Delete {{ selection().size }} selected
+        </button>
+      }
       <ng-template #dataListTable>
         <div
           cdkDropList

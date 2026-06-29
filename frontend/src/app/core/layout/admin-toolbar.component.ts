@@ -85,6 +85,12 @@ import { MatToolbarModule } from '@angular/material/toolbar';
       .admin-toolbar__spacer {
         flex: 1;
       }
+      @media (max-width: 599.98px) {
+        .admin-toolbar__title,
+        .admin-toolbar__divider {
+          display: none;
+        }
+      }
     `
   ]
 })

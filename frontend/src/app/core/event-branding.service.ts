@@ -6,7 +6,9 @@ import { EventBranding, EventBrandingApiService } from './api/event-branding.api
 const EMPTY_BRANDING: EventBranding = {
   eventName: '',
   organizerName: '',
-  organizerLogoUrl: null
+  organizerLogoUrl: null,
+  logoLayout: null,
+  eventNameLayout: null
 };
 
 @Injectable({ providedIn: 'root' })

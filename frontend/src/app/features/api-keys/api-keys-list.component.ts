@@ -79,16 +79,22 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           <ng-container matColumnDef="lastRotatedAt">
             <th mat-header-cell *matHeaderCellDef>Last rotated</th>
             <td mat-cell *matCellDef="let key">
-              <span *ngIf="key.lastRotatedAt; else neverRotated">{{ key.lastRotatedAt | date: 'short' }}</span>
-              <ng-template #neverRotated><span class="api-keys-list__never">Never</span></ng-template>
+              @if (key.lastRotatedAt) {
+                <span>{{ key.lastRotatedAt | date: 'short' }}</span>
+              } @else {
+                <span class="api-keys-list__never">Never</span>
+              }
             </td>
           </ng-container>
 
           <ng-container matColumnDef="lastUsedAt">
             <th mat-header-cell *matHeaderCellDef>Last used</th>
             <td mat-cell *matCellDef="let key">
-              <span *ngIf="key.lastUsedAt; else neverUsed">{{ key.lastUsedAt | date: 'short' }}</span>
-              <ng-template #neverUsed><span class="api-keys-list__never">Never</span></ng-template>
+              @if (key.lastUsedAt) {
+                <span>{{ key.lastUsedAt | date: 'short' }}</span>
+              } @else {
+                <span class="api-keys-list__never">Never</span>
+              }
             </td>
           </ng-container>
 

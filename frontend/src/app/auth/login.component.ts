@@ -12,6 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { AuthService } from '../core/auth/auth.service';
+import { environment } from '../../environments/environment';
 
 interface LoginFormValue {
   email: string;
@@ -44,95 +45,107 @@ interface LoginFormValue {
           <mat-card-title>Operator access</mat-card-title>
           <mat-card-subtitle>Kiosk Screen administration</mat-card-subtitle>
         </mat-card-header>
-        <form
-          *ngIf="form"
-          [formGroup]="form"
-          (ngSubmit)="submit()"
-          class="login-form"
-          novalidate
-          aria-label="Sign in form"
-        >
-          <mat-card-content class="login-form__content">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Email</mat-label>
-              <input
-                matInput
-                type="email"
-                formControlName="email"
-                required
-                autocomplete="username"
-                inputmode="email"
-              />
-              <mat-icon matIconPrefix aria-hidden="true">mail</mat-icon>
-              <mat-error *ngIf="form.controls.email.hasError('required')">Email is required.</mat-error>
-              <mat-error *ngIf="form.controls.email.hasError('email')">Enter a valid email address.</mat-error>
-            </mat-form-field>
+        @if (form) {
+          <form
+            [formGroup]="form"
+            (ngSubmit)="submit()"
+            class="login-form"
+            novalidate
+            aria-label="Sign in form"
+          >
+            <mat-card-content class="login-form__content">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Email</mat-label>
+                <input
+                  matInput
+                  type="email"
+                  formControlName="email"
+                  required
+                  autocomplete="username"
+                  inputmode="email"
+                />
+                <mat-icon matIconPrefix aria-hidden="true">mail</mat-icon>
+                @if (form.controls.email.hasError('required')) {
+                  <mat-error>Email is required.</mat-error>
+                }
+                @if (form.controls.email.hasError('email')) {
+                  <mat-error>Enter a valid email address.</mat-error>
+                }
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Password</mat-label>
-              <input
-                matInput
-                [type]="showPassword() ? 'text' : 'password'"
-                formControlName="password"
-                required
-                autocomplete="current-password"
-              />
-              <mat-icon matIconPrefix aria-hidden="true">lock</mat-icon>
-              <button
-                matSuffix
-                mat-icon-button
-                type="button"
-                (click)="togglePassword()"
-                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
-              >
-                <mat-icon aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="form.controls.password.hasError('required')">Password is required.</mat-error>
-            </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Password</mat-label>
+                <input
+                  matInput
+                  [type]="showPassword() ? 'text' : 'password'"
+                  formControlName="password"
+                  required
+                  autocomplete="current-password"
+                />
+                <mat-icon matIconPrefix aria-hidden="true">lock</mat-icon>
+                <button
+                  matSuffix
+                  mat-icon-button
+                  type="button"
+                  (click)="togglePassword()"
+                  [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                >
+                  <mat-icon aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+                @if (form.controls.password.hasError('required')) {
+                  <mat-error>Password is required.</mat-error>
+                }
+              </mat-form-field>
 
-            <mat-checkbox formControlName="rememberMe" class="login-form__remember">
-              Recordarme (mantener la sesión iniciada durante 30 días)
-            </mat-checkbox>
+              <mat-checkbox
+                formControlName="rememberMe"
+                class="login-form__remember"
+                i18n="@@login.rememberMe"
+              >Recordarme (mantener la sesión iniciada durante 30 días)</mat-checkbox>
 
-            <p
-              *ngIf="errorMessage() as message"
-              class="login-form__error"
-              role="alert"
-            >
-              <mat-icon aria-hidden="true">error</mat-icon>
-              <span>{{ message }}</span>
-            </p>
-          </mat-card-content>
-
-          <mat-card-actions align="end" class="login-form__actions">
-            <button
-              mat-flat-button
-              color="primary"
-              type="submit"
-              class="login-form__submit"
-              [disabled]="form.invalid || submitting()"
-            >
-              @if (submitting()) {
-                <span class="login-form__submit-content">
-                  <mat-progress-spinner
-                    diameter="18"
-                    mode="indeterminate"
-                    aria-label="Signing in"
-                  />
-                  <span>Signing in…</span>
-                </span>
-              } @else {
-                <span class="login-form__submit-content">
-                  <mat-icon aria-hidden="true" class="login-form__submit-icon">login</mat-icon>
-                  <span>Sign in</span>
-                </span>
+              @if (errorMessage(); as message) {
+                <p
+                  class="login-form__error"
+                  role="alert"
+                >
+                  <mat-icon aria-hidden="true">error</mat-icon>
+                  <span>{{ message }}</span>
+                </p>
               }
-            </button>
-          </mat-card-actions>
-        </form>
-        <p class="login-card__hint">
-          Default credentials: <code>admin&#64;example.com</code> / <code>admin</code>.
-        </p>
+            </mat-card-content>
+
+            <mat-card-actions align="end" class="login-form__actions">
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                class="login-form__submit"
+                [disabled]="form.invalid || submitting()"
+              >
+                @if (submitting()) {
+                  <span class="login-form__submit-content">
+                    <mat-progress-spinner
+                      diameter="18"
+                      mode="indeterminate"
+                      aria-label="Signing in"
+                    />
+                    <span>Signing in…</span>
+                  </span>
+                } @else {
+                  <span class="login-form__submit-content">
+                    <mat-icon aria-hidden="true" class="login-form__submit-icon">login</mat-icon>
+                    <span>Sign in</span>
+                  </span>
+                }
+              </button>
+            </mat-card-actions>
+          </form>
+        }
+        @if (showDevHint) {
+          <p class="login-card__hint" i18n="@@login.devHint">
+            Default credentials: <code>admin&#64;example.com</code> / <code>admin</code>.
+          </p>
+        }
       </mat-card>
     </main>
   `,
@@ -150,42 +163,25 @@ interface LoginFormValue {
         place-items: center;
         padding: clamp(20px, 6vw, 48px);
         background:
-          linear-gradient(135deg, var(--mat-sys-surface-container-lowest) 0 44%, transparent 44%),
-          repeating-linear-gradient(
-            90deg,
-            color-mix(in srgb, var(--mat-sys-primary) 9%, transparent) 0 1px,
-            transparent 1px 72px
+          radial-gradient(
+            120% 80% at 100% 0%,
+            color-mix(in srgb, var(--mat-sys-primary) 14%, transparent) 0%,
+            transparent 60%
           ),
-          var(--mat-sys-surface);
-      }
-      .login-page::before {
-        content: '';
-        position: absolute;
-        inset: 0 0 0 58%;
-        background:
-          linear-gradient(180deg, var(--mat-sys-primary-container), var(--mat-sys-secondary-container));
-        opacity: 0.34;
-        pointer-events: none;
-      }
-      .login-page::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(var(--mat-sys-outline-variant) 1px, transparent 1px),
-          linear-gradient(90deg, var(--mat-sys-outline-variant) 1px, transparent 1px);
-        background-size: 36px 36px;
-        mask-image: linear-gradient(135deg, transparent 0 36%, black 36% 100%);
-        opacity: 0.18;
-        pointer-events: none;
+          radial-gradient(
+            100% 70% at 0% 100%,
+            color-mix(in srgb, var(--mat-sys-tertiary) 10%, transparent) 0%,
+            transparent 55%
+          ),
+          var(--mat-sys-surface-container-lowest);
       }
       .login-card {
         position: relative;
         z-index: 1;
         width: min(100%, 420px);
-        background: color-mix(in srgb, var(--mat-sys-surface) 94%, transparent);
+        background: var(--mat-sys-surface);
         box-shadow: var(--mat-sys-level2);
-        backdrop-filter: blur(8px);
+        border: 1px solid var(--mat-sys-outline-variant);
       }
       .login-card mat-card-header {
         padding: 24px 24px 12px;
@@ -258,13 +254,6 @@ interface LoginFormValue {
         border-radius: var(--mat-sys-corner-extra-small);
       }
       @media (max-width: 599.98px) {
-        .login-page::before {
-          inset: auto 0 0 0;
-          height: 34%;
-        }
-        .login-page::after {
-          mask-image: linear-gradient(180deg, transparent 0 52%, black 52% 100%);
-        }
         .login-card mat-card-header {
           padding-inline: 20px;
         }
@@ -281,6 +270,16 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  /**
+   * The dev-mode hint that surfaces the default credentials (`admin@example.com
+   * / admin`) is only rendered when `environment.devMode` is true. In
+   * production builds the fileReplacement swaps `environment.ts` for
+   * `environment.prod.ts` where `devMode` is `false`, so this hint never
+   * reaches production bundles. The hint also stays out of the source
+   * string for `ng extract-i18n` because we gate it at runtime.
+   */
+  protected readonly showDevHint = environment.devMode;
 
   protected readonly submitting = signal(false);
   protected readonly showPassword = signal(false);

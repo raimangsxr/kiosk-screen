@@ -70,180 +70,213 @@ interface DisplayConfigFormValue {
       description="Kiosk-wide rotation timing, animation, inline ad count, and enabled state."
     />
 
-    <form
-      *ngIf="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      class="display-config"
-      novalidate
-      aria-label="Display configuration form"
-    >
-      <app-form-page [loading]="loading()">
-        <app-admin-state
-          *ngIf="loadError() as error"
-          kind="error"
-          title="Could not load configuration"
-          [message]="error.message"
-        />
-
-        <div class="display-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Configuration name</mat-label>
-            <input matInput formControlName="name" required maxlength="120" autocomplete="off" />
-            <mat-error *ngIf="form.controls.name.hasError('required')">Name is required.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-        <h3 class="display-config__section">Top content defaults</h3>
-        <div class="display-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Top duration (seconds)</mat-label>
-            <input matInput type="number" formControlName="defaultTopDurationSeconds" min="1" required />
-            <mat-error *ngIf="form.controls.defaultTopDurationSeconds.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Top animation</mat-label>
-            <mat-select formControlName="defaultTopRotationAnimation" required>
-              <mat-option *ngFor="let animation of animations" [value]="animation">{{ animation }}</mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Top animation duration (ms)</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="defaultTopAnimationDurationMilliseconds"
-              min="1"
-              required
+    @if (form) {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="display-config"
+        novalidate
+        aria-label="Display configuration form"
+      >
+        <app-form-page [loading]="loading()">
+          @if (loadError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not load configuration"
+              [message]="error.message"
             />
-            <mat-error *ngIf="form.controls.defaultTopAnimationDurationMilliseconds.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-        </div>
+          }
 
-        <mat-divider />
-        <h3 class="display-config__section">Ad defaults</h3>
-        <div class="display-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Ad duration (seconds)</mat-label>
-            <input matInput type="number" formControlName="defaultAdDurationSeconds" min="1" required />
-            <mat-error *ngIf="form.controls.defaultAdDurationSeconds.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Configuration name</mat-label>
+              <input matInput formControlName="name" required maxlength="120" autocomplete="off" />
+              @if (form.controls.name.hasError('required')) {
+                <mat-error>Name is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Ad animation</mat-label>
-            <mat-select formControlName="defaultAdRotationAnimation" required>
-              <mat-option *ngFor="let animation of animations" [value]="animation">{{ animation }}</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <mat-divider />
+          <h3 class="display-config__section">Top content defaults</h3>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Top duration (seconds)</mat-label>
+              <input matInput type="number" formControlName="defaultTopDurationSeconds" min="1" required />
+              @if (form.controls.defaultTopDurationSeconds.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
 
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Ad animation duration (ms)</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="defaultAdAnimationDurationMilliseconds"
-              min="1"
-              required
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Top animation</mat-label>
+              <mat-select formControlName="defaultTopRotationAnimation" required>
+                @for (animation of animations; track animation) {
+                  <mat-option [value]="animation">{{ animation }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Top animation duration (ms)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="defaultTopAnimationDurationMilliseconds"
+                min="1"
+                required
+              />
+              @if (form.controls.defaultTopAnimationDurationMilliseconds.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+          <h3 class="display-config__section">Ad defaults</h3>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Ad duration (seconds)</mat-label>
+              <input matInput type="number" formControlName="defaultAdDurationSeconds" min="1" required />
+              @if (form.controls.defaultAdDurationSeconds.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Ad animation</mat-label>
+              <mat-select formControlName="defaultAdRotationAnimation" required>
+                @for (animation of animations; track animation) {
+                  <mat-option [value]="animation">{{ animation }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Ad animation duration (ms)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="defaultAdAnimationDurationMilliseconds"
+                min="1"
+                required
+              />
+              @if (form.controls.defaultAdAnimationDurationMilliseconds.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+          <h3 class="display-config__section">Region ratio</h3>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Top region units</mat-label>
+              <input matInput type="number" formControlName="topRegionRatio" min="1" max="20" required />
+              <mat-hint>Numerator of the host grid (5 = default 5/6 split).</mat-hint>
+              @if (form.controls.topRegionRatio.hasError('min') || form.controls.topRegionRatio.hasError('max')) {
+                <mat-error>
+                  Must be between 1 and 20.
+                </mat-error>
+              }
+              @if (form.controls.topRegionRatio.hasError('required')) {
+                <mat-error>
+                  Required.
+                </mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Bottom region units</mat-label>
+              <input matInput type="number" formControlName="bottomRegionRatio" min="1" max="20" required />
+              <mat-hint>Denominator of the host grid (1 = default 5/6 split).</mat-hint>
+              @if (form.controls.bottomRegionRatio.hasError('min') || form.controls.bottomRegionRatio.hasError('max')) {
+                <mat-error>
+                  Must be between 1 and 20.
+                </mat-error>
+              }
+              @if (form.controls.bottomRegionRatio.hasError('required')) {
+                <mat-error>
+                  Required.
+                </mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+          <h3 class="display-config__section">Kiosk settings</h3>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Inline ads per rotation</mat-label>
+              <input matInput type="number" formControlName="inlineAdCount" min="1" required />
+              @if (form.controls.inlineAdCount.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Remote polling (seconds)</mat-label>
+              <input matInput type="number" formControlName="remoteControlPollingSeconds" min="1" max="60" required />
+              @if (form.controls.remoteControlPollingSeconds.hasError('positiveInteger')) {
+                <mat-error>
+                  Must be a positive integer.
+                </mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Video end delay (s)</mat-label>
+              <input matInput type="number" formControlName="videoEndDelaySeconds" min="0" max="30" required />
+              @if (form.controls.videoEndDelaySeconds.hasError('min') || form.controls.videoEndDelaySeconds.hasError('max')) {
+                <mat-error>
+                  Must be between 0 and 30.
+                </mat-error>
+              }
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+          <div class="display-config__toggle">
+            <mat-slide-toggle formControlName="isEnabled">Kiosk enabled</mat-slide-toggle>
+            @if (!form.controls.isEnabled.value) {
+              <span class="display-config__hint">
+                When disabled, the kiosk will not run and the setup check will report a blocker.
+              </span>
+            }
+          </div>
+
+          @if (saveError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not save configuration"
+              [message]="error.message"
             />
-            <mat-error *ngIf="form.controls.defaultAdAnimationDurationMilliseconds.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-        </div>
+          }
 
-        <mat-divider />
-        <h3 class="display-config__section">Region ratio</h3>
-        <div class="display-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Top region units</mat-label>
-            <input matInput type="number" formControlName="topRegionRatio" min="1" max="20" required />
-            <mat-hint>Numerator of the host grid (5 = default 5/6 split).</mat-hint>
-            <mat-error *ngIf="form.controls.topRegionRatio.hasError('min') || form.controls.topRegionRatio.hasError('max')">
-              Must be between 1 and 20.
-            </mat-error>
-            <mat-error *ngIf="form.controls.topRegionRatio.hasError('required')">
-              Required.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Bottom region units</mat-label>
-            <input matInput type="number" formControlName="bottomRegionRatio" min="1" max="20" required />
-            <mat-hint>Denominator of the host grid (1 = default 5/6 split).</mat-hint>
-            <mat-error *ngIf="form.controls.bottomRegionRatio.hasError('min') || form.controls.bottomRegionRatio.hasError('max')">
-              Must be between 1 and 20.
-            </mat-error>
-            <mat-error *ngIf="form.controls.bottomRegionRatio.hasError('required')">
-              Required.
-            </mat-error>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-        <h3 class="display-config__section">Kiosk settings</h3>
-        <div class="display-config__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Inline ads per rotation</mat-label>
-            <input matInput type="number" formControlName="inlineAdCount" min="1" required />
-            <mat-error *ngIf="form.controls.inlineAdCount.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Remote polling (seconds)</mat-label>
-            <input matInput type="number" formControlName="remoteControlPollingSeconds" min="1" max="60" required />
-            <mat-error *ngIf="form.controls.remoteControlPollingSeconds.hasError('positiveInteger')">
-              Must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Video end delay (s)</mat-label>
-            <input matInput type="number" formControlName="videoEndDelaySeconds" min="0" max="30" required />
-            <mat-error *ngIf="form.controls.videoEndDelaySeconds.hasError('min') || form.controls.videoEndDelaySeconds.hasError('max')">
-              Must be between 0 and 30.
-            </mat-error>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-        <div class="display-config__toggle">
-          <mat-slide-toggle formControlName="isEnabled">Kiosk enabled</mat-slide-toggle>
-          <span class="display-config__hint" *ngIf="!form.controls.isEnabled.value">
-            When disabled, the kiosk will not run and the setup check will report a blocker.
-          </span>
-        </div>
-
-        <app-admin-state
-          *ngIf="saveError() as error"
-          kind="error"
-          title="Could not save configuration"
-          [message]="error.message"
-        />
-
-        <div formPageActions>
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="form.invalid || facade.saving() || loading()"
-          >
-            <mat-icon aria-hidden="true">save</mat-icon>
-            {{ facade.saving() ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
-      </app-form-page>
-    </form>
+          <div formPageActions>
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || facade.saving() || loading()"
+            >
+              <mat-icon aria-hidden="true">save</mat-icon>
+              {{ facade.saving() ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </app-form-page>
+      </form>
+    }
   `,
   styles: [
     `

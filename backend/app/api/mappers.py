@@ -1,5 +1,6 @@
 from app.api.schemas import (
     AdItemSchema,
+    BrandingLayout,
     ContentItemSchema,
     DisplayEventSchema,
     EventBrandingSchema,
@@ -63,6 +64,8 @@ def to_event_configuration_schema(
         organizerName=row.organizer_name,
         organizerLogoMediaFile=to_media_schema(media),
         eventDurationMinutes=row.event_duration_minutes,
+        logoLayout=_coerce_layout(row.logo_layout),
+        eventNameLayout=_coerce_layout(row.event_name_layout),
         createdAt=row.created_at,
         updatedAt=row.updated_at,
     )
@@ -73,7 +76,26 @@ def to_event_branding_schema(row: EventConfiguration, media_url: str | None) -> 
         eventName=row.event_name,
         organizerName=row.organizer_name,
         organizerLogoUrl=media_url,
+        logoLayout=_coerce_layout(row.logo_layout),
+        eventNameLayout=_coerce_layout(row.event_name_layout),
     )
+
+
+def _coerce_layout(value: object) -> BrandingLayout | None:
+    """Validate a stored JSON layout dict against the BrandingLayout model.
+
+    Returns None when the column is NULL or contains an empty
+    object, so the kiosko CSS falls back to the documented visual
+    defaults. Raises ValueError when the stored value violates the
+    range constraints; the caller surfaces it as HTTP 500 because
+    it would indicate data corruption (the API boundary validates
+    every write).
+    """
+    if value is None or value == {}:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError(f"Branding layout must be a JSON object, got {type(value).__name__}.")
+    return BrandingLayout.model_validate(value)
 
 
 def to_content_schema(

@@ -5,7 +5,13 @@ def test_event_branding_is_public_and_limited(api_client: TestClient):
     response = api_client.get("/api/event-branding")
 
     assert response.status_code == 200
-    assert set(response.json()) == {"eventName", "organizerName", "organizerLogoUrl"}
+    assert set(response.json()) == {
+        "eventName",
+        "organizerName",
+        "organizerLogoUrl",
+        "logoLayout",
+        "eventNameLayout",
+    }
 
 
 def test_event_branding_reflects_saved_event_configuration(api_client: TestClient):
@@ -29,4 +35,6 @@ def test_event_branding_reflects_saved_event_configuration(api_client: TestClien
         "eventName": "Spring Summit 2026",
         "organizerName": "ACME Events",
         "organizerLogoUrl": None,
+        "logoLayout": None,
+        "eventNameLayout": None,
     }

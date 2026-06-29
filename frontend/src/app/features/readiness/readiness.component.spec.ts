@@ -3,10 +3,27 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { BehaviorSubject } from 'rxjs';
 
 import { ReadinessApiService, ReadinessReport } from '../../core/api/readiness.api';
 import { ReadinessFacade } from './readiness.facade';
 import { ReadinessComponent } from './readiness.component';
+
+class BreakpointObserverStub {
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {}
+  });
+
+  observe() {
+    return this.events.asObservable();
+  }
+
+  isMatched(_query: string | string[]): boolean {
+    return false;
+  }
+}
 
 function buildReport(partial: Partial<ReadinessReport> = {}): ReadinessReport {
   return { ready: false, blockers: ['Missing ad'], warnings: [], ...partial };
@@ -61,7 +78,12 @@ describe('ReadinessComponent (Material)', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [ReadinessComponent, NoopAnimationsModule],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() }
+      ]
     });
     httpController = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(ReadinessComponent);

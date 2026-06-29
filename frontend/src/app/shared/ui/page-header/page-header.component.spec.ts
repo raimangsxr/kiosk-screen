@@ -1,14 +1,35 @@
 import { TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
+import { BreakpointObserver } from '@angular/cdk/layout';
+import { BehaviorSubject } from 'rxjs';
+import { BreakpointState } from '@angular/cdk/layout';
 
 import { PageHeaderComponent } from './page-header.component';
+
+class BreakpointObserverStub {
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {}
+  });
+
+  observe() {
+    return this.events.asObservable();
+  }
+
+  isMatched(_query: string | string[]): boolean {
+    return false;
+  }
+}
 
 describe('PageHeaderComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [PageHeaderComponent, NoopAnimationsModule],
-      providers: [provideRouter([])]
+      providers: [
+        provideRouter([]),
+        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() }
+      ]
     });
   });
 

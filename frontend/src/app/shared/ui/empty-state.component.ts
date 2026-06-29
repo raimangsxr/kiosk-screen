@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -22,6 +22,17 @@ import { RouterLink } from '@angular/router';
             <mat-icon aria-hidden="true">add</mat-icon>
             {{ actionLabel() }}
           </a>
+        } @else if (actionLabel()) {
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            (click)="onActionClick()"
+            data-testid="empty-state-action"
+          >
+            <mat-icon aria-hidden="true">add</mat-icon>
+            {{ actionLabel() }}
+          </button>
         }
       </mat-card-content>
     </mat-card>
@@ -70,4 +81,22 @@ export class EmptyStateComponent {
   readonly icon = input<string>('inbox');
   readonly actionLabel = input<string>('');
   readonly actionRoute = input<string>('');
+
+  /**
+   * Emitted when the user clicks the action button. Only fires from the
+   * emit-only `<button>` rendering (i.e., when `actionLabel()` is set but
+   * `actionRoute()` is empty) — the `<a routerLink>` rendering does not
+   * emit because it relies on the router's native click handling. This
+   * two-mode rendering lets consumers pick their preferred UX without
+   * fighting Angular's `routerLink` directive:
+   *
+   * - "navigate to a route" → pass `actionRoute`, do not bind `(action)`.
+   * - "do something locally (open a dialog, refetch, …)" → omit
+   *   `actionRoute`, bind `(action)` and handle it.
+   */
+  readonly action = output<void>();
+
+  protected onActionClick(): void {
+    this.action.emit();
+  }
 }

@@ -5,7 +5,8 @@ import { MatSnackBar, MatSnackBarModule, MatSnackBarRef, TextOnlySnackBar } from
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 
 import { RemoteControlComponent } from './remote-control.component';
 import { RemoteControlFacade } from './remote-control.facade';
@@ -14,6 +15,21 @@ import { ApplicationErrorContract } from '../../shared/contracts/admin-contracts
 
 class MatSnackBarStub {
   open = jasmine.createSpy('open').and.returnValue({} as MatSnackBarRef<TextOnlySnackBar>);
+}
+
+class BreakpointObserverStub {
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {}
+  });
+
+  observe() {
+    return this.events.asObservable();
+  }
+
+  isMatched(_query: string | string[]): boolean {
+    return false;
+  }
 }
 
 const baseState: RemoteControlState = {
@@ -73,7 +89,8 @@ function configureTestBed(facade: jasmine.SpyObj<RemoteControlFacade>, snackBar:
       { provide: MatSnackBar, useValue: snackBar },
       provideRouter([]),
       provideHttpClient(),
-      provideHttpClientTesting()
+      provideHttpClientTesting(),
+      { provide: BreakpointObserver, useValue: new BreakpointObserverStub() }
     ]
   });
   TestBed.overrideComponent(RemoteControlComponent, {

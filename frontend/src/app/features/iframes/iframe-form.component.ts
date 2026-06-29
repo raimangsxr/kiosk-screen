@@ -24,10 +24,16 @@ import { IframeFacade } from './iframe.facade';
         <mat-form-field appearance="outline">
           <mat-label>URL</mat-label>
           <input matInput formControlName="url" autocomplete="off" />
-          <mat-error *ngIf="form.controls.url.hasError('required')">URL is required.</mat-error>
-          <mat-error *ngIf="form.controls.url.hasError('pattern')">Enter a valid http(s) URL.</mat-error>
+          @if (form.controls.url.hasError('required')) {
+            <mat-error>URL is required.</mat-error>
+          }
+          @if (form.controls.url.hasError('pattern')) {
+            <mat-error>Enter a valid http(s) URL.</mat-error>
+          }
         </mat-form-field>
-        <p class="admin-form__error" *ngIf="facade.error() as error">{{ error.message }}</p>
+        @if (facade.error(); as error) {
+          <p class="admin-form__error">{{ error.message }}</p>
+        }
         <div class="admin-form__actions">
           <button mat-flat-button color="primary" type="submit" [disabled]="form.invalid || facade.saving()">Save</button>
           <a mat-button routerLink="/admin/iframes">Cancel</a>

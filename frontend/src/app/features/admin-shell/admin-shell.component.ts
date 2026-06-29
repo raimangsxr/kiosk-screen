@@ -13,6 +13,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { AdminToolbarComponent } from '../../core/layout/admin-toolbar.component';
 import { UserMenuComponent } from '../../core/layout/user-menu.component';
 import { BreakpointService } from '../../core/layout/breakpoint.service';
+import { BreadcrumbComponent } from '../../shared/ui/breadcrumb/breadcrumb.component';
 import { AdminNavigationService } from './admin-navigation.service';
 
 @Component({
@@ -31,7 +32,8 @@ import { AdminNavigationService } from './admin-navigation.service';
     MatToolbarModule,
     MatDividerModule,
     AdminToolbarComponent,
-    UserMenuComponent
+    UserMenuComponent,
+    BreadcrumbComponent
   ],
   template: `
     <app-admin-toolbar
@@ -95,6 +97,9 @@ import { AdminNavigationService } from './admin-navigation.service';
 
       <mat-sidenav-content>
         <main class="admin-shell__main app-page" tabindex="-1">
+          @if (!isHandset()) {
+            <app-breadcrumb />
+          }
           <router-outlet />
         </main>
       </mat-sidenav-content>
@@ -159,6 +164,8 @@ import { AdminNavigationService } from './admin-navigation.service';
       .admin-shell__main {
         padding-top: 16px;
         padding-bottom: 32px;
+        min-width: 0;
+        overflow-x: clip;
       }
       @media (max-width: 599.98px) {
         .admin-shell__sidenav {

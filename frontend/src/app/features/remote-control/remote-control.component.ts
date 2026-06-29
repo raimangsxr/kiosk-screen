@@ -53,39 +53,44 @@ type LocalMode = RemoteControlContentMode;
         description="Control what the running kiosk shows in the content region and whether the ad region is visible."
       />
 
-      <mat-progress-bar
-        *ngIf="facade.loading() || facade.saving()"
-        mode="indeterminate"
-        aria-label="Saving"
-      />
+      @if (facade.loading() || facade.saving()) {
+        <mat-progress-bar
+          mode="indeterminate"
+          aria-label="Saving"
+        />
+      }
 
-      <app-admin-state
-        *ngIf="loadError() as error"
-        kind="error"
-        title="Could not load remote control"
-        [message]="error.message"
-      />
-      <div *ngIf="loadError()" class="remote-control__retry">
-        <button
-          mat-stroked-button
-          color="primary"
-          type="button"
-          (click)="retryLoad()"
-          data-testid="remote-control-retry"
-        >
-          <mat-icon aria-hidden="true">refresh</mat-icon>
-          Retry
-        </button>
-      </div>
+      @if (loadError(); as error) {
+        <app-admin-state
+          kind="error"
+          title="Could not load remote control"
+          [message]="error.message"
+        />
+      }
+      @if (loadError()) {
+        <div class="remote-control__retry">
+          <button
+            mat-stroked-button
+            color="primary"
+            type="button"
+            (click)="retryLoad()"
+            data-testid="remote-control-retry"
+          >
+            <mat-icon aria-hidden="true">refresh</mat-icon>
+            Retry
+          </button>
+        </div>
+      }
 
-      <app-admin-state
-        *ngIf="updateError()"
-        kind="error"
-        title="Could not update remote control"
-        message="Try again or choose another iframe."
-      />
+      @if (updateError()) {
+        <app-admin-state
+          kind="error"
+          title="Could not update remote control"
+          message="Try again or choose another iframe."
+        />
+      }
 
-      <ng-container *ngIf="facade.state() as currentState">
+      @if (facade.state(); as currentState) {
         <div
           class="remote-control__status"
           role="status"
@@ -332,7 +337,7 @@ type LocalMode = RemoteControlContentMode;
             </mat-slide-toggle>
           </mat-card-content>
         </mat-card>
-      </ng-container>
+      }
     </main>
   `,
   styles: [

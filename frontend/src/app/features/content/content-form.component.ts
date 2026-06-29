@@ -75,154 +75,178 @@ interface ContentFormValue {
       description="Configure ordering, rotation, animation, and availability for one top-region item."
     />
 
-    <form
-      *ngIf="form"
-      [formGroup]="form"
-      (ngSubmit)="submit()"
-      class="content-form"
-      novalidate
-      aria-label="Content item form"
-    >
-      <app-form-page [loading]="loading()">
-        <app-admin-state
-          *ngIf="loadError() as error"
-          kind="error"
-          title="Could not load content"
-          [message]="error.message"
-        />
-
-        <div class="content-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Type</mat-label>
-            <mat-select formControlName="contentType" required>
-              <mat-option value="photo">Photo</mat-option>
-              <mat-option value="video">Video</mat-option>
-            </mat-select>
-            <mat-error *ngIf="form.controls.contentType.hasError('required')">Type is required.</mat-error>
-          </mat-form-field>
-        </div>
-
-        <div class="content-form__file">
-          <span class="content-form__file-label">Upload file</span>
-          <app-file-input
-            [accept]="fileAccept()"
-            [buttonLabel]="fileButtonLabel()"
-            [ariaLabel]="fileLabel()"
-            [existingFileName]="existingMediaName()"
-            [multiple]="!contentId()"
-            [showPreview]="isPhoto()"
-            (fileSelected)="onFileSelected($event)"
-            (filesSelected)="onFilesSelected($event)"
-          />
-        </div>
-
-        <div class="content-form__row" *ngIf="contentId()">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Display order</mat-label>
-            <input matInput type="number" formControlName="displayOrder" min="1" />
-            <mat-hint>Reorder by dragging rows in the content list.</mat-hint>
-            <mat-error *ngIf="form.controls.displayOrder.hasError('positiveInteger')">
-              Order must be a positive integer.
-            </mat-error>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Rotation time (seconds)</mat-label>
-            <input matInput type="number" formControlName="durationSeconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <div class="content-form__row">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation</mat-label>
-            <mat-select formControlName="rotationAnimation">
-              <mat-option [value]="null">Default</mat-option>
-              <mat-option *ngFor="let animation of animations" [value]="animation">
-                {{ animation }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Animation duration (ms)</mat-label>
-            <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-            <mat-hint>Leave empty to use kiosk default.</mat-hint>
-          </mat-form-field>
-        </div>
-
-        <mat-divider />
-
-        <div class="content-form__lifecycle" aria-label="Display modes">
-          <h3 class="content-form__section-title">Modo de visualización</h3>
-          <p class="content-form__hint">
-            Recurrente y Fijo son mutuamente excluyentes.
-          </p>
-
-          <mat-checkbox
-            formControlName="isFixed"
-            (change)="onIsFixedChange()"
-            class="content-form__checkbox"
-          >
-            Marcar como contenido fijo
-          </mat-checkbox>
-          <p
-            class="content-form__hint content-form__hint--detail"
-            *ngIf="form.controls.isFixed.value"
-          >
-            Sólo se mostrará en modo "Fixed" del control remoto. No aparece en la rotación normal.
-          </p>
-
-          <mat-form-field
-            appearance="outline"
-            subscriptSizing="dynamic"
-            class="content-form__cadence"
-            *ngIf="!form.controls.isFixed.value"
-          >
-            <mat-label>Recurrente cada (iteraciones)</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="recurringEveryXIterations"
-              min="1"
+    @if (form) {
+      <form
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        class="content-form"
+        novalidate
+        aria-label="Content item form"
+      >
+        <app-form-page [loading]="loading()">
+          @if (loadError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not load content"
+              [message]="error.message"
             />
-            <mat-hint>
-              Si está definido, este contenido se mostrará cada N cambios del resto de la cola.
-              Déjalo vacío para que sólo rote en orden normal.
-            </mat-hint>
-          </mat-form-field>
-        </div>
+          }
 
-        <mat-divider />
+          <div class="content-form__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Type</mat-label>
+              <mat-select formControlName="contentType" required>
+                <mat-option value="photo">Photo</mat-option>
+                <mat-option value="video">Video</mat-option>
+              </mat-select>
+              @if (form.controls.contentType.hasError('required')) {
+                <mat-error>Type is required.</mat-error>
+              }
+            </mat-form-field>
+          </div>
 
-        <div class="content-form__toggle">
-          <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-          <span class="content-form__hint" *ngIf="!form.controls.isActive.value">
-            Inactive items are skipped during rotation.
-          </span>
-        </div>
+          <div class="content-form__file">
+            <span class="content-form__file-label">Upload file</span>
+            <app-file-input
+              [accept]="fileAccept()"
+              [buttonLabel]="fileButtonLabel()"
+              [ariaLabel]="fileLabel()"
+              [existingFileName]="existingMediaName()"
+              [multiple]="!contentId()"
+              [showPreview]="isPhoto()"
+              (fileSelected)="onFileSelected($event)"
+              (filesSelected)="onFilesSelected($event)"
+            />
+          </div>
 
-        <app-admin-state
-          *ngIf="saveError() as error"
-          kind="error"
-          title="Could not save content"
-          [message]="error.message"
-        />
+          @if (contentId()) {
+            <div class="content-form__row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Display order</mat-label>
+                <input matInput type="number" formControlName="displayOrder" min="1" />
+                <mat-hint>Reorder by dragging rows in the content list.</mat-hint>
+                @if (form.controls.displayOrder.hasError('positiveInteger')) {
+                  <mat-error>
+                    Order must be a positive integer.
+                  </mat-error>
+                }
+              </mat-form-field>
 
-        <div formPageActions>
-          <a mat-button routerLink="/admin/content">Cancel</a>
-          <button
-            mat-flat-button
-            color="primary"
-            type="submit"
-            [disabled]="form.invalid || facade.saving() || loading()"
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Rotation time (seconds)</mat-label>
+                <input matInput type="number" formControlName="durationSeconds" min="1" />
+                <mat-hint>Leave empty to use kiosk default.</mat-hint>
+              </mat-form-field>
+            </div>
+          }
+
+          <div class="content-form__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Animation</mat-label>
+              <mat-select formControlName="rotationAnimation">
+                <mat-option [value]="null">Default</mat-option>
+                @for (animation of animations; track animation) {
+                  <mat-option [value]="animation">
+                    {{ animation }}
+                  </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Animation duration (ms)</mat-label>
+              <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
+              <mat-hint>Leave empty to use kiosk default.</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
+
+          <div
+            class="content-form__lifecycle"
+            aria-label="Display modes"
+            i18n-aria-label="@@contentForm.displayModesAria"
           >
-            <mat-icon aria-hidden="true">save</mat-icon>
-            {{ facade.saving() ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
-      </app-form-page>
-    </form>
+            <h3
+              class="content-form__section-title"
+              i18n="@@contentForm.displayModesTitle"
+            >Modo de visualización</h3>
+            <p class="content-form__hint" i18n="@@contentForm.fixedMutuallyExclusive">
+              Recurrente y Fijo son mutuamente excluyentes.
+            </p>
+
+            <mat-checkbox
+              formControlName="isFixed"
+              (change)="onIsFixedChange()"
+              class="content-form__checkbox"
+              i18n="@@contentForm.fixedLabel"
+            >
+              Marcar como contenido fijo
+            </mat-checkbox>
+            @if (form.controls.isFixed.value) {
+              <p
+                class="content-form__hint content-form__hint--detail"
+                i18n="@@contentForm.fixedHint"
+              >
+                Sólo se mostrará en modo "Fixed" del control remoto. No aparece en la rotación normal.
+              </p>
+            }
+
+            @if (!form.controls.isFixed.value) {
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="content-form__cadence"
+              >
+                <mat-label i18n="@@contentForm.recurringLabel">Recurrente cada (iteraciones)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  formControlName="recurringEveryXIterations"
+                  min="1"
+                />
+                <mat-hint i18n="@@contentForm.recurringHint">
+                  Si está definido, este contenido se mostrará cada N cambios del resto de la cola.
+                  Déjalo vacío para que sólo rote en orden normal.
+                </mat-hint>
+              </mat-form-field>
+            }
+          </div>
+
+          <mat-divider />
+
+          <div class="content-form__toggle">
+            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            @if (!form.controls.isActive.value) {
+              <span class="content-form__hint">
+                Inactive items are skipped during rotation.
+              </span>
+            }
+          </div>
+
+          @if (saveError(); as error) {
+            <app-admin-state
+              kind="error"
+              title="Could not save content"
+              [message]="error.message"
+            />
+          }
+
+          <div formPageActions>
+            <a mat-button routerLink="/admin/content">Cancel</a>
+            <button
+              mat-flat-button
+              color="primary"
+              type="submit"
+              [disabled]="form.invalid || facade.saving() || loading()"
+            >
+              <mat-icon aria-hidden="true">save</mat-icon>
+              {{ facade.saving() ? 'Saving…' : 'Save' }}
+            </button>
+          </div>
+        </app-form-page>
+      </form>
+    }
   `,
   styles: [
     `

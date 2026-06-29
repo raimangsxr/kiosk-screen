@@ -69,9 +69,11 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           <ng-container matColumnDef="roles">
             <th mat-header-cell *matHeaderCellDef>Roles</th>
             <td mat-cell *matCellDef="let user">
-              <mat-chip-set>
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
-              </mat-chip-set>
+<mat-chip-set>
+               @for (role of user.roles; track role) {
+                 <mat-chip>{{ role }}</mat-chip>
+               }
+             </mat-chip-set>
             </td>
           </ng-container>
 
@@ -120,7 +122,9 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                 />
               </div>
               <mat-chip-set class="users-list__card-roles">
-                <mat-chip *ngFor="let role of user.roles">{{ role }}</mat-chip>
+                @for (role of user.roles; track role) {
+                  <mat-chip>{{ role }}</mat-chip>
+                }
               </mat-chip-set>
             </mat-card-content>
             <mat-card-actions class="app-card-actions users-list__card-actions">
@@ -154,6 +158,11 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       .users-list__table {
         width: 100%;
         background: transparent;
+        table-layout: fixed;
+      }
+      .users-list__table td,
+      .users-list__table th {
+        overflow-wrap: anywhere;
       }
       .users-list__card-item {
         display: block;
@@ -168,11 +177,13 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       }
       .users-list__card-name {
         margin: 0;
+        overflow-wrap: anywhere;
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .users-list__card-email {
         margin: 2px 0 0;
+        overflow-wrap: anywhere;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);

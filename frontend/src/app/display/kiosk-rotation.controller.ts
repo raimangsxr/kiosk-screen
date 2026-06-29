@@ -1,6 +1,9 @@
-import { Injectable, Injector, computed, effect, runInInjectionContext, signal } from '@angular/core';
+import { Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
 import { DisplayContentItem } from '../core/api/display.api';
+import { CursorService } from './cursor.service';
 import { DisplayRotationService } from './display-rotation.service';
+import { RecurringCadenceService } from './recurring-cadence.service';
+import { RotationSchedulerService } from './rotation-scheduler.service';
 
 export type KioskContentMode = 'loop' | 'iframe' | 'fixed';
 
@@ -39,18 +42,37 @@ export interface KioskControllerInputs {
 }
 
 /**
- * Single-source-of-truth controller for the kiosk's rotation timers and cursor
- * state. Exposes signals that the component binds to; one effect() arms the
- * timers reactively whenever any input changes.
+ * Single-source-of-truth controller for the kiosk's rotation timers and
+ * cursor state. Acts as an orchestrator: it owns the public signals the
+ * component binds to, and delegates logic to three focused services:
  *
- * Covers FR-001..FR-005 (rotation bugs), FR-008a / FR-008b (mode transitions +
- * ads always rotating), FR-011..FR-012a (pause/resume), FR-012 (single
- * configured ad cadence), FR-013 (CSS animation duration from configured
- * default), FR-014 / FR-015 (fixed-mode entry / exit + cursor preservation),
- * and FR-016 (single owner of rotation timers).
+ *  - {@link CursorService} — cursor transition rules (regular /
+ *    fixed / recurring). Pure functions.
+ *  - {@link RecurringCadenceService} — recurring-content cadence math
+ *    (smallest cadence, recurring pick, queue filter). Pure functions.
+ *  - {@link RotationSchedulerService} — owns the `setTimeout` handles
+ *    for the content + ad rotation. The only stateful service; the
+ *    others are stateless helpers so the controller remains the
+ *    single source of reactive truth.
+ *
+ * Public surface (signals + methods) is preserved so the component
+ * (CHG-019 / spec 014) keeps compiling unchanged.
+ *
+ * Covers FR-001..FR-005 (rotation bugs), FR-008a / FR-008b (mode
+ * transitions + ads always rotating), FR-011..FR-012a (pause/resume),
+ * FR-012 (single configured ad cadence), FR-013 (CSS animation
+ * duration from configured default), FR-014 / FR-015 (fixed-mode
+ * entry / exit + cursor preservation), and FR-016 (single owner of
+ * rotation timers).
+ *
+ * @see specs/changes/021-kiosk-runtime-refactor/spec.md FR-2
  */
 @Injectable()
 export class KioskRotationController {
+  private readonly cursor = inject(CursorService);
+  private readonly cadence = inject(RecurringCadenceService);
+  private readonly scheduler = inject(RotationSchedulerService);
+
   /** Public read-only state -------------------------------------------- */
   readonly contentMode = signal<KioskContentMode>('loop');
   readonly currentContentId = signal<string | null>(null);
@@ -102,11 +124,12 @@ export class KioskRotationController {
    * regular cadence is preserved across recurring insertions.
    */
   private _regularCursorId: string | null = null;
-  private _cadenceLastFrozen: number | null = null;
-
-  /** Single timer ------------------------------------------------------ */
-  private _contentTimer: ReturnType<typeof setTimeout> | null = null;
-  private _adTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * Debounce bookkeeping for the empty-queue event (FR-009). The
+   * controller owns the timer state so the scheduler can stay focused on
+   * rotation; the debounce uses its own raw `setTimeout` to keep the
+   * 200 ms cadence independent of the scheduler's clamp.
+   */
   private _emptyQueueDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _emptyQueueReportedAt = 0;
 
@@ -137,12 +160,7 @@ export class KioskRotationController {
    * Wire the polled inputs into the controller's signals and arm the
    * rotation timers. The caller MUST pass the `Injector` of the
    * component that owns this controller so the reactive `effect()` is
-   * bound to that component's lifecycle (CHG-019 fix). Previously the
-   * effect was created in the controller's injector (root injector),
-   * which leaked an effect per visit to /display and crashed the
-   * browser.
-   *
-   * The controller remains the single owner of the timers (FR-016).
+   * bound to that component's lifecycle (CHG-019 fix).
    *
    * The effect tracks a stable JSON fingerprint of the inputs and only
    * re-arms the timers when the fingerprint changes. This prevents the
@@ -185,12 +203,12 @@ export class KioskRotationController {
         // Spec 014 addendum 2: when the admin updates a content's
         // `recurringEveryXIterations` (or removes a recurring item), the
         // polled state arrives with the new cadence. The next advance
-        // will read the updated cadence via `_smallestRecurringCadence`
+        // will read the updated cadence via `RecurringCadenceService`
         // so no manual refresh is required. We also drop the cadence
         // counter back to 0 when there are no recurring items, so the
         // counter never grows unbounded after the operator clears the
         // last recurring.
-        if (this._smallestRecurringCadence() === null && this.cadenceCounter() !== 0) {
+        if (this.cadence.shouldResetOnEmptyRecurring(queue, this.cadenceCounter())) {
           this.cadenceCounter.set(0);
         }
 
@@ -204,8 +222,7 @@ export class KioskRotationController {
 
   /** Reset on destroy (called from component ngOnDestroy). */
   detach(): void {
-    this._clearContentTimer();
-    this._clearAdTimer();
+    this.scheduler.clearAll();
     if (this._emptyQueueDebounceTimer) {
       clearTimeout(this._emptyQueueDebounceTimer);
       this._emptyQueueDebounceTimer = null;
@@ -261,7 +278,7 @@ export class KioskRotationController {
   pause(): void {
     if (this.contentMode() !== 'loop') return;
     this.isPaused.set(true);
-    this._clearContentTimer();
+    this.scheduler.clearContent();
     // Intentionally do NOT clear the ad timer: the ad band is the
     // sponsor revenue surface and must keep rotating on its own cadence
     // regardless of the content pause flag.
@@ -288,14 +305,9 @@ export class KioskRotationController {
    * advance continues from the previous position.
    */
   setCursor(itemId: string | null, isRegular: boolean = true): void {
-    this.currentContentId.set(itemId);
-    if (itemId === null) {
-      this._regularCursorId = null;
-      return;
-    }
-    if (isRegular) {
-      this._regularCursorId = itemId;
-    }
+    const next = this.cursor.applySetCursor(itemId, this._regularCursorId, isRegular);
+    this.currentContentId.set(next.currentContentId);
+    this._regularCursorId = next.regularCursorId;
   }
 
   /**
@@ -308,12 +320,15 @@ export class KioskRotationController {
     // the controller's contentMode was already flipped to 'fixed' by the
     // effect (the component still has to call this method to confirm the
     // fixed target and stamp the cursor memory).
-    if (this._loopCursorBeforeFixed === null) {
-      this._loopCursorBeforeFixed = this.currentContentId();
-    }
+    const next = this.cursor.applyEnterFixed(
+      contentId,
+      this.currentContentId(),
+      this._loopCursorBeforeFixed
+    );
+    this._loopCursorBeforeFixed = next.loopCursorBeforeFixed;
     this.fixedContentId.set(contentId);
-    this.currentContentId.set(contentId);
-    this._clearContentTimer();
+    this.currentContentId.set(next.currentContentId);
+    this.scheduler.clearContent();
     this._armAdTimerOnly();
   }
 
@@ -323,10 +338,9 @@ export class KioskRotationController {
    */
   exitFixedMode(): void {
     this.fixedContentId.set(null);
-    if (this._loopCursorBeforeFixed !== null) {
-      this.currentContentId.set(this._loopCursorBeforeFixed);
-    }
-    this._loopCursorBeforeFixed = null;
+    const next = this.cursor.applyExitFixed(this.currentContentId(), this._loopCursorBeforeFixed);
+    this.currentContentId.set(next.currentContentId);
+    this._loopCursorBeforeFixed = next.loopCursorBeforeFixed;
     this._armAllTimers();
   }
 
@@ -339,16 +353,16 @@ export class KioskRotationController {
     }
     if (this.contentMode() !== 'loop') return;
     if (this.isPaused()) return;
-    this._clearContentTimer();
+    this.scheduler.clearContent();
     const delay = this._videoEndDelaySeconds() * 1000;
-    this._contentTimer = setTimeout(() => this._advanceContent(), delay);
+    this.scheduler.armContent(delay, () => this._advanceContent());
   }
 
   // ---------------------------------------------------------------- private
 
   private _armAllTimers(): void {
-    this._clearContentTimer();
-    this._clearAdTimer();
+    this.scheduler.clearContent();
+    this.scheduler.clearAd();
 
     // Content timer (loop mode only, only when NOT paused).
     if (this.contentMode() === 'loop' && !this.isPaused() && this._contentQueue().length > 0) {
@@ -357,7 +371,7 @@ export class KioskRotationController {
         // Wait for `(ended)` event; nothing to arm here.
       } else {
         const dur = this._effectiveDurationSeconds(current) * 1000;
-        this._contentTimer = setTimeout(() => this._advanceContent(), Math.max(dur, 100));
+        this.scheduler.armContent(dur, () => this._advanceContent());
       }
     }
 
@@ -368,18 +382,10 @@ export class KioskRotationController {
     this._scheduleEmptyQueueCheck();
   }
 
-  private _clearContentTimer(): void {
-    if (this._contentTimer) {
-      clearTimeout(this._contentTimer);
-      this._contentTimer = null;
-    }
-  }
-
-  private _clearAdTimer(): void {
-    if (this._adTimer) {
-      clearTimeout(this._adTimer);
-      this._adTimer = null;
-    }
+  private _armAdTimerOnly(): void {
+    if (this._ads().length === 0) return;
+    const dur = this._adDurationSeconds() * 1000;
+    this.scheduler.armAd(dur, () => this._advanceAd());
   }
 
   private _advanceContent(): void {
@@ -391,7 +397,7 @@ export class KioskRotationController {
       return;
     }
 
-    const regularQueue = this._regularQueue();
+    const regularQueue = this.cadence.regularQueue(queue);
 
     // Spec 007 US2 / FR-008a (recurring content): the cadence counter is
     // incremented on every *regular* advance; if it reaches the smallest
@@ -404,16 +410,14 @@ export class KioskRotationController {
       !this.isPaused() &&
       regularQueue.length > 0
     ) {
-      this.cadenceCounter.update((c) => c + 1);
-      const recurring = this._pickRecurringItem();
-      const smallestCadence = this._smallestRecurringCadence();
+      this.cadenceCounter.update((c) => this.cadence.nextCounter(c));
+      const recurring = this.cadence.pickRecurringItem(queue);
       // Spec 007 US2: cadence N means the recurring item appears on
       // the (N+1)th advance — pattern R, R, R, REC for N=3 — so the
       // trigger is `counter > cadence`, not `>=`.
       if (
-        smallestCadence !== null &&
-        this.cadenceCounter() > smallestCadence &&
-        recurring !== null
+        recurring !== null &&
+        this.cadence.shouldFireRecurring(queue, this.cadenceCounter())
       ) {
         this.currentContentId.set(recurring.id);
         this.cadenceCounter.set(0);
@@ -438,56 +442,10 @@ export class KioskRotationController {
     this._armAllTimers();
   }
 
-  /**
-   * Spec 007 US2 / FR-008a: returns the smallest positive
-   * `recurring_every_x_iterations` across the active recurring items, or
-   * `null` if none are configured. The cadence counter is reset to 0
-   * every time it reaches this value.
-   */
-  private _smallestRecurringCadence(): number | null {
-    let smallest: number | null = null;
-    for (const item of this._contentQueue()) {
-      const n = item.recurringEveryXIterations;
-      if (typeof n === 'number' && n >= 1) {
-        if (smallest === null || n < smallest) {
-          smallest = n;
-        }
-      }
-    }
-    return smallest;
-  }
-
-  /**
-   * Spec 007 US2 / FR-008a: returns the recurring item that should be
-   * shown at the current cadence tick. If multiple items share the
-   * smallest cadence, the one with the smallest display order wins.
-   */
-  private _pickRecurringItem(): DisplayContentItem | null {
-    const smallest = this._smallestRecurringCadence();
-    if (smallest === null) return null;
-    const candidates = this._contentQueue()
-      .filter((item) => item.recurringEveryXIterations === smallest)
-      .sort((a, b) => a.displayOrder - b.displayOrder);
-    return candidates[0] ?? null;
-  }
-
-  /**
-   * Spec 007 US2 / FR-008a: the regular rotation queue is the polled
-   * topContent with every recurring item removed (they are surfaced
-   * separately via the cadence counter). The regular queue preserves
-   * display order so `pickNext` walks through the operator's natural
-   * rotation.
-   */
-  private _regularQueue(): DisplayContentItem[] {
-    return this._contentQueue()
-      .filter((item) => !item.recurringEveryXIterations)
-      .sort((a, b) => a.displayOrder - b.displayOrder);
-  }
-
   private _rewindContent(): void {
     const queue = this._contentQueue();
     if (queue.length === 0) return;
-    const regularQueue = this._regularQueue();
+    const regularQueue = this.cadence.regularQueue(queue);
     const prev = regularQueue.length > 0
       ? this.rotation.pickPrevious(regularQueue, this._regularCursorId)
       : this.rotation.pickPrevious(queue, this.currentContentId());
@@ -503,16 +461,6 @@ export class KioskRotationController {
     this.adIndex.update((i) => (i + 1) % ads.length);
     this.adAnimationRun.update((n) => (n + 1) % 2);
     this._armAdTimerOnly();
-  }
-
-  private _armAdTimerOnly(): void {
-    this._clearAdTimer();
-    // Spec 007 FR-008 (addendum): the ad-band timer MUST keep rotating
-    // even while the content rotation is paused. We no longer bail out
-    // on `isPaused()` here.
-    if (this._ads().length === 0) return;
-    const dur = this._adDurationSeconds() * 1000;
-    this._adTimer = setTimeout(() => this._advanceAd(), Math.max(dur, 100));
   }
 
   /** Debounced (60s) POST on the empty queue (spec 007 FR-009). */

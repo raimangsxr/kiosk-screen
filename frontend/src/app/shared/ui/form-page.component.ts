@@ -23,11 +23,12 @@ import { BreakpointService } from '../../core/layout/breakpoint.service';
       </mat-card-header>
 
       <mat-card-content class="form-page__content">
-        <mat-progress-bar
-          *ngIf="loading()"
-          mode="indeterminate"
-          aria-label="Loading"
-        />
+        @if (loading()) {
+          <mat-progress-bar
+            mode="indeterminate"
+            aria-label="Loading"
+          />
+        }
         <ng-content />
       </mat-card-content>
 
