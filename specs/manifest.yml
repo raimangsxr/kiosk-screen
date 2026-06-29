@@ -234,18 +234,6 @@ contracts:
       - CHG-008
       - CHG-020
 
-  - id: I18N.LOCALE
-    path: specs/contracts/i18n-locale/contract.md
-    status: active
-    owns:
-      - frontend/src/app/core/i18n/**
-      - frontend/src/app/core/layout/user-menu.component.ts
-      - frontend/angular.json
-      - frontend/Dockerfile
-      - frontend/nginx.conf
-    related_changes:
-      - CHG-022
-
 changes:
   - id: CHG-001
     path: specs/changes/001-foundation-auth-and-rbac/spec.md
@@ -406,12 +394,12 @@ changes:
 
   - id: CHG-022
     path: specs/changes/022-i18n-locale-switching/spec.md
-    status: in-progress
+    status: cancelled
     modifies:
       - I18N.LOCALE
     depends_on: []
     consolidated_into: []
-    read_by_default: true
+    read_by_default: false
 
   - id: CHG-023
     path: specs/changes/023-event-branding-layout/spec.md

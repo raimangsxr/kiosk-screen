@@ -165,13 +165,11 @@ interface ContentFormValue {
           <div
             class="content-form__lifecycle"
             aria-label="Display modes"
-            i18n-aria-label="@@contentForm.displayModesAria"
           >
             <h3
               class="content-form__section-title"
-              i18n="@@contentForm.displayModesTitle"
             >Modo de visualización</h3>
-            <p class="content-form__hint" i18n="@@contentForm.fixedMutuallyExclusive">
+            <p class="content-form__hint">
               Recurrente y Fijo son mutuamente excluyentes.
             </p>
 
@@ -179,14 +177,12 @@ interface ContentFormValue {
               formControlName="isFixed"
               (change)="onIsFixedChange()"
               class="content-form__checkbox"
-              i18n="@@contentForm.fixedLabel"
             >
               Marcar como contenido fijo
             </mat-checkbox>
             @if (form.controls.isFixed.value) {
               <p
                 class="content-form__hint content-form__hint--detail"
-                i18n="@@contentForm.fixedHint"
               >
                 Sólo se mostrará en modo "Fixed" del control remoto. No aparece en la rotación normal.
               </p>
@@ -198,14 +194,14 @@ interface ContentFormValue {
                 subscriptSizing="dynamic"
                 class="content-form__cadence"
               >
-                <mat-label i18n="@@contentForm.recurringLabel">Recurrente cada (iteraciones)</mat-label>
+                <mat-label>Recurrente cada (iteraciones)</mat-label>
                 <input
                   matInput
                   type="number"
                   formControlName="recurringEveryXIterations"
                   min="1"
                 />
-                <mat-hint i18n="@@contentForm.recurringHint">
+                <mat-hint>
                   Si está definido, este contenido se mostrará cada N cambios del resto de la cola.
                   Déjalo vacío para que sólo rote en orden normal.
                 </mat-hint>

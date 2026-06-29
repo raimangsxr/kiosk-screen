@@ -100,7 +100,6 @@ interface LoginFormValue {
               <mat-checkbox
                 formControlName="rememberMe"
                 class="login-form__remember"
-                i18n="@@login.rememberMe"
               >Recordarme (mantener la sesión iniciada durante 30 días)</mat-checkbox>
 
               @if (errorMessage(); as message) {
@@ -142,7 +141,7 @@ interface LoginFormValue {
           </form>
         }
         @if (showDevHint) {
-          <p class="login-card__hint" i18n="@@login.devHint">
+          <p class="login-card__hint">
             Default credentials: <code>admin&#64;example.com</code> / <code>admin</code>.
           </p>
         }
@@ -276,8 +275,7 @@ export class LoginComponent {
    * / admin`) is only rendered when `environment.devMode` is true. In
    * production builds the fileReplacement swaps `environment.ts` for
    * `environment.prod.ts` where `devMode` is `false`, so this hint never
-   * reaches production bundles. The hint also stays out of the source
-   * string for `ng extract-i18n` because we gate it at runtime.
+   * reaches production bundles.
    */
   protected readonly showDevHint = environment.devMode;
 

@@ -1,7 +1,8 @@
 ---
 id: CHG-022
 type: change
-status: in-progress
+status: cancelled
+cancelled_reason: Product decision to drop multi-language UI; the frontend ships Spanish only.
 modifies:
   - I18N.LOCALE
 extends: []
@@ -9,10 +10,10 @@ supersedes: []
 superseded_by: []
 consolidated_into: []
 requires_contract_update: true
-read_by_default: true
+read_by_default: false
 depends_on: []
 ---
-# Feature Specification: Locale Switching at Build Time
+# Feature Specification: Locale Switching at Build Time (CANCELLED)
 
 **Feature Branch**: `022-i18n-locale-switching`
 **Spec Directory**: `specs/changes/022-i18n-locale-switching/`

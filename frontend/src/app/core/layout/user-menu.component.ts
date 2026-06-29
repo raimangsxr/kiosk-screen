@@ -6,12 +6,6 @@ import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../auth/auth.service';
-import {
-  AppLocale,
-  LocaleNavigator,
-  LocaleService,
-  localeTargetPath
-} from '../i18n/locale.service';
 import { ThemeMode, ThemeService } from '../theme/theme.service';
 
 @Component({
@@ -34,45 +28,12 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
     <button
       mat-icon-button
       type="button"
-      class="user-menu__locale-trigger"
-      [matMenuTriggerFor]="localeMenu"
-      [attr.aria-label]="localeLabel()"
-      data-testid="user-menu-locale"
-    >
-      <span class="user-menu__locale-flag" aria-hidden="true">{{ localeShort() }}</span>
-    </button>
-
-    <button
-      mat-icon-button
-      type="button"
       class="user-menu__trigger"
       [attr.aria-label]="'Account menu for ' + auth.displayName()"
       [matMenuTriggerFor]="menu"
     >
       <span class="user-menu__avatar" aria-hidden="true">{{ auth.initials() }}</span>
     </button>
-
-    <mat-menu #localeMenu="matMenu" xPosition="before">
-      <div class="user-menu__header" mat-menu-item disabled>
-        <div class="user-menu__name">Language</div>
-        <div class="user-menu__email">Switching opens the other bundle.</div>
-      </div>
-      @for (option of availableLocales; track option.code) {
-        <button
-          mat-menu-item
-          type="button"
-          (click)="selectLocale(option.code)"
-          [class.user-menu__locale-active]="locale.locale() === option.code"
-          [attr.aria-label]="option.label"
-          [attr.data-testid]="'user-menu-locale-' + option.code"
-        >
-          <mat-icon aria-hidden="true">
-            {{ locale.locale() === option.code ? 'check' : 'language' }}
-          </mat-icon>
-          <span>{{ option.label }}</span>
-        </button>
-      }
-    </mat-menu>
 
     <mat-menu #menu="matMenu" xPosition="before">
       <div class="user-menu__header" mat-menu-item disabled>
@@ -103,7 +64,6 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
         gap: 4px;
       }
       .user-menu__icon-button,
-      .user-menu__locale-trigger,
       .user-menu__trigger {
         display: inline-grid;
         place-items: center;
@@ -111,25 +71,6 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
         height: var(--app-touch-target);
         padding: 0;
         line-height: 1;
-      }
-      .user-menu__locale-flag {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 36px;
-        height: 36px;
-        padding: 0 8px;
-        border-radius: 18px;
-        background: var(--mat-sys-surface-container);
-        color: var(--mat-sys-on-surface-variant);
-        font: var(--mat-sys-label-large);
-        letter-spacing: var(--mat-sys-label-large-tracking);
-        font-weight: 600;
-        line-height: 1;
-      }
-      .user-menu__locale-active {
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
       }
       .user-menu__avatar {
         display: inline-flex;
@@ -164,20 +105,8 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
 })
 export class UserMenuComponent {
   protected readonly auth: AuthService = inject(AuthService);
-  protected readonly locale: LocaleService = inject(LocaleService);
   protected readonly theme: ThemeService = inject(ThemeService);
-  private readonly navigator: LocaleNavigator = inject(LocaleNavigator);
   private readonly router = inject(Router);
-
-  protected readonly availableLocales: ReadonlyArray<{ code: AppLocale; label: string }> = [
-    { code: 'es-ES', label: 'Español' },
-    { code: 'en-US', label: 'English' }
-  ];
-
-  protected readonly localeShort = computed(() => (this.locale.locale() === 'es-ES' ? 'ES' : 'EN'));
-  protected readonly localeLabel = computed(
-    () => `Language: ${this.locale.locale() === 'es-ES' ? 'Español' : 'English'} (change)`
-  );
 
   protected readonly themeIcon = computed(() =>
     this.theme.isDark() ? 'light_mode' : 'dark_mode'
@@ -191,19 +120,6 @@ export class UserMenuComponent {
       next: () => this.router.navigateByUrl('/login'),
       error: () => this.router.navigateByUrl('/login')
     });
-  }
-
-  protected selectLocale(locale: AppLocale): void {
-    if (this.locale.locale() === locale) {
-      return;
-    }
-    this.locale.setLocale(locale);
-    // Each locale is a separate Angular bundle served under its own URL
-    // prefix by nginx (`/es-ES/` and `/en-US/`). Navigating to the matching
-    // prefix makes the browser fetch the bundle for the chosen locale
-    // directly — no reload, no flash of the previous language.
-    const target = localeTargetPath(this.navigator.getCurrentPath(), locale);
-    this.navigator.navigateTo(target);
   }
 
   protected selectTheme(mode: ThemeMode): void {

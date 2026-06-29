@@ -14,14 +14,6 @@
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
-      "i18n": {
-        "sourceLocale": "es-ES",
-        "locales": {
-          "en-US": {
-            "translation": "src/locale/messages.en.xlf"
-          }
-        }
-      },
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:application",
@@ -29,10 +21,9 @@
             "outputPath": "dist/kiosk-screen",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": ["zone.js", "@angular/localize/init"],
+            "polyfills": ["zone.js"],
             "tsConfig": "tsconfig.app.json",
-            "styles": ["src/styles.scss"],
-            "localize": ["es-ES"]
+            "styles": ["src/styles.scss"]
           },
           "configurations": {
             "production": {
@@ -48,10 +39,6 @@
             "development": {
               "optimization": false,
               "sourceMap": true
-            },
-            "en-US": {
-              "localize": ["en-US"],
-              "outputPath": "dist/kiosk-screen-en"
             }
           },
           "defaultConfiguration": "production"
@@ -71,7 +58,7 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "polyfills": ["zone.js", "zone.js/testing", "@angular/localize/init"],
+            "polyfills": ["zone.js", "zone.js/testing"],
             "tsConfig": "tsconfig.spec.json",
             "styles": ["src/styles.scss"],
             "karmaConfig": "karma.conf.js"

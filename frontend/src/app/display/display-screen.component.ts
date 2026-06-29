@@ -58,7 +58,6 @@ type DisplayRenderableItem = Pick<
           role="status"
           aria-live="polite"
           data-testid="display-rotate-device"
-          i18n="@@display.rotateDevice"
         >Por favor, rota el dispositivo</div>
       }
       <section class="top-region" aria-label="Main content">
@@ -117,10 +116,9 @@ type DisplayRenderableItem = Pick<
       @if (adsVisible) {
         <section
           class="ad-region"
-          i18n-aria-label="@@display.adRegionAriaLabel"
           aria-label="Patrocinadores del evento"
         >
-          <h2 class="ad-region__title" i18n="@@display.adRegionTitle">Patrocinadores del evento</h2>
+          <h2 class="ad-region__title">Patrocinadores del evento</h2>
           @if (visibleAds.length) {
             <div
               class="ad-region__list"
