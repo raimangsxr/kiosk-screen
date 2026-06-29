@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (will be upon consolidation of `CHG-019`)
+Accepted (will be upon consolidation of `CHG-019`). Extended by `CHG-023` to make the overlay data-driven via CSS custom properties bound from the polled `EventBranding` snapshot.
 
 ## Context
 
@@ -62,3 +62,39 @@ The container's `class="branding-overlay"` is added to the existing `<div id="br
 - **Predictable at narrow widths.** The `space-between` rule degrades gracefully: at narrow viewports the children collapse toward the centre; the `gap: 10px` ensures they never touch. The fluid typography (`clamp(16px, 1.6vw, 28px)`) keeps the event name readable.
 - **The dark pill background on the event name is preserved.** The visual signature of the event-name pill is a UX feature; the layout change does not strip it.
 - **One contract change.** `EVENT.BRANDING` references this ADR and adds a bullet to `## Current behavior` describing the layout.
+
+## Extension (CHG-023): data-driven layout via CSS custom properties
+
+The flex container rationale above is preserved, but the children's
+visual treatment (size, horizontal position, vertical position,
+transparency, border radius) is now driven from the polled
+`EventBranding` snapshot instead of being hard-coded. CHG-023 adds
+ten optional fields to the admin form (five per element) and
+mirrors them in the polled branding schema; the overlay component
+binds each value as a CSS custom property on the container and
+the CSS consumes them via `calc(var(--*, default) * 1vh)` /
+`calc(var(--*, default) * 1vw)`.
+
+The default values that fall back via `var()` replicate the
+pre-`CHG-023` visual look:
+
+- Logo: `size=6` vh, `x=0` vw, `y=0` vh, `transparency=100`,
+  `borderRadius=0` vh.
+- Event name: `size=1.6` vw, `x=80` vw, `y=0` vh,
+  `transparency=100`, `borderRadius=6` vh. The event-name element
+  carries `text-align: right` and `max-width: 20vw` so its
+  content right-aligns within its element and never overflows
+  the viewport.
+
+When the operator edits a layout field, the kiosko picks up the
+change on its next `eventBranding.refresh()` call, which
+piggybacks on the existing `remoteControlPollingSeconds` polling
+cycle (default 3 s, minimum 1 s). No new endpoint, no websocket.
+
+The flex layout is preserved as the structural decision; the CSS
+custom property binding is purely additive and does not regress
+the layout rationale above (single source of truth, predictable
+at narrow widths, dark pill on the event name). The dynamic
+extension is documented in `specs/contracts/event-branding/contract.md`
+under "Layout changes saved in the admin form are reflected in
+the kiosk on the next branding refresh".

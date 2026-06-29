@@ -32,6 +32,8 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 - Dirty forms warn before navigation loses unsaved changes.
 - Navigation respects route guards and user roles.
 - Shared admin UI components provide consistent loading, empty, error, and confirmation states.
+- On handset viewports (`BreakpointService.isHandset()`), the toolbar section title, the section breadcrumb, and the in-page page-header are hidden; the side-nav selection (Material activated background, primary accent, and inset shadow) is the sole module identifier. The brand block "Kiosk Screen / Administration" stays visible as the app context anchor.
+- Admin pages never introduce horizontal page scroll on any viewport. Tables that exceed the viewport scroll internally inside their data-list card; long identifiers (emails, URLs) wrap inside their cells; `.app-page` and `.admin-shell__main` use `min-width: 0` and `overflow-x: clip` to prevent grid blowout from intrinsic child widths.
 
 ## Public interfaces
 
@@ -60,3 +62,4 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 ## Change history
 
 - CHG-013
+- Bug fix — hide redundant module name on handset viewports and prevent horizontal page scroll.

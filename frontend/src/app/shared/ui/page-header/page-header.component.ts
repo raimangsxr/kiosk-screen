@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
+import { BreakpointService } from '../../../core/layout/breakpoint.service';
 
 @Component({
   selector: 'app-page-header',
@@ -7,13 +8,15 @@ import { MatCardModule } from '@angular/material/card';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatCardModule],
   template: `
-    <header class="page-header">
-      <p class="page-header__eyebrow">{{ eyebrow() }}</p>
-      <h1 class="page-header__title">{{ title() }}</h1>
-      @if (description()) {
-        <p class="page-header__description">{{ description() }}</p>
-      }
-    </header>
+    @if (!isHandset()) {
+      <header class="page-header">
+        <p class="page-header__eyebrow">{{ eyebrow() }}</p>
+        <h1 class="page-header__title">{{ title() }}</h1>
+        @if (description()) {
+          <p class="page-header__description">{{ description() }}</p>
+        }
+      </header>
+    }
   `,
   styles: [
     `
@@ -50,6 +53,7 @@ import { MatCardModule } from '@angular/material/card';
   ]
 })
 export class PageHeaderComponent {
+  protected readonly isHandset = inject(BreakpointService).isHandset;
   readonly title = input.required<string>();
   readonly description = input<string>('');
   readonly eyebrow = input<string>('Administration');

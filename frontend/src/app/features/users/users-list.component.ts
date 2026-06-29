@@ -158,6 +158,11 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       .users-list__table {
         width: 100%;
         background: transparent;
+        table-layout: fixed;
+      }
+      .users-list__table td,
+      .users-list__table th {
+        overflow-wrap: anywhere;
       }
       .users-list__card-item {
         display: block;
@@ -172,11 +177,13 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       }
       .users-list__card-name {
         margin: 0;
+        overflow-wrap: anywhere;
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
       }
       .users-list__card-email {
         margin: 2px 0 0;
+        overflow-wrap: anywhere;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);

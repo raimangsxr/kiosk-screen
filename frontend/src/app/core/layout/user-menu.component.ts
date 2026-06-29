@@ -6,7 +6,12 @@ import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../auth/auth.service';
-import { AppLocale, LocaleService } from '../i18n/locale.service';
+import {
+  AppLocale,
+  LocaleNavigator,
+  LocaleService,
+  localeTargetPath
+} from '../i18n/locale.service';
 import { ThemeMode, ThemeService } from '../theme/theme.service';
 
 @Component({
@@ -50,7 +55,7 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
     <mat-menu #localeMenu="matMenu" xPosition="before">
       <div class="user-menu__header" mat-menu-item disabled>
         <div class="user-menu__name">Language</div>
-        <div class="user-menu__email">Reload required after switching.</div>
+        <div class="user-menu__email">Switching opens the other bundle.</div>
       </div>
       @for (option of availableLocales; track option.code) {
         <button
@@ -161,6 +166,7 @@ export class UserMenuComponent {
   protected readonly auth: AuthService = inject(AuthService);
   protected readonly locale: LocaleService = inject(LocaleService);
   protected readonly theme: ThemeService = inject(ThemeService);
+  private readonly navigator: LocaleNavigator = inject(LocaleNavigator);
   private readonly router = inject(Router);
 
   protected readonly availableLocales: ReadonlyArray<{ code: AppLocale; label: string }> = [
@@ -192,14 +198,12 @@ export class UserMenuComponent {
       return;
     }
     this.locale.setLocale(locale);
-    // `@angular/localize` swaps strings at build time, so a full reload is
-    // the only way to land the chosen locale in this SPA. The browser will
-    // fetch the locale-specific bundle that nginx/serve decides from the
-    // Accept-Language header / URL — this app intentionally ships two
-    // independent builds rather than one runtime-translated bundle.
-    if (typeof globalThis.location !== 'undefined') {
-      globalThis.location.reload();
-    }
+    // Each locale is a separate Angular bundle served under its own URL
+    // prefix by nginx (`/es-ES/` and `/en-US/`). Navigating to the matching
+    // prefix makes the browser fetch the bundle for the chosen locale
+    // directly — no reload, no flash of the previous language.
+    const target = localeTargetPath(this.navigator.getCurrentPath(), locale);
+    this.navigator.navigateTo(target);
   }
 
   protected selectTheme(mode: ThemeMode): void {

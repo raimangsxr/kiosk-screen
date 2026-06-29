@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter } from '@angular/router';
+import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
+import { BehaviorSubject } from 'rxjs';
 
 import { BreakpointService } from '../../../core/layout/breakpoint.service';
 import { DataListComponent } from './data-list.component';
@@ -13,11 +15,29 @@ import { DataListComponent } from './data-list.component';
 })
 class TestHostComponent {}
 
+class BreakpointObserverStub {
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {}
+  });
+
+  observe() {
+    return this.events.asObservable();
+  }
+
+  isMatched(_query: string | string[]): boolean {
+    return false;
+  }
+}
+
 describe('DataListComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [DataListComponent, NoopAnimationsModule, TestHostComponent],
-      providers: [provideRouter([])]
+      providers: [
+        provideRouter([]),
+        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() }
+      ]
     });
   });
 

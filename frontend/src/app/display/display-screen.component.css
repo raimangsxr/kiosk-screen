@@ -153,10 +153,11 @@
   border-radius: 6px;
   background: rgb(0 0 0 / 68%);
   color: #fff;
-  font: 700 clamp(16px, 1.6vw, 28px)/1.2 system-ui, sans-serif;
+  font: 700 max(13px, 1.6vw)/1.2 system-ui, sans-serif;
   display: inline-flex;
   align-items: center;
-  max-height: clamp(36px, 6vh, 80px);
+  max-height: 50vh;
+  white-space: nowrap;
 }
 
 /**
@@ -286,13 +287,13 @@
   }
 
   .branding-overlay__logo {
-    height: clamp(20px, 4vh, 36px);
+    height: max(20px, 4vh);
     max-width: min(30vw, 200px);
   }
 
   .branding-overlay__event-name {
     padding: 6px 10px;
-    font-size: clamp(13px, 1.6vw, 18px);
+    font-size: max(13px, 1.6vw);
   }
 
   .content-label,

@@ -66,11 +66,13 @@ body {
 }
 
 .app-page {
-  max-width: var(--app-page-max);
+  max-width: min(var(--app-page-max), 100%);
+  min-width: 0;
   margin: 0 auto;
   padding: var(--app-page-padding, 16px);
   display: grid;
   gap: var(--app-section-gap);
+  overflow-x: clip;
 }
 
 @media (max-width: 599.98px) {

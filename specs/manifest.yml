@@ -128,12 +128,14 @@ contracts:
       - backend/app/api/event_branding.py
       - backend/app/repositories/models/event_configuration.py
       - frontend/src/app/core/event-branding.service.ts
+      - frontend/src/app/core/event-config-sync.service.ts
       - frontend/src/app/features/event-config/**
       - frontend/src/app/display/display-screen.component.ts
       - frontend/src/app/display/display-screen.component.css
     related_changes:
       - CHG-008
       - CHG-019
+      - CHG-024
 
   - id: CONTENT.ADS.ADMIN
     path: specs/contracts/content-ads-admin/contract.md
@@ -222,13 +224,27 @@ contracts:
       - frontend/src/app/display/kiosk-rotation.controller.ts
       - frontend/src/app/core/display-control-sync.service.ts
       - frontend/src/app/core/event-branding.service.ts
+      - frontend/src/app/core/event-config-sync.service.ts
     related_changes:
       - CHG-014
       - CHG-019
+      - CHG-024
       - CHG-005
       - CHG-007
       - CHG-008
       - CHG-020
+
+  - id: I18N.LOCALE
+    path: specs/contracts/i18n-locale/contract.md
+    status: active
+    owns:
+      - frontend/src/app/core/i18n/**
+      - frontend/src/app/core/layout/user-menu.component.ts
+      - frontend/angular.json
+      - frontend/Dockerfile
+      - frontend/nginx.conf
+    related_changes:
+      - CHG-022
 
 changes:
   - id: CHG-001
@@ -388,4 +404,36 @@ changes:
       - DISPLAY.CONFIG_SESSION
     read_by_default: false
 
-archive: []
+  - id: CHG-022
+    path: specs/changes/022-i18n-locale-switching/spec.md
+    status: in-progress
+    modifies:
+      - I18N.LOCALE
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-023
+    path: specs/changes/023-event-branding-layout/spec.md
+    status: consolidated
+    modifies:
+      - EVENT.BRANDING
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-019
+    consolidated_into:
+      - EVENT.BRANDING
+      - DISPLAY.RUNTIME
+    read_by_default: false
+
+  - id: CHG-024
+    path: specs/changes/024-event-config-realtime-sync/spec.md
+    status: in-progress
+    modifies:
+      - EVENT.BRANDING
+      - DISPLAY.RUNTIME
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+archive: []  

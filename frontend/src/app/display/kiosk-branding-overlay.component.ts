@@ -1,15 +1,26 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+
+import { BrandingLayout } from '../core/api/event-branding.api';
 
 export interface BrandingViewModel {
   readonly eventName: string;
   readonly organizerName: string;
   readonly organizerLogoUrl: string | null;
+  readonly logoLayout: BrandingLayout | null;
+  readonly eventNameLayout: BrandingLayout | null;
 }
 
 /**
  * Renders the organizer logo + event-name pill that floats over the top
- * of the kiosk content (spec 014 / ADR-0005). Hidden in iframe mode
+ * of the kiosk content (CHG-014 / ADR-0005). Hidden in iframe mode
  * and when no branding fields are populated.
+ *
+ * The visual layout is data-driven via CSS custom properties bound
+ * from the polled `EventBranding` snapshot (CHG-023). When a
+ * layout field is `null` in the polled snapshot, the corresponding
+ * custom property is unset and the component-scoped CSS `var()`
+ * fallback path applies — the documented visual defaults replicate
+ * the pre-CHG-023 look.
  *
  * Broken logos self-hide via the `(logoBroken)` output so the host can
  * keep its single source of truth (the kiosk's branding signal) without
@@ -26,6 +37,16 @@ export interface BrandingViewModel {
         aria-label="Organizer and event branding"
         id="branding-overlay"
         data-testid="kiosk-branding-overlay"
+        [style.--logo-x]="layoutCssValue(branding().logoLayout, 'x')"
+        [style.--logo-y]="layoutCssValue(branding().logoLayout, 'y')"
+        [style.--logo-size]="layoutCssValue(branding().logoLayout, 'size')"
+        [style.--logo-transparency]="layoutCssValue(branding().logoLayout, 'transparency')"
+        [style.--logo-border-radius]="layoutCssValue(branding().logoLayout, 'borderRadius')"
+        [style.--event-name-x]="layoutCssValue(branding().eventNameLayout, 'x')"
+        [style.--event-name-y]="layoutCssValue(branding().eventNameLayout, 'y')"
+        [style.--event-name-size]="layoutCssValue(branding().eventNameLayout, 'size')"
+        [style.--event-name-transparency]="layoutCssValue(branding().eventNameLayout, 'transparency')"
+        [style.--event-name-border-radius]="layoutCssValue(branding().eventNameLayout, 'borderRadius')"
       >
         @if (branding().organizerLogoUrl; as logoUrl) {
           @if (!hiddenLogoUrl() || hiddenLogoUrl() !== logoUrl) {
@@ -58,39 +79,54 @@ export interface BrandingViewModel {
         left: 10px;
         right: 10px;
         z-index: 3;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
         pointer-events: none;
       }
+      /**
+       * The two children are absolutely positioned inside the
+       * overlay container. Their visual treatment is driven from
+       * CSS custom properties bound from the polled
+       * EventBranding snapshot; the var() fallbacks replicate
+       * the pre-CHG-023 overlay look documented in
+       * docs/adr/0005-branding-overlay-layout.md and
+       * specs/changes/023-event-branding-layout/spec.md.
+       */
       .branding-overlay__logo {
-        height: clamp(36px, 6vh, 80px);
+        position: absolute;
+        top: calc(var(--logo-y, 0) * 1vh);
+        left: calc(var(--logo-x, 0) * 1vw);
+        height: max(36px, calc(var(--logo-size, 6) * 1vh));
         max-width: min(40vw, 360px);
         object-fit: contain;
         flex-shrink: 0;
+        opacity: calc((100 - var(--logo-transparency, 0)) / 100);
+        border-radius: calc(var(--logo-border-radius, 0) * 1vh);
       }
       .branding-overlay__event-name {
+        position: absolute;
+        top: calc(var(--event-name-y, 0) * 1vh);
+        right: calc(var(--event-name-x, 20) * 1vw);
         padding: 8px 14px;
-        border-radius: 6px;
+        border-radius: calc(var(--event-name-border-radius, 6) * 1vh);
         background: rgb(0 0 0 / 68%);
         color: #fff;
-        font: 700 clamp(16px, 1.6vw, 28px) / 1.2 system-ui, sans-serif;
+        font-weight: 700;
+        font-size: max(13px, calc(var(--event-name-size, 1.6) * 1vw));
+        line-height: 1.2;
+        font-family: system-ui, sans-serif;
         display: inline-flex;
         align-items: center;
-        max-height: clamp(36px, 6vh, 80px);
+        max-height: 50vh;
+        opacity: calc((100 - var(--event-name-transparency, 0)) / 100);
+        white-space: nowrap;
       }
       @media (max-width: 760px) {
-        .branding-overlay {
-          gap: 7px;
-        }
         .branding-overlay__logo {
-          height: clamp(20px, 4vh, 36px);
+          height: max(20px, calc(var(--logo-size, 4) * 1vh));
           max-width: min(30vw, 200px);
         }
         .branding-overlay__event-name {
           padding: 6px 10px;
-          font-size: clamp(13px, 1.6vw, 18px);
+          font-size: max(13px, calc(var(--event-name-size, 1.6) * 1vw));
         }
       }
     `
@@ -113,5 +149,22 @@ export class KioskBrandingOverlayComponent {
   protected hasContent(): boolean {
     const b = this.branding();
     return Boolean(b.eventName) || Boolean(b.organizerLogoUrl);
+  }
+
+  /**
+   * Resolve a single layout field to a CSS custom-property value.
+   * Returns `null` when the layout is absent or the field is missing,
+   * so Angular's `[style.--*]` binding emits no inline style and the
+   * CSS `var(*, default)` fallback applies.
+   */
+  protected layoutCssValue(
+    layout: BrandingLayout | null | undefined,
+    field: keyof BrandingLayout
+  ): string | null {
+    if (!layout) {
+      return null;
+    }
+    const value = layout[field];
+    return typeof value === 'number' ? String(value) : null;
   }
 }

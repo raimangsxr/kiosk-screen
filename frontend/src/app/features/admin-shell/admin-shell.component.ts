@@ -97,7 +97,9 @@ import { AdminNavigationService } from './admin-navigation.service';
 
       <mat-sidenav-content>
         <main class="admin-shell__main app-page" tabindex="-1">
-          <app-breadcrumb />
+          @if (!isHandset()) {
+            <app-breadcrumb />
+          }
           <router-outlet />
         </main>
       </mat-sidenav-content>
@@ -162,6 +164,8 @@ import { AdminNavigationService } from './admin-navigation.service';
       .admin-shell__main {
         padding-top: 16px;
         padding-bottom: 32px;
+        min-width: 0;
+        overflow-x: clip;
       }
       @media (max-width: 599.98px) {
         .admin-shell__sidenav {

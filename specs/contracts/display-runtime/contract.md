@@ -19,6 +19,7 @@ tests:
 related_changes:
   - CHG-014
   - CHG-019
+  - CHG-024
   - CHG-005
   - CHG-007
   - CHG-008
@@ -44,6 +45,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Branding overlay is visible, legible, and non-overlapping when configured, hidden for iframe mode, and absent when branding is empty.
 - Fullscreen requests are surfaced with a user-action prompt when browser policy blocks automatic entry.
 - KioskRotationController is the single owner of rotation timers and state; the component must not reach into private controller fields.
+- The kiosk subscribes to the cross-tab event-config sync channel (`kiosk-event-config-sync`, see `EVENT.BRANDING`) so that an admin form save in another tab/window triggers `EventBrandingService.refresh()` within the same event loop turn, without waiting for the next polling cycle (CHG-024). The existing polling cycle is preserved as a fallback for cross-machine scenarios where BroadcastChannel cannot reach the kiosk host.
 
 ## Public interfaces
 
@@ -68,6 +70,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `frontend/src/app/display/kiosk-fullscreen-prompt.component.ts`
 - `frontend/src/app/core/display-control-sync.service.ts`
 - `frontend/src/app/core/event-branding.service.ts`
+- `frontend/src/app/core/event-config-sync.service.ts`
 
 ## Quality gates
 
@@ -84,6 +87,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-014
 - CHG-019
 - CHG-021
+- CHG-024
 - CHG-005
 - CHG-007
 - CHG-008

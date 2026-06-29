@@ -9,6 +9,7 @@ import { Subscription } from 'rxjs';
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
+import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { CursorService } from './cursor.service';
 import { DisplayPollingService } from './display-polling.service';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
@@ -176,6 +177,7 @@ type DisplayRenderableItem = Pick<
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
   private readonly eventBranding = inject(EventBrandingService);
+  private readonly eventConfigSync = inject(EventConfigSyncService);
   private readonly displaySync = inject(DisplayControlSyncService);
   protected readonly kioskRotation = inject(KioskRotationController);
   private readonly router = inject(Router);
@@ -316,7 +318,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return {
       eventName: b.eventName ?? '',
       organizerName: b.organizerName ?? '',
-      organizerLogoUrl: b.organizerLogoUrl ?? null
+      organizerLogoUrl: b.organizerLogoUrl ?? null,
+      logoLayout: b.logoLayout ?? null,
+      eventNameLayout: b.eventNameLayout ?? null
     };
   });
 
@@ -386,6 +390,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.syncSub = this.displaySync.changes$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.pollNow());
+    this.eventConfigSync.changes$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.eventBranding.refresh()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe());
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();

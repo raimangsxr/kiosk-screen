@@ -18,8 +18,11 @@ Kiosk Screen is a FastAPI + Angular web application for live event kiosk display
 ## Active SDD work
 
 - Active change: `specs/changes/019-display-responsive-runtime/`
-- Active contract: `specs/contracts/display-runtime/contract.md`
+- Active contracts: `specs/contracts/display-runtime/contract.md`, `specs/contracts/event-branding/contract.md`
 - Context pack: `specs/changes/019-display-responsive-runtime/context-pack.md`
+- Other in-progress changes (not active): `021-kiosk-runtime-refactor` (depends on 019), `022-i18n-locale-switching`
+- Recently consolidated: `023-event-branding-layout` → `EVENT.BRANDING` + `DISPLAY.RUNTIME`
+- Pending follow-up (out of active change): the `angular-locale-data` warning from Angular CLI when `localize: ["es-ES"]` is set (no `es-ES.js` shipped under `@angular/common/locales`). Tracked as a candidate for a future CHG; not blocking the active change.
 
 ## Spec Kit flow
 
