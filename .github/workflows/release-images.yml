@@ -60,3 +60,13 @@ jobs:
           context: frontend
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/kiosk-frontend:${{ github.event.release.tag_name }}
+
+      - name: Publish release tag artifact
+        run: |
+          mkdir -p release-info
+          echo "${{ github.event.release.tag_name }}" > release-info/tag.txt
+      - name: Upload release tag artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-tag
+          path: release-info/tag.txt
