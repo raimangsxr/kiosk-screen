@@ -126,6 +126,7 @@ jobs:
           git push "https://x-access-token:${TOKEN}@github.com/raimangsxr/argocd-apps.git" "${BRANCH}"
 
       - name: Open PR
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.ARGOCD_APPS_TOKEN }}
           VERSION: ${{ steps.tag.outputs.version }}
@@ -146,28 +147,33 @@ jobs:
           EOF
           )"
 
-          gh pr create \
+          PR_URL=$(gh pr create \
             --repo raimangsxr/argocd-apps \
             --base main \
             --head "bump-kiosk-${VERSION}" \
             --title "chore: bump kiosk-screen to ${VERSION}" \
             --body "${BODY}" \
-            --label "kiosk-screen"
+            --label "kiosk-screen" \
+            --json url -q .url)
+          echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "Opened PR: ${PR_URL}"
 
       - name: Approve and merge PR (hotfix only)
         if: steps.hotfix.outputs.is_hotfix == 'true'
         env:
           GH_TOKEN: ${{ secrets.ARGOCD_APPS_TOKEN }}
+          PR_URL: ${{ steps.pr.outputs.url }}
         run: |
           set +e
-          echo "Hotfix detected — attempting auto-approve + auto-merge"
-          gh pr review --approve --repo raimangsxr/argocd-apps
+          echo "Hotfix detected — attempting auto-approve + auto-merge on ${PR_URL}"
+
+          gh pr review --approve "${PR_URL}"
           if [ $? -ne 0 ]; then
-            echo "WARN: auto-approve failed (likely branch protection). Leaving PR for manual review."
+            echo "WARN: auto-approve failed. Leaving PR for manual review."
             exit 0
           fi
 
-          gh pr merge --squash --delete-branch --repo raimangsxr/argocd-apps
+          gh pr merge --squash --delete-branch "${PR_URL}"
           if [ $? -ne 0 ]; then
             echo "WARN: auto-merge failed. PR remains open for manual action."
             exit 0
