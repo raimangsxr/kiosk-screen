@@ -126,7 +126,7 @@ type DisplayRenderableItem = Pick<
               [style.--sponsor-count]="visibleAds.length"
               data-testid="sponsor-strip-list"
             >
-              @for (ad of visibleAds; track trackAdById($index, ad)) {
+              @for (ad of visibleAds; track trackAdByRotation($index, ad)) {
                 <figure class="sponsor-strip__item">
                   <img
                     [src]="mediaSource(ad)"
@@ -512,7 +512,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
 
-  readonly trackAdById = (_index: number, ad: DisplayAdItem): string => ad.id;
+  readonly trackAdByRotation = (_index: number, ad: DisplayAdItem): string =>
+    `${ad.id}:${this.kioskRotation.adAnimationRun()}`;
 
   private applyState(state: DisplayState, options: { resetRotation: boolean }): void {
     const previousContentMode = this.state?.remoteControl?.contentMode;

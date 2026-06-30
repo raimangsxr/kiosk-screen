@@ -736,13 +736,18 @@ describe('DisplayScreenComponent', () => {
       ...readyState,
       configuration: { ...readyState.configuration, defaultAdDurationSeconds: 1 },
       ads: [
-        { ...readyState.ads[0], id: 'ad-1', durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' },
-        { ...readyState.ads[0], id: 'ad-2', displayOrder: 2, durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' }
+        { ...readyState.ads[0], id: 'ad-1', sourceReference: 'https://example.com/ad-1.jpg', durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' },
+        { ...readyState.ads[0], id: 'ad-2', sourceReference: 'https://example.com/ad-2.jpg', displayOrder: 2, durationSeconds: 99, effectiveDurationSeconds: 99, effectiveRotationAnimation: 'slide' }
       ]
     });
 
     const firstAd = fixture.componentInstance.currentAd!;
     const firstAnimationClass = fixture.componentInstance.adAnimationClass(firstAd);
+    const firstTrackKey = fixture.componentInstance.trackAdByRotation(0, firstAd);
+    const firstRenderedSponsor = fixture.nativeElement.querySelector(
+      '.sponsor-strip__item img',
+    ) as HTMLImageElement;
+    expect(firstRenderedSponsor.getAttribute('src')).toBe('https://example.com/ad-1.jpg');
 
     // FR-012: the kiosk rotates ads on the *configured* cadence, not the
     // per-ad value. Per-ad duration is intentionally ignored.
@@ -754,6 +759,11 @@ describe('DisplayScreenComponent', () => {
     const secondAd = fixture.componentInstance.currentAd!;
     expect(secondAd.id).toBe('ad-2');
     expect(fixture.componentInstance.adAnimationClass(secondAd)).not.toBe(firstAnimationClass);
+    expect(fixture.componentInstance.trackAdByRotation(0, secondAd)).not.toBe(firstTrackKey);
+    const secondRenderedSponsor = fixture.nativeElement.querySelector(
+      '.sponsor-strip__item img',
+    ) as HTMLImageElement;
+    expect(secondRenderedSponsor.getAttribute('src')).toBe('https://example.com/ad-2.jpg');
   }));
 
   // ---- Spec 009 US3 tests ----------------------------------------------------
