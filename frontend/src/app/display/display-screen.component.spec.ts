@@ -102,7 +102,7 @@ describe('DisplayScreenComponent', () => {
     const host: HTMLElement = fixture.nativeElement;
     const screen = host.querySelector('.display-screen');
     const topRegion = host.querySelector('.top-region') as HTMLElement;
-    const adRegion = host.querySelector('.ad-region') as HTMLElement;
+    const adRegion = host.querySelector('.sponsor-strip') as HTMLElement;
 
     expect(screen).not.toBeNull();
     expect(topRegion.offsetHeight / adRegion.offsetHeight).toBeCloseTo(5, 0);
@@ -115,7 +115,7 @@ describe('DisplayScreenComponent', () => {
     const text = fixture.nativeElement.textContent;
 
     expect(text).toContain('Content unavailable');
-    expect(text).toContain('Ads unavailable');
+    expect(text).toContain('Sponsors unavailable');
   });
 
   it('renders event branding when configured', () => {
@@ -183,11 +183,11 @@ describe('DisplayScreenComponent', () => {
     expect(updatedOverlay.textContent).toContain('Refreshed');
   });
 
-  it('renders the sponsor title as the first ad-region child', () => {
+  it('renders the sponsor title as the first sponsor-strip child', () => {
     const fixture = createComponent(readyState);
-    const adRegion = fixture.nativeElement.querySelector('.ad-region') as HTMLElement;
+    const adRegion = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement;
     expect(adRegion.getAttribute('aria-label')).toBe('Patrocinadores del evento');
-    const adRegionTitle = fixture.nativeElement.querySelector('.ad-region__title') as HTMLElement;
+    const adRegionTitle = fixture.nativeElement.querySelector('.sponsor-strip__title') as HTMLElement;
     expect(adRegionTitle.textContent).toContain('Patrocinadores del evento');
   });
 
@@ -556,10 +556,10 @@ describe('DisplayScreenComponent', () => {
     expect(fixture.componentInstance.visibleAds.length).toBe(1);
   });
 
-  it('distributes every visible ad across the ad-region width (6 ads)', () => {
-    // The ad-region MUST render exactly N evenly-sized blocks for N
-    // visible ads. The block count is exposed via the `--ad-count`
-    // CSS custom property on the inner `.ad-region__list` so the
+  it('distributes every visible ad across the sponsor-strip width (6 ads)', () => {
+    // The sponsor-strip MUST render exactly N evenly-sized blocks for N
+    // visible ads. The block count is exposed via the `--sponsor-count`
+    // CSS custom property on the inner `.sponsor-strip__list` so the
     // grid template can build `repeat(N, minmax(0, 1fr))` columns.
     const ads = Array.from({ length: 6 }, (_, i) => ({
       ...readyState.ads[0],
@@ -574,18 +574,18 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector(
-      '[data-testid="ad-region-list"]',
+      '[data-testid="sponsor-strip-list"]',
     ) as HTMLElement | null;
     expect(list).not.toBeNull();
-    expect(list!.getAttribute('style')).toContain('--ad-count: 6');
+    expect(list!.getAttribute('style')).toContain('--sponsor-count: 6');
 
     const figures = fixture.nativeElement.querySelectorAll(
-      '.ad-region__item',
+      '.sponsor-strip__item',
     );
     expect(figures.length).toBe(6);
   });
 
-  it('distributes every visible ad across the ad-region width (12 ads)', () => {
+  it('distributes every visible ad across the sponsor-strip width (12 ads)', () => {
     const ads = Array.from({ length: 12 }, (_, i) => ({
       ...readyState.ads[0],
       id: `ad-${i + 1}`,
@@ -599,18 +599,18 @@ describe('DisplayScreenComponent', () => {
     fixture.detectChanges();
 
     const list = fixture.nativeElement.querySelector(
-      '[data-testid="ad-region-list"]',
+      '[data-testid="sponsor-strip-list"]',
     ) as HTMLElement | null;
     expect(list).not.toBeNull();
-    expect(list!.getAttribute('style')).toContain('--ad-count: 12');
+    expect(list!.getAttribute('style')).toContain('--sponsor-count: 12');
 
     const figures = fixture.nativeElement.querySelectorAll(
-      '.ad-region__item',
+      '.sponsor-strip__item',
     );
     expect(figures.length).toBe(12);
   });
 
-  it('keeps the ad-region items on a single horizontal row regardless of count', () => {
+  it('keeps the sponsor-strip items on a single horizontal row regardless of count', () => {
     // Six ads render with six columns; the grid template must not
     // wrap them to a second row. We assert that every item shares
     // the same offsetTop (i.e. they sit on the same row), which is
@@ -628,7 +628,7 @@ describe('DisplayScreenComponent', () => {
 
     const figures = Array.from(
       fixture.nativeElement.querySelectorAll(
-        '.ad-region__item',
+        '.sponsor-strip__item',
       ) as NodeListOf<HTMLElement>,
     );
     expect(figures.length).toBe(6);
@@ -1018,10 +1018,10 @@ describe('DisplayScreenComponent', () => {
       };
     }
 
-    it('SC-001: at any viewport the top region height matches total × 5 / 6 and the ad band matches × 1 / 6 (within ±1 px)', () => {
+    it('SC-001: at any viewport the top region height matches total × 5 / 6 and the sponsor band matches × 1 / 6 (within ±1 px)', () => {
       const fixture = createComponent(readyState);
       const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
-      const ads = fixture.nativeElement.querySelector('.ad-region') as HTMLElement | null;
+      const ads = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement | null;
       expect(top).not.toBeNull();
       expect(ads).not.toBeNull();
       const topRect = top!.getBoundingClientRect();
@@ -1032,14 +1032,14 @@ describe('DisplayScreenComponent', () => {
       fixture.destroy();
     });
 
-    it('SC-002: text elements in the ad band and the branding overlay respect the clamp() minimum font-size', () => {
+    it('SC-002: text elements in the sponsor band and the branding overlay respect the clamp() minimum font-size', () => {
       const fixture = createComponent(readyState, {
         eventName: 'Spring Summit 2026',
         organizerName: 'ACME Events',
         organizerLogoUrl: null
       });
       fixture.detectChanges();
-      const title = fixture.nativeElement.querySelector('.ad-region__title') as HTMLElement | null;
+      const title = fixture.nativeElement.querySelector('.sponsor-strip__title') as HTMLElement | null;
       const branding = fixture.nativeElement.querySelector('.branding-overlay__event-name') as HTMLElement | null;
       expect(title).not.toBeNull();
       expect(branding).not.toBeNull();
@@ -1089,7 +1089,7 @@ describe('DisplayScreenComponent', () => {
       });
       fixture.detectChanges();
       const figures = Array.from(
-        fixture.nativeElement.querySelectorAll('.ad-region__item') as NodeListOf<HTMLElement>
+        fixture.nativeElement.querySelectorAll('.sponsor-strip__item') as NodeListOf<HTMLElement>
       );
       expect(figures.length).toBe(6);
       const widths = figures.map((f) => f.getBoundingClientRect().width);
@@ -1109,14 +1109,14 @@ describe('DisplayScreenComponent', () => {
       fixture.destroy();
     });
 
-    it('SC-005: with polled topRegionRatio=3 / bottomRegionRatio=1 the top region occupies 3/4 and the ad band 1/4 of the viewport', () => {
+    it('SC-005: with polled topRegionRatio=3 / bottomRegionRatio=1 the top region occupies 3/4 and the sponsor band 1/4 of the viewport', () => {
       const fixture = createComponent({
         ...readyState,
         configuration: { ...readyState.configuration, topRegionRatio: 3, bottomRegionRatio: 1 }
       });
       fixture.detectChanges();
       const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
-      const ads = fixture.nativeElement.querySelector('.ad-region') as HTMLElement | null;
+      const ads = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement | null;
       expect(top).not.toBeNull();
       expect(ads).not.toBeNull();
       const topH = top!.getBoundingClientRect().height;

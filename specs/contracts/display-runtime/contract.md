@@ -42,6 +42,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Landscape viewports 1280x720, 1920x1080, 2560x1440, and 3840x2160 render without scrollbars, clipped text, or layout shifts greater than one pixel when switching content modes.
 - Portrait viewports hide kiosk regions and show a single high-contrast rotate-device prompt while backend polling continues.
 - Ad figures reserve stable proportional cells; ad images fit without cropping, including tall portrait uploads.
+- The sponsor band avoids browser-extension bait in its rendered DOM class and test hook names (for example generic `ad-*` selectors) so Chrome deployments with cosmetic filtering still render first-party sponsor content.
 - Branding overlay is visible, legible, and non-overlapping when configured, hidden for iframe mode, and absent when branding is empty.
 - Fullscreen requests are surfaced with a user-action prompt when browser policy blocks automatic entry.
 - KioskRotationController is the single owner of rotation timers and state; the component must not reach into private controller fields.

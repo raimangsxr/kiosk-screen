@@ -116,21 +116,21 @@ type DisplayRenderableItem = Pick<
 
       @if (adsVisible) {
         <section
-          class="ad-region"
+          class="sponsor-strip"
           aria-label="Patrocinadores del evento"
         >
-          <h2 class="ad-region__title">Patrocinadores del evento</h2>
+          <h2 class="sponsor-strip__title">Patrocinadores del evento</h2>
           @if (visibleAds.length) {
             <div
-              class="ad-region__list"
-              [style.--ad-count]="visibleAds.length"
-              data-testid="ad-region-list"
+              class="sponsor-strip__list"
+              [style.--sponsor-count]="visibleAds.length"
+              data-testid="sponsor-strip-list"
             >
               @for (ad of visibleAds; track trackAdById($index, ad)) {
-                <figure class="ad-region__item">
+                <figure class="sponsor-strip__item">
                   <img
                     [src]="mediaSource(ad)"
-                    [alt]="ad.advertiser ?? 'Ad'"
+                    [alt]="ad.advertiser ?? 'Sponsor'"
                     [class]="adAnimationClass(ad)"
                     [style.animation-duration.ms]="animationDurationMs(ad)"
                   />
@@ -138,7 +138,7 @@ type DisplayRenderableItem = Pick<
               }
             </div>
           } @else {
-            <div class="fallback">Ads unavailable</div>
+            <div class="fallback">Sponsors unavailable</div>
           }
         </section>
       }
@@ -426,7 +426,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   adAnimationClass(item: DisplayRenderableItem): string {
-    return `${this.animationClass(item)} ad-animation-run-${this.kioskRotation.adAnimationRun() % 2 === 0 ? 'a' : 'b'}`;
+    return `${this.animationClass(item)} sponsor-animation-run-${this.kioskRotation.adAnimationRun() % 2 === 0 ? 'a' : 'b'}`;
   }
 
   contentTransition(item: DisplayContentItem): {

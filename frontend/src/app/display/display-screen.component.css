@@ -11,7 +11,7 @@
 }
 
 .display-screen--portrait .top-region,
-.display-screen--portrait .ad-region,
+.display-screen--portrait .sponsor-strip,
 .display-screen--portrait .branding-overlay {
   display: none;
 }
@@ -30,14 +30,14 @@
 }
 
 .top-region,
-.ad-region {
+.sponsor-strip {
   min-height: 0;
   position: relative;
   display: grid;
   place-items: center;
 }
 
-.ad-region {
+.sponsor-strip {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: clamp(2px, 0.5vh, 4px);
@@ -48,23 +48,23 @@
   font-weight: 800;
 }
 
-/**
- * The ad list always renders exactly `--ad-count` columns so every
- * configured ad shares the available width equally, no matter the
- * count. Six ads get six evenly distributed blocks; twelve ads get
- * twelve narrower blocks. The custom property is bound from the
- * component via `[style.--ad-count]="visibleAds.length"`.
- */
-.ad-region__list {
+.sponsor-strip__list {
   display: grid;
-  grid-template-columns: repeat(var(--ad-count, 1), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--sponsor-count, 1), minmax(0, 1fr));
   gap: clamp(8px, 1.4vw, 20px);
   align-items: stretch;
   min-height: 0;
   width: 100%;
 }
 
-.ad-region__item {
+/**
+ * The sponsor list always renders exactly `--sponsor-count` columns so
+ * every configured sponsor shares the available width equally, no
+ * matter the count. Six sponsors get six evenly distributed blocks;
+ * twelve sponsors get twelve narrower blocks. The custom property is
+ * bound from the component via `[style.--sponsor-count]="visibleAds.length"`.
+ */
+.sponsor-strip__item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,7 +75,7 @@
   aspect-ratio: 4 / 3;
 }
 
-.ad-region__title {
+.sponsor-strip__title {
   grid-column: 1 / -1;
   grid-row: 1;
   align-self: center;
@@ -169,7 +169,7 @@
   object-fit: cover;
 }
 
-.ad-region img {
+.sponsor-strip img {
   width: 100%;
   height: 100%;
   max-height: none;
@@ -178,7 +178,7 @@
   display: block;
 }
 
-.ad-region figure {
+.sponsor-strip figure {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -187,7 +187,7 @@
   place-items: center;
 }
 
-.ad-region figcaption {
+.sponsor-strip figcaption {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -206,19 +206,19 @@
   animation-fill-mode: both;
 }
 
-.rotation-fade.ad-animation-run-a {
+.rotation-fade.sponsor-animation-run-a {
   animation-name: kiosk-fade-in-a;
 }
 
-.rotation-fade.ad-animation-run-b {
+.rotation-fade.sponsor-animation-run-b {
   animation-name: kiosk-fade-in-b;
 }
 
-.rotation-slide.ad-animation-run-a {
+.rotation-slide.sponsor-animation-run-a {
   animation-name: kiosk-slide-in-a;
 }
 
-.rotation-slide.ad-animation-run-b {
+.rotation-slide.sponsor-animation-run-b {
   animation-name: kiosk-slide-in-b;
 }
 
@@ -269,7 +269,7 @@
 }
 
 @media (max-width: 760px) {
-  .ad-region {
+  .sponsor-strip {
     grid-auto-columns: minmax(96px, 1fr);
     gap: clamp(8px, 1.4vw, 16px);
     padding: clamp(6px, 1.2vh, 12px) clamp(10px, 2vw, 18px);
