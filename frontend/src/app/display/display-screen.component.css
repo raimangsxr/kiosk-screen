@@ -1,19 +1,13 @@
 .display-screen {
   width: 100vw;
+  height: 100vh;
   height: 100dvh;
   display: grid;
-  grid-template-rows: var(--top-ratio, 5fr) var(--bottom-ratio, 1fr);
   color: #000;
 }
 
-@supports not (height: 100dvh) {
-  .display-screen {
-    height: 100vh;
-  }
-}
-
 .display-screen--ads-hidden {
-  grid-template-rows: var(--top-ratio, 5fr);
+  grid-template-rows: 5fr;
 }
 
 .display-screen--portrait .top-region,

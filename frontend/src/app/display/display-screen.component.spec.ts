@@ -1141,6 +1141,19 @@ describe('DisplayScreenComponent', () => {
       fixture.destroy();
     });
 
+    it('binds grid-template-rows inline as a single concatenated string (Chrome workaround)', () => {
+      setViewport(1920, 1080);
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, topRegionRatio: 7, bottomRegionRatio: 3 }
+      });
+      fixture.detectChanges();
+      const host = fixture.nativeElement.querySelector('.display-screen') as HTMLElement | null;
+      expect(host).not.toBeNull();
+      expect(host!.style.gridTemplateRows).toBe('7fr 3fr');
+      fixture.destroy();
+    });
+
     it('falls back to the documented default ratio when the polled value is < 1', () => {
       const fixture = createComponent({
         ...readyState,
@@ -1153,6 +1166,7 @@ describe('DisplayScreenComponent', () => {
       fixture.detectChanges();
       expect(fixture.componentInstance.ratioTop()).toBe('5fr');
       expect(fixture.componentInstance.ratioBottom()).toBe('1fr');
+      expect(fixture.componentInstance.mainGridTemplateRows()).toBe('5fr 1fr');
       fixture.destroy();
     });
 

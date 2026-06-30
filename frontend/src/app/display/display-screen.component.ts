@@ -48,6 +48,7 @@ type DisplayRenderableItem = Pick<
       class="display-screen"
       [class.display-screen--ads-hidden]="!adsVisible"
       [class.display-screen--portrait]="orientation() === 'portrait'"
+      [style.gridTemplateRows]="mainGridTemplateRows()"
       [style.--top-ratio]="ratioTop()"
       [style.--bottom-ratio]="ratioBottom()"
       aria-label="Kiosk display"
@@ -336,6 +337,10 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   ratioBottom(): string {
     const value = this.state?.configuration?.bottomRegionRatio;
     return `${value !== undefined && value >= 1 ? value : 1}fr`;
+  }
+
+  mainGridTemplateRows(): string {
+    return `${this.ratioTop()} ${this.ratioBottom()}`;
   }
 
   get currentContent(): DisplayContentItem | null {
