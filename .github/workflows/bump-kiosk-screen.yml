@@ -10,9 +10,11 @@ permissions:
   actions: read
 
 jobs:
-  bump:
-    if: github.event.workflow_run.conclusion == 'success'
+  prepare:
+    name: Read release tag
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.read.outputs.raw }}
     steps:
       - name: Download release tag artifact
         uses: actions/download-artifact@v4
@@ -23,14 +25,17 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
 
       - name: Read release tag
-        id: tag
+        id: read
         run: |
           RAW=$(cat release-info/tag.txt | tr -d '\n')
           echo "raw=${RAW}" >> "$GITHUB_OUTPUT"
 
-      - name: Invoke reusable bump workflow
-        uses: raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1
-        with:
-          release_tag: ${{ steps.tag.outputs.raw }}
-          app_name: kiosk-screen
-          argocd_apps_token: ${{ secrets.ARGOCD_APPS_TOKEN }}
+  bump:
+    name: Bump images in argocd-apps
+    needs: prepare
+    if: github.event.workflow_run.conclusion == 'success'
+    uses: raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1
+    with:
+      release_tag: ${{ needs.prepare.outputs.tag }}
+      app_name: kiosk-screen
+      argocd_apps_token: ${{ secrets.ARGOCD_APPS_TOKEN }}
