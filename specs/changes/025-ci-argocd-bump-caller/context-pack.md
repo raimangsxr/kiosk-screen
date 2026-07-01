@@ -57,6 +57,5 @@ There are no automated tests for CI/ops changes in this repo. Validation is end-
 
 - The caller MUST NOT contain any of the bump logic; only artifact download, tag extraction, and the `uses:` invocation.
 - The reusable workflow reference MUST be pinned to a tag (`@v1`), not `@main` or a SHA, so callers can opt into upgrades.
-- No PAT or cross-repo secret is required. The reusable workflow runs in `argocd-apps` and uses that repo's native `GITHUB_TOKEN` for all operations on `argocd-apps`. Callers MUST NOT pass a PAT to the reusable.
+- The caller MUST pass `argocd_apps_token` from `secrets.ARGOCD_APPS_TOKEN`. The reusable workflow in argocd-apps accepts the PAT as input because the native `GITHUB_TOKEN` of the calling repo cannot be used for cross-repo operations on a private repo even when `access_level: user` is set on the called side.
 - The `release_images.yml` workflow MUST keep uploading the `release-tag` artifact (its removal would break the caller).
-- `argocd-apps` MUST have `actions/permissions/access.access_level` set to `user` (or `organization`); `none` blocks cross-repo reusable workflow calls and produces the validation error `workflow was not found` even when the file exists at the referenced tag.

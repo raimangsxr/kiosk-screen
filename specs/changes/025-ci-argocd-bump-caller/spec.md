@@ -70,7 +70,7 @@ The caller in kiosk-screen is the reference implementation. Other repos (bull, e
 
 - **FR-001**: `.github/workflows/bump-kiosk-screen.yml` MUST trigger on `workflow_run` of `Release Images` with `types: [completed]` and `conclusion == 'success'`.
 - **FR-002**: The caller MUST download the `release-tag` artifact uploaded by `Release Images` and extract the raw tag (with optional leading `v`).
-- **FR-003**: The caller MUST invoke `raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` with `release_tag` and `app_name: kiosk-screen`. No PAT or secret is required: the reusable workflow runs in `argocd-apps` context with that repo's `GITHUB_TOKEN`, which has full access to `argocd-apps`.
+- **FR-003**: The caller MUST invoke `raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` with `release_tag`, `app_name: kiosk-screen`, and `argocd_apps_token` from `secrets.ARGOCD_APPS_TOKEN`. The reusable workflow lives in `argocd-apps` (a private repo) and accepts a cross-repo PAT as input; attempts to use the native `GITHUB_TOKEN` failed because `actions/permissions/access.access_level=user` does not enable `workflow_call` resolution from other same-owner private repos in this account, so the PAT pattern is required.
 - **FR-004**: The caller MUST have `permissions: contents: read, actions: read` so the `GITHUB_TOKEN` can download the cross-run artifact.
 - **FR-005**: The legacy `.github/workflows/argocd-bump.yml` MUST be removed; the bump logic now lives exclusively in `argocd-apps`.
 
@@ -98,8 +98,7 @@ The caller in kiosk-screen is the reference implementation. Other repos (bull, e
 - `argocd-apps` exposes the reusable workflow at tag `v1`.
 - `argocd-apps` has a `kiosk-screen` label (so `--label "kiosk-screen"` succeeds).
 - `argocd-apps` `main` has no branch protection requiring external approvals (so merge works without approval; GitHub blocks self-approval at the API level).
-- `argocd-apps` has `actions/permissions/access.access_level` set to `user` (or `organization`) so private-repo reusable workflows are callable from kiosk-screen. The default (`none`) blocks all cross-repo calls even between same-owner repos.
-- No PAT or cross-repo secret is required. The reusable workflow runs in `argocd-apps` context and uses that repo's native `GITHUB_TOKEN` for all operations on `argocd-apps` (checkout, push, PR create, PR merge).
+- A `ARGOCD_APPS_TOKEN` secret exists in kiosk-screen: Fine-grained PAT with `Contents: Read and write` on `argocd-apps`. The PAT is required because `workflow_call` from kiosk-screen to argocd-apps is rejected with `workflow was not found` even when `access_level: user` is set on argocd-apps — see the reverted FR-003 above.
 
 ## Supersedes
 

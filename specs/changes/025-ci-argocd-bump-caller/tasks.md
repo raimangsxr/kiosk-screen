@@ -29,16 +29,37 @@
 
 - [ ] T007 Confirm no production contract is modified (no entry in `EVENT.BRANDING`, `DISPLAY.RUNTIME`, etc.). Bump is pure CI.
 
-## Phase 3.5: argocd-apps access configuration (prerequisite)
+## Phase 3.5: PAT setup (prerequisite)
 
-- [ ] T007a Verify that `argocd-apps` allows reusable workflows to be called from same-owner repos. Set `actions/permissions/access.access_level` to `user` (it defaults to `none` which blocks cross-repo calls even between same-owner private repos):
+- [ ] T007a Create a Fine-grained PAT with `Contents: Read and write` on `raimangsxr/argocd-apps` and store it as `ARGOCD_APPS_TOKEN` in kiosk-screen (Settings → Secrets and variables → Actions).
 
-  ```bash
-  gh api -X PUT repos/raimangsxr/argocd-apps/actions/permissions/access \
-    -f access_level=user
-  ```
+  Note: we attempted the simpler "native GITHUB_TOKEN" approach first but the GitHub Actions validator rejected `workflow_call` from kiosk-screen to argocd-apps with `workflow was not found`, even with `access_level=user` set on argocd-apps. The PAT is the proven-working path.
 
-  Skipping this step yields `workflow was not found` even when the reusable workflow is correctly tagged.
+## Phase 4: Validation
+
+- [ ] T008 Push the branch and merge to `main` on kiosk-screen.
+- [ ] T009 Cut release `0.8.9-test` in kiosk-screen.
+- [ ] T010 Verify `Bump kiosk-screen images in argocd-apps` runs and invokes the reusable workflow.
+- [ ] T011 Verify a PR titled `chore: bump kiosk-screen to 0.8.9` appears in `argocd-apps`.
+- [ ] T012 Verify the PR merges automatically (hotfix) and the bump branch is deleted.
+- [ ] T013 Cut a second release (e.g. `0.9.0-test`) and verify the PR stays open for manual review (non-hotfix).
+
+## Dependencies & Execution Order
+
+- Phase 1 (T001, T002) — implement the caller and delete the old file.
+- Phase 2 (T003..T006) — can be merged with Phase 1 in the same commit.
+- Phase 3 (T007) — read-only verification.
+- Phase 3.5 (T007a) — must be done before Phase 4; ideally before any caller run.
+- Phase 4 (T008..T013) — post-merge validation.
+
+## Parallel Opportunities
+
+- T001/T002 are sequential (different files but conceptually one change).
+- T003/T004/T005 are independent files and can be created in any order.
+
+## Suggested MVP Scope
+
+Phases 1, 2, 3, 3.5, 4 — the entire change. There is no incremental slice; the embedded workflow must be removed atomically with the caller being introduced to avoid two parallel bump paths.
 
 ## Phase 4: Validation
 
