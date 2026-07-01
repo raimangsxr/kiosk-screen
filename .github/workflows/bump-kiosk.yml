@@ -38,8 +38,8 @@ jobs:
           token: ${{ secrets.ARGOCD_APPS_TOKEN }}
           path: argocd-apps
 
-      - name: Detect hotfix
-        id: hotfix
+      - name: Detect auto-merge
+        id: release-class
         working-directory: argocd-apps
         run: |
           NEW="${{ steps.tag.outputs.version }}"
@@ -48,18 +48,16 @@ jobs:
 
           py_major() { echo "$1" | awk -F. '{print $1}'; }
           py_minor() { echo "$1" | awk -F. '{print $2}'; }
-          NEW_MAJ=$(py_major "$NEW"); NEW_MIN=$(py_minor "$NEW")
-          CUR_MAJ=$(py_major "$CUR"); CUR_MIN=$(py_minor "$CUR")
+          NEW_MAJ=$(py_major "$NEW"); CUR_MAJ=$(py_major "$CUR")
 
-          if [[ -n "$NEW_MAJ" && -n "$NEW_MIN" \
+          if [[ -n "$NEW_MAJ" \
                 && "$NEW_MAJ" == "$CUR_MAJ" \
-                && "$NEW_MIN" == "$CUR_MIN" \
                 && "$NEW" != "$CUR" ]]; then
-            echo "is_hotfix=true" >> "$GITHUB_OUTPUT"
-            echo "HOTFIX: ${CUR} -> ${NEW} (same major.minor)"
+            echo "is_auto_merge=true" >> "$GITHUB_OUTPUT"
+            echo "AUTO-MERGE: ${CUR} -> ${NEW} (same major)"
           else
-            echo "is_hotfix=false" >> "$GITHUB_OUTPUT"
-            echo "NOT a hotfix: ${CUR} -> ${NEW} (requires manual review)"
+            echo "is_auto_merge=false" >> "$GITHUB_OUTPUT"
+            echo "MAJOR BUMP: ${CUR} -> ${NEW} (requires manual review)"
           fi
 
       - name: Compute new image references
@@ -131,8 +129,8 @@ jobs:
           GH_TOKEN: ${{ secrets.ARGOCD_APPS_TOKEN }}
           VERSION: ${{ steps.tag.outputs.version }}
           RAW_TAG: ${{ steps.tag.outputs.raw }}
-          IS_HOTFIX: ${{ steps.hotfix.outputs.is_hotfix }}
-          CURRENT: ${{ steps.hotfix.outputs.current }}
+          IS_AUTO_MERGE: ${{ steps.release-class.outputs.is_auto_merge }}
+          CURRENT: ${{ steps.release-class.outputs.current }}
         run: |
           BODY="$(cat <<EOF
           Bumps kiosk-screen images to \`${RAW_TAG}\` released via [kiosk-screen#${VERSION}](https://github.com/raimangsxr/kiosk-screen/releases/tag/${RAW_TAG}).
@@ -141,7 +139,7 @@ jobs:
           - \`rromani/kiosk-backend:${VERSION}\`
           - \`rromani/kiosk-frontend:${VERSION}\`
 
-          $([ "$IS_HOTFIX" = "true" ] && echo "**Hotfix detected** (same major.minor as \`${CURRENT}\`) — this PR will be auto-approved and auto-merged." || echo "**Non-hotfix release** (previous: \`${CURRENT}\`) — manual review and merge required.")
+          $([ "$IS_AUTO_MERGE" = "true" ] && echo "**Same major as previous** (was \`${CURRENT}\`) — this PR will be auto-merged." || echo "**Major version bump** (was \`${CURRENT}\`) — manual review and merge required.")
 
           Triggered automatically by the \`Release Images\` workflow.
           EOF
@@ -158,14 +156,14 @@ jobs:
           echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "Opened PR: ${PR_URL}"
 
-      - name: Merge PR (hotfix only)
-        if: steps.hotfix.outputs.is_hotfix == 'true'
+      - name: Merge PR (same major)
+        if: steps.release-class.outputs.is_auto_merge == 'true'
         env:
           GH_TOKEN: ${{ secrets.ARGOCD_APPS_TOKEN }}
           PR_URL: ${{ steps.pr.outputs.url }}
         run: |
           set +e
-          echo "Hotfix detected — attempting auto-merge on ${PR_URL}"
+          echo "Same major — attempting auto-merge on ${PR_URL}"
 
           gh pr merge --squash --delete-branch "${PR_URL}"
           if [ $? -ne 0 ]; then
@@ -173,9 +171,9 @@ jobs:
             exit 0
           fi
 
-          echo "Hotfix PR merged successfully."
+          echo "PR merged successfully."
 
-      - name: Notify non-hotfix PR
-        if: steps.hotfix.outputs.is_hotfix != 'true'
+      - name: Notify major-bump PR
+        if: steps.release-class.outputs.is_auto_merge != 'true'
         run: |
-          echo "Non-hotfix release — PR left open for manual review and merge."
+          echo "Major version bump — PR left open for manual review and merge."

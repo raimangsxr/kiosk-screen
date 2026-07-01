@@ -19,12 +19,12 @@
   - trigger on `workflow_run` of `Release Images` success.
   - download `release-tag` artifact, read tag.
   - check out `argocd-apps` using `ARGOCD_APPS_TOKEN`.
-  - detect hotfix by comparing X.Y of new version vs current pinned in `manifests/kiosk-screen/backend.yaml`.
+  - detect auto-merge class by comparing major of new version vs current pinned in `manifests/kiosk-screen/backend.yaml`.
   - rewrite image lines in `backend.yaml`, `frontend.yaml`, `migration-job.yaml` via Python regex.
   - no-op exit if no changes.
   - configure git, create branch `bump-kiosk-<ver>`, commit, push via PAT.
   - open PR with title `chore: bump kiosk-screen to <ver>`, label `kiosk-screen`.
-  - if hotfix, run `gh pr merge --squash --delete-branch`. No `gh pr review --approve` (self-approval is blocked by GitHub).
+  - if same major (auto-merge), run `gh pr merge --squash --delete-branch`. No `gh pr review --approve` (self-approval is blocked by GitHub).
 - [x] T002 Delete `.github/workflows/bump-kiosk-screen.yml` (the abandoned reusable-workflow caller).
 
 ## Phase 2: SDD artefacts
@@ -46,8 +46,9 @@
 - [ ] T008 Cut release `0.8.13` (or any next-version) in kiosk-screen.
 - [ ] T009 Verify `Bump kiosk-screen images in argocd-apps` runs successfully.
 - [ ] T010 Verify a PR titled `chore: bump kiosk-screen to <ver>` appears in `argocd-apps` with the right image tags.
-- [ ] T011 Verify the PR merges automatically (hotfix) and the bump branch is deleted.
-- [ ] T012 Cut a second release with a different major.minor (e.g. `0.9.0` from `0.8.13`) and verify the PR stays open for manual review.
+- [ ] T011a Verify a hotfix bump (e.g. `0.8.13` from `0.8.12`) auto-merges.
+- [ ] T011b Verify a minor bump (e.g. `0.9.0` from `0.8.13`) auto-merges.
+- [ ] T012 Verify a major bump (e.g. `1.0.0` from `0.9.0`) leaves the PR open for manual review.
 
 ## Dependencies & Execution Order
 

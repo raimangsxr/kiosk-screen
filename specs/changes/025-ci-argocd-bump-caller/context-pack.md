@@ -50,7 +50,7 @@ There are no automated tests for CI/ops changes. Validation is end-to-end:
 1. Push a branch with the bump workflow.
 2. Merge to `main`.
 3. Cut a release `0.8.13` in kiosk-screen.
-4. Observe in `argocd-apps` that a PR opens (and merges automatically if hotfix).
+4. Observe in `argocd-apps` that a PR opens (and merges automatically if same-major; stays open for manual review on major bumps).
 
 ## Implementation constraints
 

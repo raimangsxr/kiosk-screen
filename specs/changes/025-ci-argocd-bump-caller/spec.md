@@ -19,7 +19,7 @@ read_by_default: true
 **Created**: 2026-07-01
 **Status**: In Progress
 
-**Input**: After every kiosk-screen release, an automated bump PR should open in `argocd-apps` to update the pinned image tags in `manifests/kiosk-screen/`. The PR must auto-merge when the release is a hotfix (same major.minor as the currently pinned version) and stay open for manual review otherwise.
+**Input**: After every kiosk-screen release, an automated bump PR should open in `argocd-apps` to update the pinned image tags in `manifests/kiosk-screen/`. The PR must auto-merge when the release keeps the same major version as the currently pinned tag (covers hotfixes and minor bumps) and stay open for manual review on major version bumps.
 
 ## Final architecture (after iteration)
 
@@ -35,7 +35,7 @@ Cutting a release in kiosk-screen triggers `Release Images`, which on success tr
 
 **Why this priority**: today the operator must manually edit the three manifests and open a PR per release. Easy to forget; easy to typo.
 
-**Independent Test**: cut release `0.8.13` in kiosk-screen. Within 60 s a PR titled `chore: bump kiosk-screen to 0.8.13` appears in `argocd-apps` against branch `bump-kiosk-0.8.13`. Because `0.8.13` is a hotfix over `0.8.12`, the PR also auto-merges (squash) and deletes the branch.
+**Independent Test**: cut release `0.8.13` in kiosk-screen. Within 60 s a PR titled `chore: bump kiosk-screen to 0.8.13` appears in `argocd-apps` against branch `bump-kiosk-0.8.13`. Because `0.8.13` shares the major with `0.8.12`, the PR auto-merges (squash) and deletes the branch.
 
 **Acceptance Scenarios**:
 
@@ -43,19 +43,20 @@ Cutting a release in kiosk-screen triggers `Release Images`, which on success tr
 2. **Given** `argocd-apps` already pins `0.8.13`, **When** a release is published, **Then** no PR is created (no-op).
 3. **Given** the bump PR targets `manifests/kiosk-screen/`, **When** inspected, **Then** it only touches `backend.yaml`, `frontend.yaml`, and `migration-job.yaml`.
 
-### User Story 2 — Hotfix auto-merge (Priority: P1)
+### User Story 2 — Same-major auto-merge (Priority: P1)
 
-When the release is a hotfix (same major.minor as the currently pinned tag and a different patch), the bump PR is auto-merged via squash and the bump branch is deleted.
+When the release shares the major version with the currently pinned tag (covers hotfixes `0.8.12 → 0.8.13` and minor bumps `0.8.12 → 0.9.0`), the bump PR is auto-merged via squash and the bump branch is deleted. Major version bumps (`0.x → 1.y`) stay open for manual review because they are the conventional breaking-change boundary and warrant a human decision.
 
-**Why this priority**: hotfixes are by definition low-risk patches. Auto-merging removes a manual approval that does not add value.
+**Why this priority**: hotfixes and minor bumps are the bulk of releases. Auto-merging them removes a manual approval that does not add value. Major bumps remain a deliberate human checkpoint.
 
 **Independent Test**: current `argocd-apps` pins `0.8.12`; cut release `0.8.13`. PR opens and merges within 60 s; branch `bump-kiosk-0.8.13` is deleted.
 
 **Acceptance Scenarios**:
 
-1. **Given** current pinned tag is `0.8.12`, **When** release `0.8.13` is cut, **Then** the bump PR opens and merges automatically.
-2. **Given** current pinned tag is `0.8.12`, **When** release `0.9.0` is cut (minor bump), **Then** the PR opens and stays open for manual review.
+1. **Given** current pinned tag is `0.8.12`, **When** release `0.8.13` is cut (hotfix, same major), **Then** the bump PR opens and merges automatically.
+2. **Given** current pinned tag is `0.8.12`, **When** release `0.9.0` is cut (minor bump, same major), **Then** the bump PR opens and merges automatically.
 3. **Given** current pinned tag is `0.8.12`, **When** release `1.0.0` is cut (major bump), **Then** the PR opens and stays open for manual review.
+4. **Given** current pinned tag is `0.8.12`, **When** release `2.0.0` is cut (multi-major jump), **Then** the PR opens and stays open for manual review.
 
 ### User Story 3 — Re-release is a no-op (Priority: P2)
 
@@ -72,10 +73,10 @@ If `argocd-apps` already pins the target tag when the bump workflow runs, no PR 
 - **FR-001**: A workflow named `.github/workflows/bump-kiosk.yml` MUST be triggered on `workflow_run` of `Release Images` with `types: [completed]` and `if: github.event.workflow_run.conclusion == 'success'`.
 - **FR-002**: The workflow MUST download the `release-tag` artifact uploaded by `Release Images`, read the tag (with optional leading `v`), and normalise it to `X.Y.Z`.
 - **FR-003**: The workflow MUST check out `raimangsxr/argocd-apps` using the `ARGOCD_APPS_TOKEN` secret (Fine-grained PAT, `Contents: Read and write` on `argocd-apps`).
-- **FR-004**: The workflow MUST detect hotfix by comparing the X.Y of the new version against the X.Y of the tag currently pinned in `manifests/kiosk-screen/backend.yaml`.
+- **FR-004**: The workflow MUST classify each release as auto-merge or manual-review by comparing the major of the new version against the major of the tag currently pinned in `manifests/kiosk-screen/backend.yaml`. Same major (covers hotfixes and minor bumps) → auto-merge; different major → manual review.
 - **FR-005**: The workflow MUST rewrite image lines in `manifests/kiosk-screen/backend.yaml`, `manifests/kiosk-screen/frontend.yaml`, and `manifests/kiosk-screen/migration-job.yaml` (the migration-job uses the backend image).
 - **FR-006**: The PR title MUST be `chore: bump kiosk-screen to <version>`; the PR branch MUST be `bump-kiosk-<version>`; the PR label MUST be `kiosk-screen`.
-- **FR-007**: When the release is a hotfix, the workflow MUST auto-merge the PR via `gh pr merge --squash --delete-branch`. When not a hotfix, the PR is left open for manual review.
+- **FR-007**: When the release shares the major version with the currently pinned tag, the workflow MUST auto-merge the PR via `gh pr merge --squash --delete-branch`. When the major version changes, the PR is left open for manual review.
 - **FR-008**: If `argocd-apps` already pins the target tag, the workflow MUST exit early without creating a PR (no-op).
 - **FR-009**: The workflow MUST NOT use a reusable workflow from `argocd-apps`. The bump logic is inlined in this repo. (See "Final architecture" above for rationale.)
 - **FR-010**: The repo MUST define the `ARGOCD_APPS_TOKEN` secret before any release is cut (otherwise the bump step fails).
@@ -94,9 +95,10 @@ If `argocd-apps` already pins the target tag when the bump workflow runs, no PR 
 
 ## Success Criteria
 
-- **SC-001**: Cutting a hotfix release opens and merges a bump PR in `argocd-apps` within 60 s.
-- **SC-002**: Cutting a non-hotfix release leaves the bump PR open for manual review.
-- **SC-003**: Re-releasing the same tag produces no PR.
+- **SC-001**: Cutting a hotfix release (same major.minor) opens and merges a bump PR in `argocd-apps` within 60 s.
+- **SC-002**: Cutting a minor release (same major, different minor) opens and merges a bump PR within 60 s.
+- **SC-003**: Cutting a major release (different major) leaves the bump PR open for manual review.
+- **SC-004**: Re-releasing the same tag produces no PR.
 
 ## Assumptions
 
@@ -132,6 +134,6 @@ with the following substitutions:
 - `manifest_path`: `manifests/<repo-slug>`
 - `pr_label`: `<repo-slug>`
 - `pr_branch_prefix`: `bump-<repo-slug>`
-- The grep regex in the `Detect hotfix` step: `<backend_service>:[0-9]+(\.[0-9]+)*`
+- The grep regex in the `Detect auto-merge` step: `<backend_service>:[0-9]+(\.[0-9]+)*`
 
 Each consumer repo also needs the `ARGOCD_APPS_TOKEN` secret and the `<repo-slug>` label in `argocd-apps`.
