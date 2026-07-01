@@ -154,7 +154,7 @@ jobs:
             --title "chore: bump kiosk-screen to ${VERSION}" \
             --body "${BODY}" \
             --label "kiosk-screen" \
-            --json url -q .url)
+            | tail -n 1)
           echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "Opened PR: ${PR_URL}"
 
