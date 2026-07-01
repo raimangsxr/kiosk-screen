@@ -1,10 +1,10 @@
-# Context Pack: CHG-025 Caller for the reusable argocd-bump workflow
+# Context Pack: CHG-025 Auto-bump argocd-apps images
 
 ## Task classification
 
 - Type: change to CI/ops only (no backend or frontend code changes)
-- Affected contracts: `OPS.CI` (new, declared in `specs/manifest.yml`)
-- Requires contract update: no (no production contract is modified)
+- Affected contracts: `OPS.CI` (declared in `specs/manifest.yml`)
+- Requires contract update: no
 - Current status: in-progress
 
 ## Mandatory context
@@ -13,15 +13,14 @@ Read these files before planning or implementing:
 
 - `specs/manifest.yml`
 - `specs/changes/025-ci-argocd-bump-caller/spec.md`
-- `argocd-apps/.github/workflows/argocd-bump.yml` (external — read on GitHub: `https://github.com/raimangsxr/argocd-apps/blob/v1/.github/workflows/argocd-bump.yml`)
-- `argocd-apps/.github/workflows/argocd-bump.README.md` (external — same URL)
+- `.github/workflows/release-images.yml` (existing — produces the `release-tag` artifact the bump workflow reads)
+- `.github/workflows/bump-kiosk.yml` (in this repo — the self-contained bump workflow)
 
 ## Optional context
 
 Read only if the task explicitly touches the area:
 
-- `.github/workflows/release-images.yml` (the upstream workflow that publishes the artifact)
-- `specs/contracts/event-branding/contract.md` (reference for SDD style only)
+- `manifests/kiosk-screen/` in `argocd-apps` (the targets the bump PR rewrites)
 
 ## Do not read by default
 
@@ -32,30 +31,30 @@ Read only if the task explicitly touches the area:
 
 ## Code entrypoints
 
-- `.github/workflows/bump-kiosk-screen.yml` (new — caller)
-- `.github/workflows/release-images.yml` (existing — produces the artifact the caller reads)
+- `.github/workflows/bump-kiosk.yml` (new — the bump workflow)
+- `.github/workflows/release-images.yml` (existing — produces the artifact)
 
-## New files
+## Files added in this change
 
-- `.github/workflows/bump-kiosk-screen.yml`
+- `.github/workflows/bump-kiosk.yml`
 - `specs/changes/025-ci-argocd-bump-caller/{spec.md,context-pack.md,tasks.md}`
 
 ## Files removed
 
-- `.github/workflows/argocd-bump.yml` (logic moved to `argocd-apps`)
+- `.github/workflows/bump-kiosk-screen.yml` (caller that pointed at reusable workflow in argocd-apps — abandoned because cross-repo reusable workflow calls fail validation in this account)
 
 ## Tests
 
-There are no automated tests for CI/ops changes in this repo. Validation is end-to-end:
+There are no automated tests for CI/ops changes. Validation is end-to-end:
 
-1. Push a branch with the caller + deletion of the old file.
+1. Push a branch with the bump workflow.
 2. Merge to `main`.
-3. Cut a release `0.8.X-test` in kiosk-screen.
-4. Observe in `argocd-apps` that a PR opens (and merges if hotfix).
+3. Cut a release `0.8.13` in kiosk-screen.
+4. Observe in `argocd-apps` that a PR opens (and merges automatically if hotfix).
 
 ## Implementation constraints
 
-- The caller MUST NOT contain any of the bump logic; only artifact download, tag extraction, and the `uses:` invocation.
-- The reusable workflow reference MUST be pinned to a tag (`@v1`), not `@main` or a SHA, so callers can opt into upgrades.
-- The caller MUST pass `argocd_apps_token` from `secrets.ARGOCD_APPS_TOKEN`. The reusable workflow in argocd-apps accepts the PAT as input because the native `GITHUB_TOKEN` of the calling repo cannot be used for cross-repo operations on a private repo even when `access_level: user` is set on the called side.
-- The `release_images.yml` workflow MUST keep uploading the `release-tag` artifact (its removal would break the caller).
+- The bump workflow MUST be self-contained: no `uses: raimangsxr/argocd-apps/.github/workflows/...` calls. The earlier reusable-workflow plan was abandoned because the GitHub Actions validator in this account refused to resolve any ref (tag / branch / SHA) to reusable workflows in argocd-apps with `workflow was not found`, regardless of `actions/permissions/access.access_level`.
+- The workflow MUST use a Fine-grained PAT (`ARGOCD_APPS_TOKEN` secret) to push to argocd-apps; the native GITHUB_TOKEN does not have cross-repo write access.
+- The workflow MUST NOT try to `gh pr review --approve` the PR it just created — GitHub blocks self-approval at the API level even when no branch protection is set. Auto-merge proceeds via `gh pr merge` only.
+- The `release-images.yml` workflow MUST keep uploading the `release-tag` artifact (its removal would break the bump workflow).
