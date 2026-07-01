@@ -70,7 +70,7 @@ The caller in kiosk-screen is the reference implementation. Other repos (bull, e
 
 - **FR-001**: `.github/workflows/bump-kiosk-screen.yml` MUST trigger on `workflow_run` of `Release Images` with `types: [completed]` and `conclusion == 'success'`.
 - **FR-002**: The caller MUST download the `release-tag` artifact uploaded by `Release Images` and extract the raw tag (with optional leading `v`).
-- **FR-003**: The caller MUST invoke `raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` with `release_tag`, `app_name: kiosk-screen`, and `argocd_apps_token` from `secrets.ARGOCD_APPS_TOKEN`.
+- **FR-003**: The caller MUST invoke `raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` with `release_tag` and `app_name: kiosk-screen`. No PAT or secret is required: the reusable workflow runs in `argocd-apps` context with that repo's `GITHUB_TOKEN`, which has full access to `argocd-apps`.
 - **FR-004**: The caller MUST have `permissions: contents: read, actions: read` so the `GITHUB_TOKEN` can download the cross-run artifact.
 - **FR-005**: The legacy `.github/workflows/argocd-bump.yml` MUST be removed; the bump logic now lives exclusively in `argocd-apps`.
 
@@ -98,7 +98,7 @@ The caller in kiosk-screen is the reference implementation. Other repos (bull, e
 - `argocd-apps` exposes the reusable workflow at tag `v1`.
 - `argocd-apps` has a `kiosk-screen` label (so `--label "kiosk-screen"` succeeds).
 - `argocd-apps` `main` has no branch protection requiring external approvals (so merge works without approval; GitHub blocks self-approval at the API level).
-- The PAT stored as `ARGOCD_APPS_TOKEN` in kiosk-screen has `Contents: Read and write` on `argocd-apps`.
+- No PAT or cross-repo secret is required. The reusable workflow runs in `argocd-apps` context and uses that repo's native `GITHUB_TOKEN` for all operations on `argocd-apps` (checkout, push, PR create, PR merge).
 
 ## Supersedes
 

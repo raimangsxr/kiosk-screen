@@ -15,7 +15,7 @@
 
 ## Phase 1: Caller implementation
 
-- [ ] T001 Create `.github/workflows/bump-kiosk-screen.yml` with the caller shape: `workflow_run` trigger on `Release Images` success, `actions/download-artifact@v4` to fetch `release-tag`, a `Read release tag` step exposing `raw` output, and a `uses: raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` invocation with `release_tag`, `app_name: kiosk-screen`, `argocd_apps_token`.
+- [ ] T001 Create `.github/workflows/bump-kiosk-screen.yml` with the caller shape: `workflow_run` trigger on `Release Images` success, `actions/download-artifact@v4` to fetch `release-tag`, a `Read release tag` step exposing `raw` output, and a `uses: raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@v1` invocation with `release_tag` and `app_name: kiosk-screen`. No PAT or secret is passed.
 - [ ] T002 Remove `.github/workflows/argocd-bump.yml` (the embedded workflow it replaces). Logic now lives in `argocd-apps`.
 
 ## Phase 2: SDD artefacts

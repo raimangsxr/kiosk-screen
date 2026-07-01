@@ -38,4 +38,3 @@ jobs:
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
       app_name: kiosk-screen
-      argocd_apps_token: ${{ secrets.ARGOCD_APPS_TOKEN }}
