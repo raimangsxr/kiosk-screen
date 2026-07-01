@@ -34,6 +34,9 @@ jobs:
     name: Bump images in argocd-apps
     needs: prepare
     if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write
+      actions: read
     uses: raimangsxr/argocd-apps/.github/workflows/argocd-bump.yml@main
     with:
       release_tag: ${{ needs.prepare.outputs.tag }}
