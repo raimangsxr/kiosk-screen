@@ -424,4 +424,13 @@ changes:
     consolidated_into: []
     read_by_default: true
 
+  - id: CHG-025
+    path: specs/changes/025-ci-argocd-bump-caller/spec.md
+    status: in-progress
+    modifies:
+      - OPS.CI
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
 archive: []  
