@@ -29,6 +29,17 @@
 
 - [ ] T007 Confirm no production contract is modified (no entry in `EVENT.BRANDING`, `DISPLAY.RUNTIME`, etc.). Bump is pure CI.
 
+## Phase 3.5: argocd-apps access configuration (prerequisite)
+
+- [ ] T007a Verify that `argocd-apps` allows reusable workflows to be called from same-owner repos. Set `actions/permissions/access.access_level` to `user` (it defaults to `none` which blocks cross-repo calls even between same-owner private repos):
+
+  ```bash
+  gh api -X PUT repos/raimangsxr/argocd-apps/actions/permissions/access \
+    -f access_level=user
+  ```
+
+  Skipping this step yields `workflow was not found` even when the reusable workflow is correctly tagged.
+
 ## Phase 4: Validation
 
 - [ ] T008 Push the branch and merge to `main` on kiosk-screen.
@@ -43,6 +54,7 @@
 - Phase 1 (T001, T002) — implement the caller and delete the old file.
 - Phase 2 (T003..T006) — can be merged with Phase 1 in the same commit.
 - Phase 3 (T007) — read-only verification.
+- Phase 3.5 (T007a) — must be done before Phase 4; ideally before any caller run.
 - Phase 4 (T008..T013) — post-merge validation.
 
 ## Parallel Opportunities
@@ -52,4 +64,4 @@
 
 ## Suggested MVP Scope
 
-Phases 1, 2, 3, 4 — the entire change. There is no incremental slice; the embedded workflow must be removed atomically with the caller being introduced to avoid two parallel bump paths.
+Phases 1, 2, 3, 3.5, 4 — the entire change. There is no incremental slice; the embedded workflow must be removed atomically with the caller being introduced to avoid two parallel bump paths.

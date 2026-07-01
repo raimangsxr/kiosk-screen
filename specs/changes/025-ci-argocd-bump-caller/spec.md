@@ -98,6 +98,7 @@ The caller in kiosk-screen is the reference implementation. Other repos (bull, e
 - `argocd-apps` exposes the reusable workflow at tag `v1`.
 - `argocd-apps` has a `kiosk-screen` label (so `--label "kiosk-screen"` succeeds).
 - `argocd-apps` `main` has no branch protection requiring external approvals (so merge works without approval; GitHub blocks self-approval at the API level).
+- `argocd-apps` has `actions/permissions/access.access_level` set to `user` (or `organization`) so private-repo reusable workflows are callable from kiosk-screen. The default (`none`) blocks all cross-repo calls even between same-owner repos.
 - No PAT or cross-repo secret is required. The reusable workflow runs in `argocd-apps` context and uses that repo's native `GITHUB_TOKEN` for all operations on `argocd-apps` (checkout, push, PR create, PR merge).
 
 ## Supersedes
