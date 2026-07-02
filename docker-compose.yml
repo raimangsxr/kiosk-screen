@@ -1,19 +1,78 @@
+x-backend-build: &backend-build
+  context: ./backend
+  dockerfile: Dockerfile
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://kiosk:${KIOSK_DATABASE_PASSWORD:-kiosk}@postgres:5432/kiosk_screen
+  SESSION_SECRET: ${SESSION_SECRET:-development-only-session-secret}
+  FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:4200}
+  BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+  BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin}
+  BOOTSTRAP_ADMIN_DISPLAY_NAME: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-Administrator}
+  MEDIA_STORAGE_PATH: /var/lib/kiosk/media
+  PUBLIC_API_CORS_ORIGINS: ${PUBLIC_API_CORS_ORIGINS:-}
+
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: kiosk_screen
       POSTGRES_USER: kiosk
-      POSTGRES_PASSWORD: kiosk
+      POSTGRES_PASSWORD: ${KIOSK_DATABASE_PASSWORD:-kiosk}
     ports:
       - "15432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kiosk -d kiosk_screen"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  migrate:
+    image: kiosk-backend:local
+    build: *backend-build
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: *backend-env
+    command: ["alembic", "upgrade", "head"]
+
+  backend:
+    image: kiosk-backend:local
+    build: *backend-build
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    volumes:
+      - kiosk-media:/var/lib/kiosk/media
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        NODE_IMAGE: node:24-alpine
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      API_PROXY_TARGET: http://backend:8000
+    command: npm run start -- --host 0.0.0.0 --port 4200 --poll 2000
 
 volumes:
   postgres-data:
+  kiosk-media:
+  frontend_node_modules:

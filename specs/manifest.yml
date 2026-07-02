@@ -234,6 +234,21 @@ contracts:
       - CHG-008
       - CHG-020
 
+  - id: OPS.PLATFORM
+    path: specs/contracts/ops-platform/contract.md
+    status: active
+    owns:
+      - docker-compose.yml
+      - backend/Dockerfile
+      - backend/.dockerignore
+      - frontend/Dockerfile
+      - frontend/.dockerignore
+      - .github/workflows/release-images.yml
+      - .github/workflows/bump-app.yml
+    related_changes:
+      - CHG-025
+      - CHG-026
+
 changes:
   - id: CHG-001
     path: specs/changes/001-foundation-auth-and-rbac/spec.md
@@ -430,6 +445,17 @@ changes:
     modifies:
       - OPS.CI
     depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-026
+    path: specs/changes/026-platform-standardization/spec.md
+    status: in-progress
+    modifies:
+      - OPS.PLATFORM
+      - OPS.CI
+    depends_on:
+      - CHG-025
     consolidated_into: []
     read_by_default: true
 
