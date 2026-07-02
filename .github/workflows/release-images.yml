@@ -8,6 +8,11 @@ permissions:
   contents: read
   packages: read
 
+env:
+  APP_NAME: kiosk-screen
+  BACKEND_IMAGE: kiosk-backend
+  FRONTEND_IMAGE: kiosk-frontend
+
 jobs:
   build-and-push:
     name: Test, build, and push release images
@@ -52,14 +57,14 @@ jobs:
         with:
           context: backend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/kiosk-backend:${{ github.event.release.tag_name }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:${{ github.event.release.tag_name }}
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
           context: frontend
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/kiosk-frontend:${{ github.event.release.tag_name }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.FRONTEND_IMAGE }}:${{ github.event.release.tag_name }}
 
       - name: Publish release tag artifact
         run: |

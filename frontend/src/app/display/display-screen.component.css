@@ -7,7 +7,7 @@
 }
 
 .display-screen--ads-hidden {
-  grid-template-rows: 5fr;
+  grid-template-rows: 1fr;
 }
 
 .display-screen--portrait .top-region,

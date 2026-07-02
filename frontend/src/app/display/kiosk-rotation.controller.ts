@@ -288,7 +288,7 @@ export class KioskRotationController {
   resume(): void {
     if (this.contentMode() !== 'loop') return;
     this.isPaused.set(false);
-    this._armAllTimers();
+    this._armContentTimerOnly();
   }
 
   /**
@@ -364,6 +364,18 @@ export class KioskRotationController {
     this.scheduler.clearContent();
     this.scheduler.clearAd();
 
+    this._armContentTimerOnly();
+
+    // Ad timer (always, even in iframe / fixed / paused, per FR-008b).
+    this._armAdTimerOnly();
+
+    // Empty-queue debounced event (FR-009 / spec 007).
+    this._scheduleEmptyQueueCheck();
+  }
+
+  private _armContentTimerOnly(): void {
+    this.scheduler.clearContent();
+
     // Content timer (loop mode only, only when NOT paused).
     if (this.contentMode() === 'loop' && !this.isPaused() && this._contentQueue().length > 0) {
       const current = this.currentContent();
@@ -374,12 +386,6 @@ export class KioskRotationController {
         this.scheduler.armContent(dur, () => this._advanceContent());
       }
     }
-
-    // Ad timer (always, even in iframe / fixed / paused, per FR-008b).
-    this._armAdTimerOnly();
-
-    // Empty-queue debounced event (FR-009 / spec 007).
-    this._scheduleEmptyQueueCheck();
   }
 
   private _armAdTimerOnly(): void {
@@ -422,7 +428,7 @@ export class KioskRotationController {
         this.currentContentId.set(recurring.id);
         this.cadenceCounter.set(0);
         this.onContentAdvanceListeners.forEach((fn) => fn());
-        this._armAllTimers();
+        this._armContentTimerOnly();
         return;
       }
     }
@@ -439,7 +445,7 @@ export class KioskRotationController {
     this.currentContentId.set(nextRegular?.id ?? null);
 
     this.onContentAdvanceListeners.forEach((fn) => fn());
-    this._armAllTimers();
+    this._armContentTimerOnly();
   }
 
   private _rewindContent(): void {
@@ -452,7 +458,7 @@ export class KioskRotationController {
     this._regularCursorId = prev?.id ?? null;
     this.currentContentId.set(prev?.id ?? null);
     this.onContentAdvanceListeners.forEach((fn) => fn());
-    this._armAllTimers();
+    this._armContentTimerOnly();
   }
 
   private _advanceAd(): void {

@@ -35,6 +35,7 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - Content supports photos, videos, approved iframe/domain references where applicable, fixed eligibility, and recurring cadence.
 - Ads support upload-backed images, advertiser labels, ordering, and active state.
 - Admin lists show thumbnails or visual identification where media is present.
+- Fixed-content selection surfaces previews for media-backed fixed content so operators can distinguish similarly named items before pinning one on screen.
 - Show on screen now issues a jump_to navigation command when allowed.
 
 ## Public interfaces

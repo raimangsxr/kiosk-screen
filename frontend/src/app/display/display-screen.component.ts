@@ -340,6 +340,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   mainGridTemplateRows(): string {
+    if (!this.adsVisible) {
+      return '1fr';
+    }
     return `${this.ratioTop()} ${this.ratioBottom()}`;
   }
 

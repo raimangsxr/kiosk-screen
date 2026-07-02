@@ -35,6 +35,7 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 
 - Remote control supports content modes loop, iframe, and fixed.
 - Navigation commands are next, previous, pause, resume, and jump_to; jump_to is valid only in loop mode and requires an active non-fixed target.
+- The fixed-mode selector lists fixed-eligible content with a visual preview when a thumbnail or media URL is available, falling back to a content-type icon when no preview asset is present.
 - Ads visibility and fullscreen request changes are propagated through display polling and audited.
 - Fixed mode validates fixed-eligible content and auto-falls back to loop if the target disappears or is unmarked.
 - Cross-tab sync keeps multiple kiosk tabs aligned without direct private-field access to the controller.

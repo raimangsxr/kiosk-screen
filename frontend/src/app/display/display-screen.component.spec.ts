@@ -1164,6 +1164,33 @@ describe('DisplayScreenComponent', () => {
       fixture.destroy();
     });
 
+    it('collapses the sponsor row so top content fills the viewport when ads are hidden', () => {
+      const fixture = createComponent({
+        ...readyState,
+        remoteControl: {
+          contentMode: 'loop',
+          selectedIframeId: null,
+          selectedFixedContentId: null,
+          adsVisible: false,
+          fullscreenRequested: false,
+          updatedAt: '2026-07-02T00:00:00Z'
+        }
+      });
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement.querySelector('.display-screen') as HTMLElement | null;
+      const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement | null;
+      const ads = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement | null;
+
+      expect(host).not.toBeNull();
+      expect(top).not.toBeNull();
+      expect(ads).toBeNull();
+      expect(host!.classList).toContain('display-screen--ads-hidden');
+      expect(host!.style.gridTemplateRows).toBe('1fr');
+      expect(fixture.componentInstance.mainGridTemplateRows()).toBe('1fr');
+      fixture.destroy();
+    });
+
     it('falls back to the documented default ratio when the polled value is < 1', () => {
       const fixture = createComponent({
         ...readyState,

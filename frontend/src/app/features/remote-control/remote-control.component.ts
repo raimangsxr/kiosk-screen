@@ -220,15 +220,34 @@ type LocalMode = RemoteControlContentMode;
                 >
                   @for (option of fixedContentOptions(); track option.id) {
                     <mat-radio-button [value]="option.id" class="remote-control__iframe-item">
-                      <span class="remote-control__iframe-title">{{ truncate(option.title, 32) }}</span>
-                      <span class="remote-control__iframe-meta">
-                        <span class="remote-control__iframe-url">{{ option.contentType }}</span>
-                        @if (option.id === selectedFixedContentId()) {
-                          <span class="remote-control__iframe-badge" aria-label="Currently showing">
-                            <mat-icon aria-hidden="true">check_circle</mat-icon>
-                            Currently showing
+                      <span class="remote-control__fixed-option">
+                        <span class="remote-control__fixed-preview" aria-hidden="true">
+                          @if (fixedContentPreviewUrl(option); as previewUrl) {
+                            <img
+                              class="remote-control__fixed-preview-image"
+                              [src]="previewUrl"
+                              alt=""
+                              loading="lazy"
+                              data-testid="remote-control-fixed-preview"
+                            />
+                          } @else {
+                            <mat-icon class="remote-control__fixed-preview-icon" aria-hidden="true">
+                              {{ option.contentType === 'video' ? 'videocam' : 'photo' }}
+                            </mat-icon>
+                          }
+                        </span>
+                        <span class="remote-control__fixed-copy">
+                          <span class="remote-control__iframe-title">{{ truncate(option.title, 32) }}</span>
+                          <span class="remote-control__iframe-meta">
+                            <span class="remote-control__iframe-url">{{ option.contentType }}</span>
+                            @if (option.id === selectedFixedContentId()) {
+                              <span class="remote-control__iframe-badge" aria-label="Currently showing">
+                                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                                Currently showing
+                              </span>
+                            }
                           </span>
-                        }
+                        </span>
                       </span>
                     </mat-radio-button>
                   }
@@ -466,6 +485,39 @@ type LocalMode = RemoteControlContentMode;
         gap: 8px;
         flex-wrap: wrap;
       }
+      .remote-control__fixed-option {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        width: 100%;
+      }
+      .remote-control__fixed-preview {
+        width: 72px;
+        height: 48px;
+        border-radius: var(--mat-sys-corner-small);
+        background: var(--mat-sys-surface-container);
+        border: 1px solid var(--mat-sys-outline-variant);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .remote-control__fixed-preview-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .remote-control__fixed-preview-icon {
+        color: var(--mat-sys-on-surface-variant);
+      }
+      .remote-control__fixed-copy {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
       .remote-control__iframe-title {
         font: var(--mat-sys-title-medium);
         letter-spacing: var(--mat-sys-title-medium-tracking);
@@ -539,6 +591,13 @@ type LocalMode = RemoteControlContentMode;
         .remote-control__radio,
         .remote-control__iframe-item {
           padding: 10px 10px;
+        }
+        .remote-control__fixed-option {
+          grid-template-columns: 56px minmax(0, 1fr);
+        }
+        .remote-control__fixed-preview {
+          width: 56px;
+          height: 42px;
         }
       }
     `
@@ -709,6 +768,10 @@ export class RemoteControlComponent implements OnInit {
       return value;
     }
     return value.slice(0, max - 1) + '…';
+  }
+
+  protected fixedContentPreviewUrl(option: { thumbnailUrl?: string | null; mediaUrl?: string | null }): string | null {
+    return option.thumbnailUrl ?? option.mediaUrl ?? null;
   }
 
   private notify(message: string): void {

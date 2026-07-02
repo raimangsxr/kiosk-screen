@@ -174,6 +174,31 @@ describe('KioskRotationController', () => {
     controller.detach();
   }));
 
+  it('keeps the ad cadence independent from faster content advances in loop mode', fakeAsync(() => {
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => [makeContent('A', 1), makeContent('B', 2)],
+      ads: () => [makeAd('ad-1', 1), makeAd('ad-2', 2)],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 1,
+      adDurationSeconds: () => 3,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 2,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(2_999);
+    expect(controller.adIndex()).toBe(0);
+
+    tick(1);
+    expect(controller.adIndex()).toBe(1);
+    expect(controller.adAnimationRun()).toBe(1);
+
+    controller.detach();
+  }));
+
   it('rotates visibleAds following the ad index and inline count', fakeAsync(() => {
     const ads = signal<ReadonlyArray<DisplayContentItem>>([makeAd('a', 1), makeAd('b', 2), makeAd('c', 3)]);
     const inlineCount = signal(2);

@@ -9,6 +9,11 @@ permissions:
   contents: read
   actions: read
 
+env:
+  APP_NAME: kiosk-screen
+  BACKEND_IMAGE: kiosk-backend
+  FRONTEND_IMAGE: kiosk-frontend
+
 jobs:
   open-bump-pr:
     if: github.event.workflow_run.conclusion == 'success'
@@ -43,7 +48,7 @@ jobs:
         working-directory: argocd-apps
         run: |
           NEW="${{ steps.tag.outputs.version }}"
-          CUR=$(grep -oE 'kiosk-backend:[0-9]+(\.[0-9]+)*' manifests/kiosk-screen/backend.yaml | head -1 | cut -d: -f2)
+          CUR=$(grep -oE "${BACKEND_IMAGE}:[0-9]+(\.[0-9]+)*" "manifests/${APP_NAME}/backend.yaml" | head -1 | cut -d: -f2)
           echo "current=${CUR}" >> "$GITHUB_OUTPUT"
 
           py_major() { echo "$1" | awk -F. '{print $1}'; }
@@ -66,10 +71,10 @@ jobs:
           OWNER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           V=${{ steps.tag.outputs.version }}
-          echo "backend=${OWNER}/kiosk-backend:${V}" >> "$GITHUB_OUTPUT"
-          echo "frontend=${OWNER}/kiosk-frontend:${V}" >> "$GITHUB_OUTPUT"
+          echo "backend=${OWNER}/${BACKEND_IMAGE}:${V}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${OWNER}/${FRONTEND_IMAGE}:${V}" >> "$GITHUB_OUTPUT"
 
-      - name: Patch kiosk manifests
+      - name: Patch app manifests
         env:
           BACKEND: ${{ steps.img.outputs.backend }}
           FRONTEND: ${{ steps.img.outputs.frontend }}
@@ -79,11 +84,14 @@ jobs:
           python3 - <<'PY'
           import os, pathlib, re
           BACKEND, FRONTEND = os.environ["BACKEND"], os.environ["FRONTEND"]
-          root = pathlib.Path("manifests/kiosk-screen")
+          APP_NAME = os.environ["APP_NAME"]
+          BACKEND_IMAGE = os.environ["BACKEND_IMAGE"]
+          FRONTEND_IMAGE = os.environ["FRONTEND_IMAGE"]
+          root = pathlib.Path(f"manifests/{APP_NAME}")
           targets = {
-              root / "backend.yaml":       (r"(image:\s*).*kiosk-backend:.*",  f"image: {BACKEND}"),
-              root / "frontend.yaml":      (r"(image:\s*).*kiosk-frontend:.*", f"image: {FRONTEND}"),
-              root / "migration-job.yaml": (r"(image:\s*).*kiosk-backend:.*",  f"image: {BACKEND}"),
+              root / "backend.yaml":       (rf"(image:\s*).*{BACKEND_IMAGE}:.*",  f"image: {BACKEND}"),
+              root / "frontend.yaml":      (rf"(image:\s*).*{FRONTEND_IMAGE}:.*", f"image: {FRONTEND}"),
+              root / "migration-job.yaml": (rf"(image:\s*).*{BACKEND_IMAGE}:.*",  f"image: {BACKEND}"),
           }
           changed = []
           for f, (pat, repl) in targets.items():
@@ -108,8 +116,8 @@ jobs:
       - name: Configure git
         working-directory: argocd-apps
         run: |
-          git config user.name  "kiosk-bump-bot"
-          git config user.email "kiosk-bump-bot@users.noreply.github.com"
+          git config user.name  "argocd_apps-bump-bot"
+          git config user.email "argocd_apps-bump-bot@users.noreply.github.com"
 
       - name: Create branch, commit, push
         working-directory: argocd-apps
@@ -117,10 +125,10 @@ jobs:
           TOKEN: ${{ secrets.ARGOCD_APPS_TOKEN }}
           VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          BRANCH="bump-kiosk-${VERSION}"
+          BRANCH="bump-${APP_NAME}-${VERSION}"
           git checkout -b "${BRANCH}"
-          git add manifests/kiosk-screen
-          git commit -m "chore: bump kiosk-screen to ${VERSION}"
+          git add "manifests/${APP_NAME}"
+          git commit -m "chore: bump ${APP_NAME} to ${VERSION}"
           git push "https://x-access-token:${TOKEN}@github.com/raimangsxr/argocd-apps.git" "${BRANCH}"
 
       - name: Open PR
@@ -133,11 +141,11 @@ jobs:
           CURRENT: ${{ steps.release-class.outputs.current }}
         run: |
           BODY="$(cat <<EOF
-          Bumps kiosk-screen images to \`${RAW_TAG}\` released via [kiosk-screen#${VERSION}](https://github.com/raimangsxr/kiosk-screen/releases/tag/${RAW_TAG}).
+          Bumps ${APP_NAME} images to \`${RAW_TAG}\` released via [${APP_NAME}#${VERSION}](https://github.com/raimangsxr/${APP_NAME}/releases/tag/${RAW_TAG}).
 
           Updated images:
-          - \`rromani/kiosk-backend:${VERSION}\`
-          - \`rromani/kiosk-frontend:${VERSION}\`
+          - \`rromani/${BACKEND_IMAGE}:${VERSION}\`
+          - \`rromani/${FRONTEND_IMAGE}:${VERSION}\`
 
           $([ "$IS_AUTO_MERGE" = "true" ] && echo "**Same major as previous** (was \`${CURRENT}\`) — this PR will be auto-merged." || echo "**Major version bump** (was \`${CURRENT}\`) — manual review and merge required.")
 
@@ -148,10 +156,10 @@ jobs:
           PR_URL=$(gh pr create \
             --repo raimangsxr/argocd-apps \
             --base main \
-            --head "bump-kiosk-${VERSION}" \
-            --title "chore: bump kiosk-screen to ${VERSION}" \
+            --head "bump-${APP_NAME}-${VERSION}" \
+            --title "chore: bump ${APP_NAME} to ${VERSION}" \
             --body "${BODY}" \
-            --label "kiosk-screen" \
+            --label "${APP_NAME}" \
             | tail -n 1)
           echo "url=${PR_URL}" >> "$GITHUB_OUTPUT"
           echo "Opened PR: ${PR_URL}"

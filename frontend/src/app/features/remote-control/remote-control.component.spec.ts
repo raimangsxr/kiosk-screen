@@ -56,6 +56,15 @@ const loadError: ApplicationErrorContract = {
   category: 'dependency'
 };
 
+const fixedContentOption: RemoteControlFixedContentOption = {
+  id: 'fixed-1',
+  title: 'Sponsor loop',
+  contentType: 'photo',
+  mediaUrl: '/media/fixed-1.jpg',
+  thumbnailUrl: '/media/fixed-1-thumb.jpg',
+  durationSeconds: 12
+};
+
 function buildFacade(overrides: {
   state?: ReturnType<typeof signal<RemoteControlState | null>>;
   iframeOptions?: ReturnType<typeof signal<typeof iframeOption[]>>;
@@ -231,6 +240,32 @@ describe('RemoteControlComponent', () => {
     const text = customFixture.nativeElement.textContent;
     expect(text).toContain('…');
     expect(text).not.toContain(longUrl);
+  });
+
+  it('renders fixed content options with a preview thumbnail', async () => {
+    const customFacade = buildFacade({
+      state: signal({ ...baseState, contentMode: 'fixed', selectedFixedContentId: 'fixed-1' }),
+      fixedContentOptions: signal([fixedContentOption])
+    });
+    customFacade.refresh.and.returnValue(of({
+      state: { ...baseState, contentMode: 'fixed', selectedFixedContentId: 'fixed-1' },
+      options: { items: [iframeOption], fixedEligibleContents: [fixedContentOption] }
+    }));
+    customFacade.setLoopMode.and.returnValue(of(baseState));
+    customFacade.setFixedMode.and.returnValue(of({ ...baseState, contentMode: 'fixed', selectedFixedContentId: 'fixed-1' }));
+    customFacade.setAdsVisible.and.returnValue(of(baseState));
+
+    await configureTestBed(customFacade, new MatSnackBarStub());
+    const customFixture = TestBed.createComponent(RemoteControlComponent);
+    customFixture.detectChanges();
+
+    const fixedList = customFixture.nativeElement.querySelector('[data-testid="remote-control-fixed-list"]');
+    expect(fixedList).not.toBeNull();
+    expect(fixedList.textContent).toContain('Sponsor loop');
+    const preview = fixedList.querySelector('[data-testid="remote-control-fixed-preview"]') as HTMLImageElement;
+    expect(preview).not.toBeNull();
+    expect(preview.getAttribute('src')).toBe('/media/fixed-1-thumb.jpg');
+    expect(fixedList.textContent).toContain('Currently showing');
   });
 
   it('does not render mode/ads controls and shows the error block with a retry button when initial load fails', async () => {
