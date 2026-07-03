@@ -5,7 +5,7 @@ from typing import Literal
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 ALLOWED_LOGO_TYPES = {"image/jpeg", "image/png", "image/webp", "image/svg+xml"}
-ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/ogg"}
+ALLOWED_VIDEO_TYPES = {"video/mp4", "video/webm", "video/ogg", "video/quicktime"}
 ALLOWED_ROTATION_ANIMATIONS = {"none", "fade", "slide"}
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}

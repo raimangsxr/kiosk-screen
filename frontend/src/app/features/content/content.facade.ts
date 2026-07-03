@@ -76,7 +76,7 @@ export class ContentFacade {
   upload(payload: ContentItemRequest, file: File, id?: string) {
     this.savingState.set(true);
     this.errorState.set(null);
-    const request = id ? this.api.update(id, payload) : this.api.upload(payload, file);
+    const request = id ? this.api.replaceUpload(id, payload, file) : this.api.upload(payload, file);
     return request.pipe(
       tap(() => {
         this.savingState.set(false);

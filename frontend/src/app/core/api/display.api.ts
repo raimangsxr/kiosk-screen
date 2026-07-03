@@ -38,6 +38,7 @@ export interface DisplayContentItem {
   effectiveRotationAnimation?: RotationAnimation | null;
   effectiveAnimationDurationMilliseconds?: number | null;
   isFixed?: boolean;
+  isNovelty?: boolean;
   recurringEveryXIterations?: number | null;
 }
 
@@ -97,6 +98,14 @@ export class DisplayApiService {
 
   getState(): Observable<DisplayState> {
     return this.http.get<DisplayState>('/api/display/state', { withCredentials: true });
+  }
+
+  consumeNovelty(contentId: string): Observable<void> {
+    return this.http.post<void>(
+      `/api/display/content/${contentId}/consume-novelty`,
+      {},
+      { withCredentials: true },
+    );
   }
 
   watchState(pollIntervalMs: number = 5000): Observable<DisplayState> {

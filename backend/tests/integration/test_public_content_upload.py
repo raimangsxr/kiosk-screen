@@ -68,6 +68,7 @@ def test_public_upload_returns_201_with_assigned_display_order(
     assert body["contentType"] == "photo"
     assert body["isActive"] is True
     assert body["displayOrder"] >= 1
+    assert body["isNovelty"] is True
     assert body["sourceReference"] == body["mediaFile"]["mediaUrl"]
 
 

@@ -22,5 +22,6 @@ def test_content_paths_exist_in_openapi_contract(openapi_schema: dict):
     assert "/api/content" in paths
     assert "/api/content/{content_id}" in paths
     assert "/api/content/upload" in paths
+    assert "/api/content/{content_id}/upload" in paths
     assert "/api/content/reorder" in paths
     assert "ContentItemRequest" in openapi_schema["components"]["schemas"]

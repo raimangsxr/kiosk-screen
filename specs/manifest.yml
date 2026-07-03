@@ -76,6 +76,7 @@ contracts:
       - docs/postman/kiosk-screen-public-content.postman_collection.json
     related_changes:
       - CHG-004
+      - CHG-027
 
   - id: DISPLAY.CONTROL
     path: specs/contracts/display-control/contract.md
@@ -119,6 +120,7 @@ contracts:
     related_changes:
       - CHG-007
       - CHG-014
+      - CHG-027
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -153,6 +155,7 @@ contracts:
       - CHG-009
       - CHG-003
       - CHG-007
+      - CHG-027
 
   - id: USERS.ROLES.ADMIN
     path: specs/contracts/users-roles-admin/contract.md
@@ -456,6 +459,16 @@ changes:
       - OPS.CI
     depends_on:
       - CHG-025
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-027
+    path: specs/changes/027-public-content-novelty-rotation/spec.md
+    status: in-progress
+    modifies:
+      - CONTENT.ROTATION
+      - PUBLIC_CONTENT.API_KEYS
+    depends_on: []
     consolidated_into: []
     read_by_default: true
 

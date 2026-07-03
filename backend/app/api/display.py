@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from app.api.mappers import (
     to_ad_schema,
@@ -24,6 +25,7 @@ from app.domain.display_events import create_display_event
 from app.repositories.events import DisplayEventRepository
 from app.repositories.session import get_session
 from app.services.display_service import DisplayState, get_display_state, open_display
+from app.services.content_service import ContentService, NoveltyAlreadyConsumedError
 from app.domain.rotation import resolve_effective_rotation
 from app.application.display_control.service import DisplayControlService
 from app.repositories.models.display_control_state import DisplayControlState
@@ -282,3 +284,26 @@ def rotation_event_route(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return {"status": "accepted"}
+
+
+@router.post("/content/{content_id}/consume-novelty", status_code=status.HTTP_204_NO_CONTENT)
+def consume_novelty_route(
+    content_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    """Claim a pending novelty item for display on this kiosk (CHG-027).
+
+    Uses a conditional update so only the first kiosk to consume a given novelty
+    succeeds; others receive 409.
+    """
+    service = ContentService(session)
+    try:
+        service.consume_novelty(user.organization_id, str(content_id))
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except NoveltyAlreadyConsumedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Novelty already consumed.",
+        ) from exc

@@ -32,5 +32,6 @@ class TopContentItem(IdMixin, TimestampMixin, Base):
     available_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     recurring_every_x_iterations: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_fixed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
+    is_novelty: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     created_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     updated_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)

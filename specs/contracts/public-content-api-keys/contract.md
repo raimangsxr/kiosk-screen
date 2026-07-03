@@ -15,6 +15,7 @@ tests:
   - frontend/src/app/**/*.spec.ts
 related_changes:
   - CHG-004
+  - CHG-027
 related_adrs:
   []
 ---
@@ -31,6 +32,7 @@ This active contract is the current source of truth for `PUBLIC_CONTENT.API_KEYS
 - Public upload requires a valid bearer API key and records audit events for success and failure cases.
 - API keys use the ksk_live_ prefix and are stored hashed or otherwise non-recoverable after creation.
 - Public content uploads follow the same media validation and content activation rules as admin uploads.
+- Public content uploads set `isNovelty = true` on the appended item so kiosks can intercept rotation (see `CONTENT.ROTATION`).
 - Revoked or deleted keys cannot upload content.
 
 ## Public interfaces
@@ -62,3 +64,4 @@ This active contract is the current source of truth for `PUBLIC_CONTENT.API_KEYS
 ## Change history
 
 - CHG-004
+- CHG-027

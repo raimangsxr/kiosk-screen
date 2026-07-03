@@ -31,4 +31,29 @@ describe('adaptApiError', () => {
     expect(result.message).not.toContain('token');
     expect(result.category).toBe('unexpected');
   });
+
+  it('maps FastAPI detail strings to validation messages', () => {
+    const result = adaptApiError({
+      error: {
+        detail: 'Rotation animation must be none, fade, or slide.'
+      }
+    });
+
+    expect(result.code).toBe('validation_failed');
+    expect(result.message).toBe('Rotation animation must be none, fade, or slide.');
+    expect(result.category).toBe('validation');
+  });
+
+  it('maps structured upload errors from ApplicationError responses', () => {
+    const result = adaptApiError({
+      error: {
+        code: 'unsupported_media_type',
+        message: 'This file type is not supported.',
+        category: 'upload'
+      }
+    });
+
+    expect(result.code).toBe('unsupported_media_type');
+    expect(result.category).toBe('upload');
+  });
 });

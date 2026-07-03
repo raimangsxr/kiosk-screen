@@ -123,6 +123,7 @@ def to_content_schema(
         availableFrom=item.available_from,
         availableUntil=item.available_until,
         isFixed=item.is_fixed,
+        isNovelty=item.is_novelty,
         recurringEveryXIterations=item.recurring_every_x_iterations,
     )
 

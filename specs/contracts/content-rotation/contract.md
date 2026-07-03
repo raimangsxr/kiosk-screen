@@ -16,6 +16,7 @@ tests:
 related_changes:
   - CHG-007
   - CHG-014
+  - CHG-027
 related_adrs:
   []
 ---
@@ -34,12 +35,16 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
 - Recurring content with recurringEveryXIterations appears according to the controller cadence contract.
 - Empty content queues are debounced and reported through the display rotation event endpoint.
+- Public API uploads mark content with `isNovelty`; loop mode intercepts pending novelties on each content transition (timer, video ended, remote next/previous), shows them in `displayOrder`, uses kiosk default top timing, and atomically consumes via `POST /api/display/content/{contentId}/consume-novelty`.
+- Items with `isNovelty = true` are excluded from the regular queue; after the burst, rotation resumes at the item after the pre-burst regular cursor. Recurring cadence does not advance during a novelty burst.
+- Fixed, iframe, and paused loop modes do not intercept novelties.
 
 ## Public interfaces
 
-- `DisplayState.topContent`
+- `DisplayState.topContent` (includes `isNovelty`)
 - `DisplayState.ads`
 - `RemoteControl.navigationCommand`
+- `POST /api/display/content/{contentId}/consume-novelty`
 
 ## Owned code paths
 
@@ -64,3 +69,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 
 - CHG-007
 - CHG-014
+- CHG-027

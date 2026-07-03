@@ -22,6 +22,8 @@ export interface ContentItem {
   isFixed?: boolean;
   /** Spec 018 US4: cadence for recurring content (every N advances). */
   recurringEveryXIterations?: number | null;
+  /** CHG-027: pending public-upload novelty, cleared after kiosk consume. */
+  isNovelty?: boolean;
 }
 
 export type ContentItemRequest = Omit<ContentItem, 'id' | 'displayOrder'> & {
@@ -62,12 +64,36 @@ export class ContentApiService {
     },
     file: File,
   ): Observable<ContentItem> {
+    return this.http.post<ContentItem>('/api/content/upload', this.buildUploadForm(payload, file), {
+      withCredentials: true,
+    });
+  }
+
+  replaceUpload(
+    id: string,
+    payload: Omit<ContentItem, 'id' | 'displayOrder'> & {
+      displayOrder?: number;
+      isFixed?: boolean;
+      recurringEveryXIterations?: number | null;
+    },
+    file: File,
+  ): Observable<ContentItem> {
+    return this.http.put<ContentItem>(`/api/content/${id}/upload`, this.buildUploadForm(payload, file), {
+      withCredentials: true,
+    });
+  }
+
+  private buildUploadForm(
+    payload: Omit<ContentItem, 'id' | 'displayOrder'> & {
+      displayOrder?: number;
+      isFixed?: boolean;
+      recurringEveryXIterations?: number | null;
+    },
+    file: File,
+  ): FormData {
     const body = new FormData();
     body.append('file', file);
     body.append('title', payload.title);
-    // Spec 018 US6: contentType is now optional — the backend autodetects
-    // by extension when omitted. Only send it if the user explicitly chose
-    // a value in the form.
     if (payload.contentType) {
       body.append('contentType', payload.contentType);
     }
@@ -77,12 +103,14 @@ export class ContentApiService {
     }
     if (payload.durationSeconds) body.append('durationSeconds', String(payload.durationSeconds));
     if (payload.rotationAnimation) body.append('rotationAnimation', payload.rotationAnimation);
-    if (payload.animationDurationMilliseconds) body.append('animationDurationMilliseconds', String(payload.animationDurationMilliseconds));
+    if (payload.animationDurationMilliseconds) {
+      body.append('animationDurationMilliseconds', String(payload.animationDurationMilliseconds));
+    }
     if (payload.isFixed) body.append('isFixed', 'true');
     if (payload.recurringEveryXIterations !== undefined && payload.recurringEveryXIterations !== null) {
       body.append('recurringEveryXIterations', String(payload.recurringEveryXIterations));
     }
-    return this.http.post<ContentItem>('/api/content/upload', body, { withCredentials: true });
+    return body;
   }
 
   reorderContent(orderedIds: string[]): Observable<void> {

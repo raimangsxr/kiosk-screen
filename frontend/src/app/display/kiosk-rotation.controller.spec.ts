@@ -1,7 +1,9 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injector, signal } from '@angular/core';
+import { of, throwError } from 'rxjs';
 
-import { DisplayContentItem } from '../core/api/display.api';
+import { DisplayApiService, DisplayContentItem } from '../core/api/display.api';
 import { CursorService } from './cursor.service';
 import { KioskRotationController } from './kiosk-rotation.controller';
 import { RecurringCadenceService } from './recurring-cadence.service';
@@ -25,6 +27,10 @@ function makeContent(
   };
 }
 
+function makeNovelty(id: string, displayOrder: number): DisplayContentItem {
+  return { ...makeContent(id, displayOrder), isNovelty: true };
+}
+
 function makeAd(
   id: string,
   displayOrder: number,
@@ -46,8 +52,10 @@ function makeAd(
 describe('KioskRotationController', () => {
   let controller: KioskRotationController;
   let testInjector: Injector;
+  let consumeNoveltySpy: jasmine.Spy<(id: string) => ReturnType<DisplayApiService['consumeNovelty']>>;
 
   beforeEach(() => {
+    consumeNoveltySpy = jasmine.createSpy('consumeNovelty').and.returnValue(of(undefined));
     // The controller is no longer `providedIn: 'root'` (CHG-019 fix).
     // Tests provide it explicitly via the test module. CHG-021 refactored
     // the controller to delegate to CursorService, RecurringCadenceService,
@@ -59,8 +67,12 @@ describe('KioskRotationController', () => {
         KioskRotationController,
         CursorService,
         RecurringCadenceService,
-        RotationSchedulerService
-      ]
+        RotationSchedulerService,
+        {
+          provide: DisplayApiService,
+          useValue: { consumeNovelty: (id: string) => consumeNoveltySpy(id) },
+        },
+      ],
     });
     controller = TestBed.inject(KioskRotationController);
     testInjector = TestBed.inject(Injector);
@@ -588,6 +600,173 @@ describe('KioskRotationController', () => {
 
     expect(controller.cadenceCounter()).toBe(0);
 
+    controller.detach();
+  }));
+});
+
+describe('KioskRotationController novelty burst (CHG-027)', () => {
+  let controller: KioskRotationController;
+  let testInjector: Injector;
+  let consumeNoveltySpy: jasmine.Spy<(id: string) => ReturnType<DisplayApiService['consumeNovelty']>>;
+
+  beforeEach(() => {
+    consumeNoveltySpy = jasmine.createSpy('consumeNovelty').and.returnValue(of(undefined));
+    TestBed.configureTestingModule({
+      providers: [
+        KioskRotationController,
+        CursorService,
+        RecurringCadenceService,
+        RotationSchedulerService,
+        {
+          provide: DisplayApiService,
+          useValue: { consumeNovelty: (id: string) => consumeNoveltySpy(id) },
+        },
+      ],
+    });
+    controller = TestBed.inject(KioskRotationController);
+    testInjector = TestBed.inject(Injector);
+  });
+
+  function bindLoop(queue: () => DisplayContentItem[], durationSeconds = 0.1): void {
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: queue,
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => durationSeconds,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+  }
+
+  it('intercepts the next transition to show a pending novelty', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([makeContent('A', 1), makeContent('B', 2)]);
+    bindLoop(() => queue());
+    controller.setCursor('A');
+    TestBed.tick();
+
+    queue.set([makeContent('A', 1), makeContent('B', 2), makeNovelty('N', 3)]);
+    TestBed.tick();
+
+    tick(100);
+    tick(0);
+    expect(consumeNoveltySpy).toHaveBeenCalledWith('N');
+    expect(controller.currentContentId()).toBe('N');
+    expect(controller.noveltyBurstActive()).toBeTrue();
+    controller.detach();
+  }));
+
+  it('shows multiple novelties in displayOrder before resuming regular rotation', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1),
+      makeContent('B', 2),
+      makeNovelty('N2', 4),
+      makeNovelty('N1', 3),
+    ]);
+    bindLoop(() => queue());
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('N1');
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('N2');
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('B');
+    expect(controller.noveltyBurstActive()).toBeFalse();
+    controller.detach();
+  }));
+
+  it('skips a novelty lost to another kiosk (409) and tries the next pending item', fakeAsync(() => {
+    consumeNoveltySpy.and.callFake((id: string) => {
+      if (id === 'N1') {
+        return throwError(() => new HttpErrorResponse({ status: 409 }));
+      }
+      return of(undefined);
+    });
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1),
+      makeNovelty('N1', 2),
+      makeNovelty('N2', 3),
+    ]);
+    bindLoop(() => queue());
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('N2');
+    controller.detach();
+  }));
+
+  it('does not reset the content timer when unrelated content is deleted mid-slide', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1),
+      makeContent('B', 2),
+      makeContent('C', 3),
+    ]);
+    bindLoop(() => queue(), 0.1);
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(50);
+    queue.set([makeContent('A', 1), makeContent('B', 2)]);
+    TestBed.tick();
+
+    tick(49);
+    expect(controller.currentContentId()).toBe('A');
+    tick(1);
+    expect(controller.currentContentId()).toBe('B');
+    controller.detach();
+  }));
+
+  it('does not reset the content timer when a novelty arrives mid-slide', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([makeContent('A', 1), makeContent('B', 2)]);
+    bindLoop(() => queue(), 0.1);
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(50);
+    queue.set([makeContent('A', 1), makeContent('B', 2), makeNovelty('N', 3)]);
+    TestBed.tick();
+
+    tick(49);
+    expect(controller.currentContentId()).toBe('A');
+    tick(1);
+    tick(0);
+    expect(controller.currentContentId()).toBe('N');
+    controller.detach();
+  }));
+
+  it('does not intercept novelties in fixed mode', fakeAsync(() => {
+    const mode = signal<'loop' | 'fixed'>('loop');
+    const queue = signal<DisplayContentItem[]>([makeContent('A', 1), makeNovelty('N', 2)]);
+    controller.bindInputs({
+      contentMode: () => mode(),
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => (mode() === 'fixed' ? 'A' : null),
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.enterFixedMode('A');
+    mode.set('fixed');
+    TestBed.tick();
+
+    tick(100);
+    tick(0);
+    expect(consumeNoveltySpy).not.toHaveBeenCalled();
+    expect(controller.currentContentId()).toBe('A');
     controller.detach();
   }));
 });

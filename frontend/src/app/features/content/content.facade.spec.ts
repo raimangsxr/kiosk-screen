@@ -112,6 +112,20 @@ describe('ContentFacade', () => {
     httpController.expectOne('/api/content').flush([buildItem()]);
   });
 
+  it('upload replaces media via PUT /api/content/:id/upload when editing', () => {
+    const file = new File(['binary'], 'agenda.jpg', { type: 'image/jpeg' });
+    facade.upload(
+      { title: 'Agenda', contentType: 'photo', sourceReference: '', mediaFile: null, displayOrder: 1, isActive: true },
+      file,
+      'item-1',
+    ).subscribe();
+    const put = httpController.expectOne('/api/content/item-1/upload');
+    expect(put.request.method).toBe('PUT');
+    expect(put.request.body instanceof FormData).toBeTrue();
+    put.flush(buildItem());
+    httpController.expectOne('/api/content').flush([buildItem()]);
+  });
+
   it('uploadMany uploads files sequentially and refreshes once', () => {
     const files = [
       new File(['one'], 'one.jpg', { type: 'image/jpeg' }),

@@ -29,6 +29,7 @@ export function sameTopContentState(
       p.displayOrder !== c.displayOrder ||
       p.isActive !== c.isActive ||
       (p.isFixed ?? false) !== (c.isFixed ?? false) ||
+      (p.isNovelty ?? false) !== (c.isNovelty ?? false) ||
       (p.recurringEveryXIterations ?? null) !== (c.recurringEveryXIterations ?? null)
     ) {
       return false;

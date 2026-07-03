@@ -72,34 +72,36 @@ type DisplayRenderableItem = Pick<
             allowfullscreen
           ></iframe>
         }
-        @if (displayAvailable && !iframeUrl() && contentRenderItems[0]; as currentItem) {
-          <ng-container [ngSwitch]="currentItem.contentType">
-            @switch (currentItem.contentType) {
-              @case ('photo') {
-                <img
-                  [src]="mediaSource(currentItem)"
-                  class="display-content-media"
-                  [@contentTransition]="contentTransition(currentItem)"
-                  data-testid="display-content"
-                />
+        @if (displayAvailable && !iframeUrl() && contentRenderItems.length) {
+          @for (currentItem of contentRenderItems; track trackContent($index, currentItem)) {
+            <ng-container [ngSwitch]="currentItem.contentType">
+              @switch (currentItem.contentType) {
+                @case ('photo') {
+                  <img
+                    [src]="mediaSource(currentItem)"
+                    class="display-content-media"
+                    [@contentTransition]="contentTransition(currentItem)"
+                    data-testid="display-content"
+                  />
+                }
+                @case ('video') {
+                  <video
+                    #fixedVideo
+                    [src]="mediaSource(currentItem)"
+                    muted
+                    autoplay
+                    playsinline
+                    [loop]="isFixedMode"
+                    (ended)="onVideoEnded(currentItem)"
+                    class="display-content-media"
+                    [@contentTransition]="contentTransition(currentItem)"
+                    data-testid="display-content"
+                  ></video>
+                }
               }
-              @case ('video') {
-                <video
-                  #fixedVideo
-                  [src]="mediaSource(currentItem)"
-                  muted
-                  autoplay
-                  playsinline
-                  [loop]="isFixedMode"
-                  (ended)="onVideoEnded(currentItem)"
-                  class="display-content-media"
-                  [@contentTransition]="contentTransition(currentItem)"
-                  data-testid="display-content"
-                ></video>
-              }
-            }
-          </ng-container>
-          <div class="content-label">{{ contentRenderItems[0].title }}</div>
+            </ng-container>
+            <div class="content-label">{{ currentItem.title }}</div>
+          }
         }
         @if (!displayAvailable || (!iframeUrl() && !contentRenderItems.length)) {
           <div class="fallback" data-testid="display-fallback">
@@ -233,8 +235,73 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const queue = this.state?.topContent ?? [];
     const id = this.kioskRotation.currentContentId();
     const item = id ? queue.find((c) => c.id === id) ?? null : null;
+    const prevId = this._debugPrevContentId;
     this.contentRenderItems = item ? [item] : [];
     this.cdr.detectChanges();
+
+    // #region agent log
+    const newId = item?.id ?? null;
+    if (newId !== prevId) {
+      const transition = item ? this.contentTransition(item) : null;
+      const mediaEl = globalThis.document?.querySelector('[data-testid="display-content"]') ?? null;
+      const sameDomElement = mediaEl !== null && mediaEl === this._debugPrevMediaEl;
+      const isAnimating = (mediaEl as HTMLElement | null)?.classList.contains('ng-animating') ?? false;
+      const resolvedAnimation = item ? this.contentRotationAnimation(item) : null;
+      const debugPayload = {
+        sessionId: '6d5964',
+        runId: 'post-fix',
+        hypothesisId: 'A',
+        location: 'display-screen.component.ts:syncContentRenderItems',
+        message: 'content advance render',
+        data: {
+          prevId,
+          newId,
+          sameDomElement,
+          isAnimatingImmediately: isAnimating,
+          resolvedAnimation,
+          effectiveRotationAnimation: item?.effectiveRotationAnimation ?? null,
+          rotationAnimation: item?.rotationAnimation ?? null,
+          durationMs: transition?.params.duration ?? 0,
+          transitionValue: transition?.value ?? null,
+          enterTransform: transition?.params.enterTransform ?? null,
+          contentType: item?.contentType ?? null,
+          noveltyBurstActive: this.kioskRotation.noveltyBurstActive(),
+          usesNoveltyDefaults: item ? this.usesNoveltyDefaults(item) : false,
+        },
+        timestamp: Date.now(),
+      };
+      fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d5964' },
+        body: JSON.stringify(debugPayload),
+      }).catch(() => undefined);
+      if (transition && transition.params.duration > 0) {
+        globalThis.setTimeout(() => {
+          const laterEl = globalThis.document?.querySelector('[data-testid="display-content"]') as HTMLElement | null;
+          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d5964' },
+            body: JSON.stringify({
+              sessionId: '6d5964',
+              runId: 'post-fix',
+              hypothesisId: 'A',
+              location: 'display-screen.component.ts:syncContentRenderItems:postDuration',
+              message: 'content advance post-animation check',
+              data: {
+                newId,
+                wasAnimatingDuringWindow: laterEl?.classList.contains('ng-animating') ?? false,
+                hasNgTriggerClass: laterEl?.classList.contains('ng-trigger-contentTransition') ?? false,
+                durationMs: transition.params.duration,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => undefined);
+        }, transition.params.duration + 50);
+      }
+      this._debugPrevContentId = newId;
+      this._debugPrevMediaEl = mediaEl;
+    }
+    // #endregion
   }
 
 
@@ -250,6 +317,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private lastFullscreenRequested: boolean | null = null;
   protected hiddenLogoUrl: string | null = null;
   private lastFixedContentId: string | null = null;
+  private _debugPrevContentId: string | null = null;
+  private _debugPrevMediaEl: Element | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -425,6 +494,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   animationClass(item: DisplayRenderableItem): string {
+    if ('isNovelty' in item && this.usesNoveltyDefaults(item as DisplayContentItem)) {
+      return `rotation-${this.state?.configuration.defaultTopRotationAnimation ?? 'none'}`;
+    }
     return `rotation-${item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none'}`;
   }
 
@@ -436,8 +508,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     value: string;
     params: { duration: number; easing: string; enterTransform: string; leaveTransform: string };
   } {
-    const animation = item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none';
-    const duration = animation === 'none' ? 0 : (this.animationDurationMs(item) ?? 300);
+    const animation = this.contentRotationAnimation(item);
+    const duration = animation === 'none' ? 0 : (this.contentAnimationDurationMs(item) ?? 300);
     return {
       value: this.contentRenderKey(item),
       params: {
@@ -629,11 +701,41 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   private computeContentDurationSeconds(item: DisplayContentItem | null): number {
+    const defaultSeconds = this.state?.configuration.defaultTopDurationSeconds ?? 10;
     if (!item) {
-      return this.state?.configuration.defaultTopDurationSeconds ?? 10;
+      return defaultSeconds;
+    }
+    if (this.usesNoveltyDefaults(item)) {
+      return defaultSeconds;
     }
     const effective = item.effectiveDurationSeconds ?? item.durationSeconds;
-    return effective ?? this.state?.configuration.defaultTopDurationSeconds ?? 10;
+    return effective ?? defaultSeconds;
+  }
+
+  private usesNoveltyDefaults(item: DisplayContentItem): boolean {
+    return this.kioskRotation.noveltyBurstActive() && item.isNovelty === true;
+  }
+
+  private contentRotationAnimation(item: DisplayContentItem): string {
+    if (this.usesNoveltyDefaults(item)) {
+      return this.state?.configuration.defaultTopRotationAnimation ?? 'none';
+    }
+    return item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none';
+  }
+
+  private contentAnimationDurationMs(item: DisplayContentItem): number | null {
+    const animation = this.contentRotationAnimation(item);
+    if (animation === 'none') {
+      return 0;
+    }
+    if (this.usesNoveltyDefaults(item)) {
+      return this.state?.configuration.defaultTopAnimationDurationMilliseconds ?? 300;
+    }
+    const ms = item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds;
+    if (ms && ms > 0) {
+      return ms;
+    }
+    return this.state?.configuration.defaultTopAnimationDurationMilliseconds ?? 300;
   }
 
   private applyFullscreenPreference(requested: boolean): void {
@@ -685,6 +787,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const durationMs = this.computeContentDurationSeconds(this.currentContent) * 1000;
     if (durationMs <= 1000) return;
     this.preTransitionPollTimer = setTimeout(() => {
+      // #region agent log
+      fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'display-screen.component.ts:schedulePreTransitionPoll',message:'pre-transition poll fired',data:{currentContentId:this.currentContent?.id,durationMs},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       this.eventBranding.refresh()
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe();

@@ -1,5 +1,8 @@
 import { Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
-import { DisplayContentItem } from '../core/api/display.api';
+import { HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+
+import { DisplayApiService, DisplayContentItem } from '../core/api/display.api';
 import { CursorService } from './cursor.service';
 import { DisplayRotationService } from './display-rotation.service';
 import { RecurringCadenceService } from './recurring-cadence.service';
@@ -72,6 +75,8 @@ export class KioskRotationController {
   private readonly cursor = inject(CursorService);
   private readonly cadence = inject(RecurringCadenceService);
   private readonly scheduler = inject(RotationSchedulerService);
+  private readonly rotation = inject(DisplayRotationService);
+  private readonly displayApi = inject(DisplayApiService);
 
   /** Public read-only state -------------------------------------------- */
   readonly contentMode = signal<KioskContentMode>('loop');
@@ -82,6 +87,8 @@ export class KioskRotationController {
   readonly cadenceCounter = signal<number>(0);
   readonly isPaused = signal<boolean>(false);
   readonly fixedContentId = signal<string | null>(null);
+  /** True while draining server-backed novelty items (CHG-027). */
+  readonly noveltyBurstActive = signal<boolean>(false);
   readonly isQueueEmpty = computed(() => this._contentQueue().length === 0);
   readonly currentContent = computed<DisplayContentItem | null>(() => {
     const id = this.currentContentId();
@@ -124,6 +131,48 @@ export class KioskRotationController {
    * regular cadence is preserved across recurring insertions.
    */
   private _regularCursorId: string | null = null;
+  /** Novelty burst: regular cursor frozen until pending items drain (CHG-027). */
+  private _noveltyBurstActive = false;
+  private _resumeRegularCursorId: string | null = null;
+  private _noveltyClaimFailures = new Set<string>();
+  private _locallyShownNoveltyIds = new Set<string>();
+  private _advanceInProgress = false;
+
+  private _queueItemFingerprint(item: DisplayContentItem): string {
+    return `${item.id}:${item.displayOrder}:${item.isActive}:${item.isFixed ?? false}:${item.isNovelty ?? false}:${item.recurringEveryXIterations ?? ''}`;
+  }
+
+  /**
+   * Keep the in-flight content timer when a poll-only queue mutation does not
+   * affect the slide currently on screen (CHG-027 / CHG-019).
+   */
+  private _shouldPreserveContentTimer(
+    queue: readonly DisplayContentItem[],
+    mode: KioskContentMode,
+    previousQueueById: ReadonlyMap<string, string>,
+    rotationConfigChanged: boolean,
+    noveltyAdded: boolean,
+  ): boolean {
+    if (rotationConfigChanged || mode !== 'loop' || this.isPaused() || !this.scheduler.hasContentTimer()) {
+      return false;
+    }
+    const currentId = this.currentContentId();
+    if (currentId === null || previousQueueById.size === 0) {
+      return false;
+    }
+    const currentItem = queue.find((c) => c.id === currentId);
+    if (currentItem === undefined || !currentItem.isActive) {
+      return false;
+    }
+    if (noveltyAdded) {
+      return true;
+    }
+    const previousCurrent = previousQueueById.get(currentId);
+    if (previousCurrent === undefined) {
+      return false;
+    }
+    return previousCurrent === this._queueItemFingerprint(currentItem);
+  }
   /**
    * Debounce bookkeeping for the empty-queue event (FR-009). The
    * controller owns the timer state so the scheduler can stay focused on
@@ -138,8 +187,6 @@ export class KioskRotationController {
   /** Kiosk-side hook to POST rotation events (e.g. content_rotation_empty) */
   rotationEventSink: ((eventType: 'content_rotation_empty', payload: Record<string, unknown>) => void) | null =
     null;
-
-  constructor(private readonly rotation: DisplayRotationService) {}
 
   /**
    * Register a listener that fires whenever the controller advances the
@@ -172,6 +219,8 @@ export class KioskRotationController {
     this._effectiveDurationSeconds = inputs.effectiveDurationSeconds;
 
     let lastFingerprint = '';
+    let lastRotationConfigFp = '';
+    let lastQueueById = new Map<string, string>();
     runInInjectionContext(injector, () => {
       effect(() => {
         const queue = inputs.contentQueue();
@@ -182,8 +231,17 @@ export class KioskRotationController {
         const inlineCount = inputs.inlineAdCount();
         const videoEnd = inputs.videoEndDelaySeconds();
 
+        const rotationConfigFp = JSON.stringify({
+          mode,
+          ads: ads.map((a) => `${a.id}:${a.displayOrder}:${a.isActive}`),
+          fixedId,
+          adDuration,
+          inlineCount,
+          videoEnd,
+        });
+
         const fp = JSON.stringify({
-          queue: queue.map((c) => `${c.id}:${c.displayOrder}:${c.isActive}:${(c as { isFixed?: boolean }).isFixed ?? false}:${(c as { recurringEveryXIterations?: number | null }).recurringEveryXIterations ?? ''}`),
+          queue: queue.map((c) => this._queueItemFingerprint(c)),
           mode,
           ads: ads.map((a) => `${a.id}:${a.displayOrder}:${a.isActive}`),
           fixedId,
@@ -194,6 +252,7 @@ export class KioskRotationController {
 
         this.contentMode.set(mode);
         this._contentQueue.set(queue);
+        this._pruneNoveltyClaimFailures(queue);
         this._ads.set(ads);
         this._adDurationSeconds.set(adDuration);
         this._inlineAdCount.set(Math.max(1, inlineCount));
@@ -212,9 +271,31 @@ export class KioskRotationController {
           this.cadenceCounter.set(0);
         }
 
+        const queueById = new Map(queue.map((c) => [c.id, this._queueItemFingerprint(c)]));
+
         if (fp !== lastFingerprint) {
+          const pendingNovelties = this.rotation.pendingNovelties(queue, new Set()).map((i) => i.id);
+          const noveltyAdded = pendingNovelties.some((id) => !lastQueueById.has(id));
+          const rotationConfigChanged = rotationConfigFp !== lastRotationConfigFp;
+          const preserveContentTimer = this._shouldPreserveContentTimer(
+            queue,
+            mode,
+            lastQueueById,
+            rotationConfigChanged,
+            noveltyAdded,
+          );
+          // #region agent log
+          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',runId:'post-fix-delete',location:'kiosk-rotation.controller.ts:bindInputs',message:'fingerprint changed',data:{pendingNoveltyIds:pendingNovelties,currentContentId:this.currentContentId(),mode,hasContentTimer:this.scheduler.hasContentTimer(),rotationConfigChanged,preserveContentTimer,removedIds:[...lastQueueById.keys()].filter(id=>!queueById.has(id)),action:preserveContentTimer?'armNonContentOnly':'armAllTimers'},timestamp:Date.now(),hypothesisId:'A-delete'})}).catch(()=>{});
+          // #endregion
           lastFingerprint = fp;
-          this._armAllTimers();
+          lastRotationConfigFp = rotationConfigFp;
+          lastQueueById = queueById;
+          if (preserveContentTimer) {
+            this._armAdTimerOnly();
+            this._scheduleEmptyQueueCheck();
+          } else {
+            this._armAllTimers();
+          }
         }
       });
     });
@@ -383,6 +464,9 @@ export class KioskRotationController {
         // Wait for `(ended)` event; nothing to arm here.
       } else {
         const dur = this._effectiveDurationSeconds(current) * 1000;
+        // #region agent log
+        fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_armContentTimerOnly',message:'content timer armed',data:{contentId:current?.id,durationMs:dur,contentType:current?.contentType},timestamp:Date.now(),hypothesisId:'A-B'})}).catch(()=>{});
+        // #endregion
         this.scheduler.armContent(dur, () => this._advanceContent());
       }
     }
@@ -396,9 +480,57 @@ export class KioskRotationController {
 
   private _advanceContent(): void {
     const queue = this._contentQueue();
+    const pending = this.rotation.pendingNovelties(queue, this._noveltySkipIds());
+    const needsNovelty =
+      this.contentMode() === 'loop' &&
+      !this.isPaused() &&
+      (this._noveltyBurstActive || pending.length > 0);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_advanceContent',message:'advance triggered',data:{needsNovelty,pendingNoveltyIds:pending.map(i=>i.id),currentContentId:this.currentContentId(),burstActive:this._noveltyBurstActive},timestamp:Date.now(),hypothesisId:'D-E'})}).catch(()=>{});
+    // #endregion
+
+    if (needsNovelty) {
+      void this._advanceContentAsync();
+      return;
+    }
+
+    this._advanceContentRegular();
+  }
+
+  private async _advanceContentAsync(): Promise<void> {
+    if (this._advanceInProgress) {
+      return;
+    }
+    this._advanceInProgress = true;
+    try {
+      const queue = this._contentQueue();
+      if (queue.length === 0) {
+        this.currentContentId.set(null);
+        this._regularCursorId = null;
+        this._clearNoveltyBurst();
+        this._scheduleEmptyQueueCheck();
+        return;
+      }
+
+      const regularQueue = this.cadence.regularQueue(queue);
+      const handledNovelty = await this._tryAdvanceNovelty(queue, regularQueue);
+      if (handledNovelty) {
+        return;
+      }
+
+      this._advanceContentRegular();
+    } finally {
+      this._advanceInProgress = false;
+    }
+  }
+
+  private _advanceContentRegular(): void {
+    const queue = this._contentQueue();
     if (queue.length === 0) {
       this.currentContentId.set(null);
       this._regularCursorId = null;
+      this._clearNoveltyBurst();
       this._scheduleEmptyQueueCheck();
       return;
     }
@@ -444,6 +576,87 @@ export class KioskRotationController {
     this._regularCursorId = nextRegular?.id ?? null;
     this.currentContentId.set(nextRegular?.id ?? null);
 
+    this.onContentAdvanceListeners.forEach((fn) => fn());
+    this._armContentTimerOnly();
+  }
+
+  private async _tryAdvanceNovelty(
+    queue: DisplayContentItem[],
+    regularQueue: DisplayContentItem[],
+  ): Promise<boolean> {
+    let pending = this.rotation.pendingNovelties(queue, this._noveltySkipIds());
+
+    if (pending.length > 0) {
+      if (!this._noveltyBurstActive) {
+        this._resumeRegularCursorId = this.currentContentId() ?? this._regularCursorId;
+        this._noveltyBurstActive = true;
+        this.noveltyBurstActive.set(true);
+      }
+
+      while (pending.length > 0) {
+        const candidate = pending[0]!;
+        const claimed = await this._tryConsumeNovelty(candidate.id);
+        if (claimed) {
+          this._locallyShownNoveltyIds.add(candidate.id);
+          this.currentContentId.set(candidate.id);
+          // #region agent log
+          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_tryAdvanceNovelty',message:'novelty shown',data:{noveltyId:candidate.id,resumeCursorId:this._resumeRegularCursorId},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+          // #endregion
+          this._notifyContentAdvance();
+          return true;
+        }
+        this._noveltyClaimFailures.add(candidate.id);
+        pending = this.rotation.pendingNovelties(queue, this._noveltySkipIds());
+      }
+    }
+
+    if (this._noveltyBurstActive) {
+      this._clearNoveltyBurst();
+      const nextRegular = this.rotation.pickNext(regularQueue, this._resumeRegularCursorId);
+      this._regularCursorId = nextRegular?.id ?? null;
+      this.currentContentId.set(nextRegular?.id ?? null);
+      this._resumeRegularCursorId = null;
+      this._notifyContentAdvance();
+      return true;
+    }
+
+    return false;
+  }
+
+  private async _tryConsumeNovelty(contentId: string): Promise<boolean> {
+    try {
+      await firstValueFrom(this.displayApi.consumeNovelty(contentId));
+      return true;
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 409) {
+        return false;
+      }
+      return false;
+    }
+  }
+
+  private _noveltySkipIds(): Set<string> {
+    return new Set([...this._noveltyClaimFailures, ...this._locallyShownNoveltyIds]);
+  }
+
+  private _clearNoveltyBurst(): void {
+    this._noveltyBurstActive = false;
+    this.noveltyBurstActive.set(false);
+    this._locallyShownNoveltyIds.clear();
+  }
+
+  private _pruneNoveltyClaimFailures(queue: DisplayContentItem[]): void {
+    const byId = new Map(queue.map((item) => [item.id, item]));
+    for (const id of [...this._noveltyClaimFailures, ...this._locallyShownNoveltyIds]) {
+      const item = byId.get(id);
+      if (!item || item.isNovelty !== true) {
+        this._noveltyClaimFailures.delete(id);
+        this._locallyShownNoveltyIds.delete(id);
+      }
+    }
+  }
+
+  private _notifyContentAdvance(): void {
     this.onContentAdvanceListeners.forEach((fn) => fn());
     this._armContentTimerOnly();
   }

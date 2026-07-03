@@ -50,7 +50,37 @@ function unwrapErrorEnvelope(error: unknown): BackendErrorEnvelope | null {
   }
   const maybeHttpError = error as { readonly error?: unknown };
   const body = maybeHttpError.error ?? error;
-  return body && typeof body === 'object' ? (body as BackendErrorEnvelope) : null;
+  if (!body || typeof body !== 'object') {
+    return null;
+  }
+
+  const envelope = body as BackendErrorEnvelope & { readonly detail?: unknown };
+  if (typeof envelope.message === 'string' && envelope.message.trim()) {
+    return envelope;
+  }
+
+  const detail = envelope.detail;
+  if (typeof detail === 'string' && detail.trim()) {
+    return {
+      code: typeof envelope.code === 'string' ? envelope.code : 'validation_failed',
+      message: detail,
+      category: envelope.category,
+      correlationId: envelope.correlationId,
+    };
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0];
+    if (first && typeof first === 'object' && 'msg' in first && typeof first.msg === 'string') {
+      return {
+        code: 'validation_failed',
+        message: first.msg,
+        category: 'validation',
+      };
+    }
+  }
+
+  return envelope;
 }
 
 function sanitizeUserMessage(message: unknown): string {

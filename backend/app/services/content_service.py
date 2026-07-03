@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 
@@ -10,9 +10,15 @@ from app.domain.media import UnsupportedExtensionError, detect_media_type_from_e
 from app.repositories.content import ContentRepository
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.content import TopContentItem
+from app.repositories.models.media import MediaFileReference
 from app.services.api_key_service import ApiKeyService
 from app.services.display_order import assign_ordered_display_orders, next_display_order
 from app.services.media_storage_service import MediaStorageService
+from app.shared.errors.application_errors import MediaTooLargeError, UnsupportedMediaTypeError
+
+
+class NoveltyAlreadyConsumedError(Exception):
+    """Raised when a kiosk tries to consume a novelty that is no longer pending."""
 
 
 def _validate_fixed_recurring_exclusivity(is_fixed: bool | None, recurring_every_x_iterations: int | None) -> None:
@@ -39,6 +45,73 @@ def validate_uploaded_content(payload: ContentItemRequest) -> None:
     if payload.content_type is not None and payload.content_type not in {"photo", "video"}:
         raise ValueError("invalid_content_type")
     _validate_fixed_recurring_exclusivity(payload.is_fixed, payload.recurring_every_x_iterations)
+
+
+def _map_media_storage_error(exc: ValueError, media_type: str, settings) -> None:
+    message = str(exc).lower()
+    if "mb" in message or "too large" in message or "exceeds" in message:
+        max_bytes = settings.image_upload_max_bytes if media_type == "image" else settings.video_upload_max_bytes
+        raise MediaTooLargeError(max_bytes) from exc
+    if "unsupported" in message or "cannot be empty" in message:
+        raise UnsupportedMediaTypeError() from exc
+    raise exc
+
+
+def _resolve_admin_upload_content_kind(
+    session: Session,
+    upload: UploadFile,
+    requested: str | None,
+    organization_id: str,
+    user_id: str,
+    entity_id: str | None = None,
+) -> tuple[str, str]:
+    try:
+        detected = detect_media_type_from_extension(getattr(upload, "filename", None))
+    except UnsupportedExtensionError as exc:
+        raise UnsupportedMediaTypeError() from exc
+
+    if requested is None or requested != detected:
+        if requested is not None and requested != detected:
+            DisplayEventRepository(session).record(
+                create_display_event(
+                    organization_id=organization_id,
+                    event_type="content_type_autodetected",
+                    severity="info",
+                    message=f"Content type autodetected from extension for {upload.filename}",
+                    entity_type="top_content",
+                    entity_id=entity_id,
+                    created_by_user_id=user_id,
+                    metadata={
+                        "filename": upload.filename,
+                        "extension": (upload.filename or "").rsplit(".", 1)[-1].lower()
+                        if upload.filename and "." in upload.filename
+                        else "",
+                        "detectedContentType": detected,
+                        "requestedContentType": requested,
+                        "source": "admin",
+                    },
+                )
+            )
+        content_type_value = detected
+    else:
+        content_type_value = requested
+
+    media_type = "image" if content_type_value == "photo" else "video"
+    return content_type_value, media_type
+
+
+def _save_admin_upload(
+    session: Session,
+    organization_id: str,
+    user_id: str,
+    upload: UploadFile,
+    media_type: str,
+) -> MediaFileReference:
+    settings = get_settings()
+    try:
+        return MediaStorageService(session).save_upload(organization_id, user_id, upload, media_type)
+    except ValueError as exc:
+        _map_media_storage_error(exc, media_type, settings)
 
 
 class ContentService:
@@ -111,41 +184,10 @@ class ContentService:
         payload: ContentItemRequest
     ) -> TopContentItem:
         validate_uploaded_content(payload)
-        # FR-025 / FR-027 / FR-028: autodetect content_type from the filename extension
-        # when the explicit field is missing or contradicts the extension. The extension
-        # wins (TD-003).
-        detected = detect_media_type_from_extension(getattr(upload, "filename", None))
-        requested = payload.content_type
-        if requested is None or (requested != detected):
-            if requested is not None and requested != detected:
-                # Audit override (TD-003).
-                DisplayEventRepository(self.session).record(
-                    create_display_event(
-                        organization_id=organization_id,
-                        event_type="content_type_autodetected",
-                        severity="info",
-                        message=(
-                            f"Content type autodetected from extension for {upload.filename}"
-                        ),
-                        entity_type="top_content",
-                        entity_id=None,
-                        created_by_user_id=user_id,
-                        metadata={
-                            "filename": upload.filename,
-                            "extension": (upload.filename or "").rsplit(".", 1)[-1].lower()
-                            if upload.filename and "." in upload.filename
-                            else "",
-                            "detectedContentType": detected,
-                            "requestedContentType": requested,
-                            "source": "admin",
-                        },
-                    )
-                )
-            content_type_value = detected
-        else:
-            content_type_value = requested
-        media_type = "image" if content_type_value == "photo" else "video"
-        media = MediaStorageService(self.session).save_upload(organization_id, user_id, upload, media_type)
+        content_type_value, media_type = _resolve_admin_upload_content_kind(
+            self.session, upload, payload.content_type, organization_id, user_id
+        )
+        media = _save_admin_upload(self.session, organization_id, user_id, upload, media_type)
         try:
             display_order = (
                 payload.display_order
@@ -179,6 +221,63 @@ class ContentService:
             self.session.rollback()
             MediaStorageService(self.session).delete_file(media)
             raise
+
+    def replace_uploaded(
+        self,
+        organization_id: str,
+        user_id: str,
+        content_id: str,
+        upload: UploadFile,
+        payload: ContentItemRequest,
+    ) -> TopContentItem:
+        item = self.repository.get(organization_id, content_id)
+        if item is None:
+            raise LookupError("Content item not found.")
+        validate_uploaded_content(payload)
+        content_type_value, media_type = _resolve_admin_upload_content_kind(
+            self.session,
+            upload,
+            payload.content_type,
+            organization_id,
+            user_id,
+            entity_id=content_id,
+        )
+        media = _save_admin_upload(self.session, organization_id, user_id, upload, media_type)
+        previous_media_id = item.media_file_id
+        try:
+            item.title = payload.title
+            item.content_type = content_type_value
+            item.source_reference = media.public_reference
+            item.media_file_id = media.id
+            item.approved_domain_id = None
+            item.is_active = payload.is_active
+            if payload.display_order is not None:
+                item.display_order = payload.display_order
+            item.duration_seconds = payload.duration_seconds
+            item.rotation_animation = payload.rotation_animation
+            item.animation_duration_milliseconds = payload.animation_duration_milliseconds
+            item.available_from = payload.available_from
+            item.available_until = payload.available_until
+            item.is_fixed = bool(payload.is_fixed)
+            item.recurring_every_x_iterations = payload.recurring_every_x_iterations
+            item.updated_by_user_id = user_id
+            self._record_change(
+                organization_id,
+                user_id,
+                "media_uploaded",
+                "Main content media replaced",
+                item.id,
+            )
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            MediaStorageService(self.session).delete_file(media)
+            raise
+
+        if previous_media_id and previous_media_id != media.id:
+            MediaStorageService(self.session).delete_if_unreferenced(previous_media_id, organization_id)
+            self.session.commit()
+        return item
 
     def append_via_public_api(
         self,
@@ -279,6 +378,7 @@ class ContentService:
                 # FR-014 / FR-016 / TD-004: public API never sets these flags.
                 is_fixed=False,
                 recurring_every_x_iterations=None,
+                is_novelty=True,
                 created_by_user_id=None,
                 updated_by_user_id=None,
             )
@@ -318,6 +418,30 @@ class ContentService:
             pass
 
         return item
+
+    def consume_novelty(self, organization_id: str, content_id: str) -> None:
+        """Atomically clear ``is_novelty`` for a pending novelty item.
+
+        First kiosk to call this while ``is_novelty`` is true wins. Subsequent
+        callers receive ``NoveltyAlreadyConsumedError`` (409). Missing items
+        raise ``LookupError`` (404).
+        """
+        result = self.session.execute(
+            update(TopContentItem)
+            .where(
+                TopContentItem.id == content_id,
+                TopContentItem.organization_id == organization_id,
+                TopContentItem.is_novelty.is_(True),
+            )
+            .values(is_novelty=False)
+        )
+        if result.rowcount == 1:
+            self.session.commit()
+            return
+        item = self.repository.get(organization_id, content_id)
+        if item is None:
+            raise LookupError("Content item not found.")
+        raise NoveltyAlreadyConsumedError()
 
     def delete(self, organization_id: str, user_id: str, content_id: str) -> None:
         item = self.repository.get(organization_id, content_id)

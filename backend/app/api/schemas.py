@@ -173,6 +173,7 @@ class ContentItemSchema(CamelModel):
     available_from: datetime | None = Field(default=None, alias="availableFrom")
     available_until: datetime | None = Field(default=None, alias="availableUntil")
     is_fixed: bool = Field(default=False, alias="isFixed")
+    is_novelty: bool = Field(default=False, alias="isNovelty")
     recurring_every_x_iterations: int | None = Field(default=None, alias="recurringEveryXIterations", ge=1)
 
 

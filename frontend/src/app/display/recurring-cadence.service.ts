@@ -30,7 +30,7 @@ export class RecurringCadenceService {
    */
   regularQueue(items: readonly DisplayContentItem[]): DisplayContentItem[] {
     return [...items]
-      .filter((item) => !item.recurringEveryXIterations)
+      .filter((item) => !item.recurringEveryXIterations && item.isNovelty !== true)
       .sort((a, b) => a.displayOrder - b.displayOrder);
   }
 

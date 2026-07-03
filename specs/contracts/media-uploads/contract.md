@@ -31,12 +31,14 @@ This active contract is the current source of truth for `MEDIA.UPLOADS`. Histori
 - Authorized users can upload images and videos within configured size limits.
 - Content type and extension validation reject unsupported or unsafe files before persistence.
 - Uploaded files are stored under MEDIA_STORAGE_PATH and referenced from the database through media_file_references.
+- The development docker-compose environment sets MEDIA_STORAGE_PATH to `/tmp/kiosk/media` so uploaded media is temporary and container-local.
 - Image/video type detection supports downstream content and ad management defaults.
 - User-facing errors do not leak storage paths or secrets.
 
 ## Public interfaces
 
-- `POST /media`
+- `POST /content/upload` — create a top-content item with an uploaded image or video.
+- `PUT /content/{id}/upload` — replace the media file on an existing top-content item.
 - `GET /media/{id}`
 - `static media URL serving`
 

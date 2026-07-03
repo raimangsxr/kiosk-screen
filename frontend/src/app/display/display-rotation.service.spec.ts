@@ -1,25 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { DisplayContentItem } from '../core/api/display.api';
 import { DisplayRotationService } from './display-rotation.service';
-
-function makeItem(
-  id: string,
-  displayOrder: number,
-  effectiveDurationSeconds: number = 5,
-): DisplayContentItem {
-  return {
-    id,
-    title: id,
-    contentType: 'photo',
-    sourceReference: `${id}.jpg`,
-    isActive: true,
-    displayOrder,
-    durationSeconds: effectiveDurationSeconds,
-    effectiveDurationSeconds,
-    effectiveRotationAnimation: 'none',
-  };
-}
 
 describe('DisplayRotationService (legacy helpers)', () => {
   let service: DisplayRotationService;
@@ -77,115 +58,48 @@ describe('DisplayRotationService (legacy helpers)', () => {
   });
 });
 
-describe('DisplayRotationService (novelty queue state machine)', () => {
+describe('DisplayRotationService (pending novelties)', () => {
   let service: DisplayRotationService;
 
   beforeEach(() => {
     service = TestBed.inject(DisplayRotationService);
   });
 
-  it('initializes with the first item as current', () => {
-    const items = [makeItem('A', 1), makeItem('B', 2), makeItem('C', 3)];
-    service.initialize(items);
-    expect(service.getCurrentItemId()).toBe('A');
-    expect(service.pickNext()?.id).toBe('B');
-    expect(service.pickNext()?.id).toBe('C');
-    expect(service.pickNext()?.id).toBe('A'); // wraps
-  });
-
-  it('picks the previous item and wraps to the end', () => {
-    const items = [makeItem('A', 1), makeItem('B', 2), makeItem('C', 3)];
-    service.initialize(items);
-    expect(service.pickPrevious()?.id).toBe('C');
-    expect(service.pickPrevious()?.id).toBe('B');
-    expect(service.pickNext()?.id).toBe('C');
-  });
-
-  it('drains the novelty queue before returning to the base rotation', () => {
-    const initial = [makeItem('A', 1), makeItem('B', 2)];
-    service.initialize(initial);
-    // Show A, then apply a poll that brings in C, D, E while A is current.
-    const afterUpload = [
-      ...initial,
-      makeItem('C', 3),
-      makeItem('D', 4),
-      makeItem('E', 5),
-    ];
-    service.applyPollState(afterUpload);
-    expect(service.getNoveltyQueueLength()).toBe(3);
-    expect(service.pickNext()?.id).toBe('C');
-    expect(service.pickNext()?.id).toBe('D');
-    expect(service.pickNext()?.id).toBe('E');
-    // Queue drained → resume base rotation from B (the item after A).
-    expect(service.pickNext()?.id).toBe('B');
-  });
-
-  it('appends new items to an existing novelty queue', () => {
-    const initial = [makeItem('A', 1), makeItem('B', 2)];
-    service.initialize(initial);
-    // First wave: C, D
-    service.applyPollState([...initial, makeItem('C', 3), makeItem('D', 4)]);
-    expect(service.getNoveltyQueueLength()).toBe(2);
-    expect(service.pickNext()?.id).toBe('C');
-    // Second wave arrives while draining.
-    service.applyPollState([
-      ...initial,
-      makeItem('C', 3),
-      makeItem('D', 4),
-      makeItem('E', 5),
-      makeItem('F', 6),
+  it('returns pending novelties sorted by displayOrder', () => {
+    const pending = service.pendingNovelties([
+      { id: 'c', displayOrder: 3, isNovelty: true } as never,
+      { id: 'a', displayOrder: 1, isNovelty: true } as never,
+      { id: 'b', displayOrder: 2, isNovelty: false } as never,
     ]);
-    expect(service.getNoveltyQueueLength()).toBe(3);
-    expect(service.pickNext()?.id).toBe('D');
-    expect(service.pickNext()?.id).toBe('E');
-    expect(service.pickNext()?.id).toBe('F');
+    expect(pending.map((item) => item.id)).toEqual(['a', 'c']);
   });
 
-  it('removes deleted items from the novelty queue', () => {
-    const initial = [makeItem('A', 1), makeItem('B', 2)];
-    service.initialize(initial);
-    service.applyPollState([...initial, makeItem('C', 3), makeItem('D', 4)]);
-    expect(service.getNoveltyQueueLength()).toBe(2);
-    // C is removed before it is shown.
-    service.applyPollState([...initial, makeItem('D', 4)]);
-    expect(service.getNoveltyQueueLength()).toBe(1);
-    expect(service.pickNext()?.id).toBe('D');
+  it('skips ids in the failure set', () => {
+    const pending = service.pendingNovelties(
+      [
+        { id: 'a', displayOrder: 1, isNovelty: true } as never,
+        { id: 'b', displayOrder: 2, isNovelty: true } as never,
+      ],
+      new Set(['a']),
+    );
+    expect(pending.map((item) => item.id)).toEqual(['b']);
   });
 
-  it('removes the current item if the server drops it', () => {
-    const initial = [makeItem('A', 1), makeItem('B', 2), makeItem('C', 3)];
-    service.initialize(initial);
-    service.pickNext(); // → B
-    service.pickNext(); // → C
-    expect(service.getCurrentItemId()).toBe('C');
-    // The server now returns a state without C.
-    service.applyPollState([makeItem('A', 1), makeItem('B', 2)]);
-    expect(service.getCurrentItemId()).toBeNull();
-    // Next pick advances from the missing position.
-    expect(service.pickNext()?.id).toBe('A');
+  it('pickNext advances circularly in a queue', () => {
+    const queue = [
+      { id: 'a', displayOrder: 1 } as never,
+      { id: 'b', displayOrder: 2 } as never,
+      { id: 'c', displayOrder: 3 } as never,
+    ];
+    expect(service.pickNext(queue, 'a')?.id).toBe('b');
+    expect(service.pickNext(queue, 'c')?.id).toBe('a');
   });
 
-  it('handles a base rotation reorder by id (current item preserved)', () => {
-    const initial = [makeItem('A', 1), makeItem('B', 2), makeItem('C', 3)];
-    service.initialize(initial);
-    service.pickNext(); // → B
-    expect(service.getCurrentItemId()).toBe('B');
-    // Reorder: B is now at displayOrder 1.
-    const reordered = [makeItem('B', 1), makeItem('A', 2), makeItem('C', 3)];
-    service.applyPollState(reordered);
-    // After the reorder, the next pick continues from the current item (B),
-    // wrapping to the new first item.
-    expect(service.pickNext()?.id).toBe('A');
-  });
-
-  it('resets state on reset()', () => {
-    const items = [makeItem('A', 1), makeItem('B', 2)];
-    service.initialize(items);
-    service.applyPollState([...items, makeItem('C', 3)]);
-    expect(service.getNoveltyQueueLength()).toBe(1);
-    service.reset();
-    expect(service.getCurrentItemId()).toBeNull();
-    expect(service.getNoveltyQueueLength()).toBe(0);
-    expect(service.getFullState()).toEqual([]);
+  it('pickPrevious wraps to the end', () => {
+    const queue = [
+      { id: 'a', displayOrder: 1 } as never,
+      { id: 'b', displayOrder: 2 } as never,
+    ];
+    expect(service.pickPrevious(queue, 'a')?.id).toBe('b');
   });
 });

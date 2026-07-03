@@ -9,7 +9,7 @@ x-backend-env: &backend-env
   BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
   BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin}
   BOOTSTRAP_ADMIN_DISPLAY_NAME: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-Administrator}
-  MEDIA_STORAGE_PATH: /var/lib/kiosk/media
+  MEDIA_STORAGE_PATH: /tmp/kiosk/media
   PUBLIC_API_CORS_ORIGINS: ${PUBLIC_API_CORS_ORIGINS:-}
 
 services:
@@ -52,8 +52,6 @@ services:
     environment: *backend-env
     ports:
       - "8000:8000"
-    volumes:
-      - kiosk-media:/var/lib/kiosk/media
 
   frontend:
     build:
@@ -74,5 +72,4 @@ services:
 
 volumes:
   postgres-data:
-  kiosk-media:
   frontend_node_modules:

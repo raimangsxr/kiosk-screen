@@ -19,6 +19,7 @@ related_changes:
   - CHG-009
   - CHG-003
   - CHG-007
+  - CHG-027
 related_adrs:
   []
 ---
@@ -36,11 +37,18 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - Ads support upload-backed images, advertiser labels, ordering, and active state.
 - Admin lists show thumbnails or visual identification where media is present.
 - Fixed-content selection surfaces previews for media-backed fixed content so operators can distinguish similarly named items before pinning one on screen.
+- Admin content uploads return HTTP 415 for unsupported media types and HTTP 413 for oversize files, using the same typed upload error envelope as the public API.
+- Replacing media on an existing content item uses `PUT /content/{id}/upload` and deletes the previous file when it is no longer referenced.
 - Show on screen now issues a jump_to navigation command when allowed.
+- Admin content list exposes `isNovelty` on each item (pending public-upload novelty, cleared after kiosk consume).
+- Items with `isNovelty=true` are visually highlighted in the list.
+- A client-side **Solo novedades** filter shows only pending novelties (`isNovelty=true`); drag-and-drop reorder is disabled while the filter is active.
 
 ## Public interfaces
 
 - `GET/POST/PUT/DELETE /content`
+- `POST /content/upload`
+- `PUT /content/{id}/upload`
 - `POST /content/reorder`
 - `GET/POST/PUT/DELETE /ads`
 - `POST /ads/reorder`
@@ -71,3 +79,4 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - CHG-009
 - CHG-003
 - CHG-007
+- CHG-027

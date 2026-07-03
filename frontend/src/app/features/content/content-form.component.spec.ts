@@ -69,6 +69,60 @@ describe('ContentListComponent (Material)', () => {
     expect(text).toContain('Content unavailable');
     expect(text).not.toContain('/var/log/');
   });
+
+  it('highlights pending novelty items with chip and row class', () => {
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
+        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
+      ])
+    );
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Novedad');
+    expect(text).toContain('Fresh upload');
+    expect(text).toContain('Regular');
+
+    const table = fixture.nativeElement.querySelector('.content-list__table');
+    const noveltyChips = Array.from(
+      table.querySelectorAll('.status-chip__label') as NodeListOf<Element>
+    ).filter((el) => el.textContent?.trim() === 'Novedad');
+    expect(noveltyChips.length).toBe(1);
+
+    const noveltyRow = fixture.nativeElement.querySelector('.content-list__row--novelty');
+    expect(noveltyRow).not.toBeNull();
+    expect(noveltyRow?.textContent).toContain('Fresh upload');
+  });
+
+  it('filters to pending novelties only and disables reorder hint', () => {
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
+        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
+      ])
+    );
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.detectChanges();
+
+    const toggle = fixture.nativeElement.querySelector('[data-testid="content-novelty-filter"] button') as HTMLButtonElement;
+    toggle.click();
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('tr.content-list__row');
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.textContent).toContain('Fresh upload');
+
+    const dropList = fixture.nativeElement.querySelector('.content-list__drop');
+    expect(dropList.classList.contains('cdk-drop-list-disabled')).toBeTrue();
+    expect(fixture.nativeElement.querySelector('[data-testid="content-novelty-filter-hint"]')).not.toBeNull();
+
+    toggle.click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('tr.content-list__row').length).toBe(2);
+    expect(fixture.nativeElement.querySelector('[data-testid="content-novelty-filter-hint"]')).toBeNull();
+  });
 });
 
 describe('ContentFormComponent (Reactive Forms + Material)', () => {

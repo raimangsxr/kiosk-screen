@@ -8,10 +8,12 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 
 import { ContentFacade } from './content.facade';
 import { ContentItem } from '../../core/api/content.api';
+import { injectExtendedColors } from '../../core/theme/extended-colors';
 import { RotationAnimation } from '../../shared/media-upload.models';
 import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
@@ -21,6 +23,9 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
   selector: 'app-content-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[style.--status-warning-container]': 'colors.warning.container'
+  },
   imports: [
     CommonModule,
     RouterLink,
@@ -31,6 +36,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
     MatCheckboxModule,
     MatChipsModule,
     MatSnackBarModule,
+    MatSlideToggleModule,
     CdkDropList,
     CdkDrag,
     DataListComponent,
@@ -43,15 +49,23 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       [loading]="facade.loading()"
       [error]="facade.error()"
       errorTitle="Content unavailable"
-      [empty]="facade.empty()"
+      [empty]="listEmpty()"
+      [emptyTitle]="emptyTitle()"
+      [emptyMessage]="emptyMessage()"
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
-      emptyTitle="No content yet"
-      emptyMessage="Add photos or videos for the top region."
       emptyActionLabel="Add content"
       emptyActionRoute="/admin/content/new"
       emptyIcon="photo_library"
     >
+      <mat-slide-toggle
+        dataListActions
+        [checked]="noveltyFilterOnly()"
+        (change)="noveltyFilterOnly.set($event.checked)"
+        data-testid="content-novelty-filter"
+      >
+        Solo novedades
+      </mat-slide-toggle>
       @if (selection().size > 0) {
         <button
           dataListActions
@@ -97,10 +111,11 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         <div
           cdkDropList
           class="content-list__drop"
+          [cdkDropListDisabled]="noveltyFilterOnly()"
           (cdkDropListDropped)="onDrop($event)"
           aria-label="Drag to reorder content items"
         >
-          <table mat-table [dataSource]="facade.items()" [trackBy]="trackById" aria-label="Top content items" class="app-table content-list__table">
+          <table mat-table [dataSource]="visibleItems()" [trackBy]="trackById" aria-label="Top content items" class="app-table content-list__table">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef class="content-list__select-cell">
                 <mat-checkbox
@@ -125,13 +140,24 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               <th mat-header-cell *matHeaderCellDef class="content-list__thumb-cell" scope="col">Preview</th>
               <td mat-cell *matCellDef="let item" class="content-list__thumb-cell">
                 @if (item.mediaFile?.mediaUrl) {
-                  <img
-                    class="content-list__thumb"
-                    [src]="item.mediaFile?.mediaUrl ?? ''"
-                    alt=""
-                    loading="lazy"
-                    data-testid="content-thumbnail"
-                  />
+                  @if (item.contentType === 'video') {
+                    <video
+                      class="content-list__thumb"
+                      [src]="item.mediaFile?.mediaUrl ?? ''"
+                      preload="metadata"
+                      muted
+                      aria-hidden="true"
+                      data-testid="content-thumbnail"
+                    ></video>
+                  } @else {
+                    <img
+                      class="content-list__thumb"
+                      [src]="item.mediaFile?.mediaUrl ?? ''"
+                      alt=""
+                      loading="lazy"
+                      data-testid="content-thumbnail"
+                    />
+                  }
                 } @else {
                   <mat-icon class="content-list__thumb-placeholder" aria-hidden="true">
                     {{ item.contentType === 'video' ? 'videocam' : 'photo' }}
@@ -178,6 +204,9 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                       kind="warning"
                       [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
                     />
+                  }
+                  @if (item.isNovelty) {
+                    <app-status-chip label="Novedad" kind="warning" icon="new_releases" />
                   }
                 </div>
               </td>
@@ -238,9 +267,15 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               cdkDrag
               [cdkDragData]="row"
               class="content-list__row"
+              [class.content-list__row--novelty]="row.isNovelty"
             ></tr>
           </table>
         </div>
+        @if (noveltyFilterOnly()) {
+          <p class="content-list__filter-hint" data-testid="content-novelty-filter-hint">
+            Desactiva "Solo novedades" para reordenar.
+          </p>
+        }
         @if (selection().size > 0) {
           <p class="content-list__selection-hint" aria-live="polite">
             {{ selection().size }} item(s) selected. Drag any selected row to move the selection as a block.
@@ -249,15 +284,29 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       </ng-template>
 
       <ng-template #dataListCards>
-        @for (item of facade.items(); track item.id) {
-          <mat-card appearance="outlined" class="content-list__card-item">
+        @for (item of visibleItems(); track item.id) {
+          <mat-card
+            appearance="outlined"
+            class="content-list__card-item"
+            [class.content-list__card-item--novelty]="item.isNovelty"
+          >
             @if (item.mediaFile?.mediaUrl) {
-              <img
-                class="content-list__card-thumb"
-                [src]="item.mediaFile?.mediaUrl ?? ''"
-                alt=""
-                loading="lazy"
-              />
+              @if (item.contentType === 'video') {
+                <video
+                  class="content-list__card-thumb"
+                  [src]="item.mediaFile?.mediaUrl ?? ''"
+                  preload="metadata"
+                  muted
+                  aria-hidden="true"
+                ></video>
+              } @else {
+                <img
+                  class="content-list__card-thumb"
+                  [src]="item.mediaFile?.mediaUrl ?? ''"
+                  alt=""
+                  loading="lazy"
+                />
+              }
             }
             <mat-card-content>
               <div class="content-list__card-header">
@@ -272,7 +321,12 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 <span> · {{ mediaLabel(item) }}</span>
                 <span> · Order {{ item.displayOrder }}</span>
               </p>
-              <p class="content-list__card-rotation">{{ rotationSummary(item) }}</p>
+              <p class="content-list__card-rotation">
+                {{ rotationSummary(item) }}
+                @if (item.isNovelty) {
+                  <app-status-chip label="Novedad" kind="warning" icon="new_releases" />
+                }
+              </p>
             </mat-card-content>
             <mat-card-actions class="app-card-actions content-list__card-actions">
               <button
@@ -358,6 +412,9 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       .content-list__row {
         cursor: grab;
       }
+      .content-list__row--novelty {
+        background: color-mix(in srgb, var(--status-warning-container) 35%, transparent);
+      }
       .content-list__row.cdk-drag-preview {
         background: var(--mat-sys-surface-container);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
@@ -371,9 +428,19 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
       }
+      .content-list__filter-hint {
+        margin: 8px 4px 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
       .content-list__card-item {
         display: block;
         background: var(--mat-sys-surface);
+      }
+      .content-list__card-item--novelty {
+        border-color: var(--status-warning-container);
+        background: color-mix(in srgb, var(--status-warning-container) 20%, var(--mat-sys-surface));
       }
       .content-list__card-thumb {
         width: 100%;
@@ -407,6 +474,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
       }
       .content-list__card-actions {
         padding: 0 16px 12px;
@@ -415,6 +486,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
   ]
 })
 export class ContentListComponent implements OnInit {
+  protected readonly colors = injectExtendedColors();
   protected readonly facade = inject(ContentFacade);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(ConfirmDialogService);
@@ -441,7 +513,33 @@ export class ContentListComponent implements OnInit {
   ] as const;
 
   protected readonly selection = signal<ReadonlySet<string>>(new Set());
-  private readonly rows = computed(() => this.facade.items());
+  protected readonly noveltyFilterOnly = signal(false);
+  protected readonly visibleItems = computed(() => {
+    const items = this.facade.items();
+    return this.noveltyFilterOnly() ? items.filter((item) => item.isNovelty === true) : items;
+  });
+  protected readonly listEmpty = computed(() => {
+    if (this.facade.loading() || this.facade.error()) {
+      return false;
+    }
+    if (this.facade.items().length === 0) {
+      return true;
+    }
+    return this.noveltyFilterOnly() && this.visibleItems().length === 0;
+  });
+  protected readonly emptyTitle = computed(() => {
+    if (this.noveltyFilterOnly() && this.facade.items().length > 0) {
+      return 'No hay novedades pendientes';
+    }
+    return 'No content yet';
+  });
+  protected readonly emptyMessage = computed(() => {
+    if (this.noveltyFilterOnly() && this.facade.items().length > 0) {
+      return 'Los uploads públicos aparecerán aquí hasta que el kiosk los muestre.';
+    }
+    return 'Add photos or videos for the top region.';
+  });
+  private readonly rows = computed(() => this.visibleItems());
   protected readonly allChecked = computed(() => {
     const items = this.rows();
     if (items.length === 0) return false;
