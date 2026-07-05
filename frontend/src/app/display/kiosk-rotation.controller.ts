@@ -273,6 +273,13 @@ export class KioskRotationController {
 
         const queueById = new Map(queue.map((c) => [c.id, this._queueItemFingerprint(c)]));
 
+        // #region agent log
+        const recurringSnapshot = queue.filter((c) => c.recurringEveryXIterations != null).map((c) => ({ id: c.id, n: c.recurringEveryXIterations }));
+        if (fp !== lastFingerprint && recurringSnapshot.length > 0) {
+          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'D',location:'kiosk-rotation.controller.ts:bindInputs',message:'queue fingerprint changed with recurring items',data:{recurringSnapshot,cadenceCounter:this.cadenceCounter(),currentContentId:this.currentContentId(),smallestCadence:this.cadence.smallestRecurringCadence(queue)},timestamp:Date.now()})}).catch(()=>{});
+        }
+        // #endregion
+
         if (fp !== lastFingerprint) {
           const pendingNovelties = this.rotation.pendingNovelties(queue, new Set()).map((i) => i.id);
           const noveltyAdded = pendingNovelties.some((id) => !lastQueueById.has(id));

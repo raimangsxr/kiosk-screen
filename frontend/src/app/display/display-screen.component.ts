@@ -611,8 +611,14 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private applyState(state: DisplayState, options: { resetRotation: boolean }): void {
     const previousContentMode = this.state?.remoteControl?.contentMode;
     const previousDisplayAvailable = this.displayAvailable;
+    const prevRecurring = (this.state?.topContent ?? []).map((c) => ({ id: c.id, n: c.recurringEveryXIterations ?? null }));
     this.state = state;
     this.stateVersion.update((v) => v + 1);
+    // #region agent log
+    const nextRecurring = state.topContent.map((c) => ({ id: c.id, n: c.recurringEveryXIterations ?? null }));
+    const recurringChanged = JSON.stringify(prevRecurring) !== JSON.stringify(nextRecurring);
+    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'B',location:'display-screen.component.ts:applyState',message:'display state applied',data:{resetRotation:options.resetRotation,recurringChanged,prevRecurring,nextRecurring,stateVersion:this.stateVersion(),cadenceCounter:this.kioskRotation.cadenceCounter()},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
 
     const newContentMode = state.remoteControl?.contentMode ?? 'loop';
@@ -853,6 +859,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     if (this.state === null) {
       return;
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'A',location:'display-screen.component.ts:pollNow',message:'immediate poll triggered',data:{source:'displaySync'},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();

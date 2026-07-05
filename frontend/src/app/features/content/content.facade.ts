@@ -3,6 +3,7 @@ import { catchError, concatMap, from, of, tap, throwError, toArray } from 'rxjs'
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { ContentApiService, ContentItem, ContentItemRequest } from '../../core/api/content.api';
+import { DisplayControlSyncService } from '../../core/display-control-sync.service';
 import { RemoteControlFacade } from '../remote-control/remote-control.facade';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
@@ -10,6 +11,7 @@ import type { ApplicationErrorContract } from '../../shared/contracts/admin-cont
 export class ContentFacade {
   private readonly api = inject(ContentApiService);
   private readonly remoteControl = inject(RemoteControlFacade);
+  private readonly displaySync = inject(DisplayControlSyncService);
   private readonly itemsState = signal<readonly ContentItem[]>([]);
   private readonly currentState = signal<ContentItem | null>(null);
   private readonly loadingState = signal(false);
@@ -61,8 +63,11 @@ export class ContentFacade {
     this.errorState.set(null);
     const request = id ? this.api.update(id, payload) : this.api.create(payload);
     return request.pipe(
-      tap(() => {
+      tap((saved) => {
         this.savingState.set(false);
+        // #region agent log
+        fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'A',location:'content.facade.ts:save',message:'content saved',data:{id:saved?.id??id??null,recurringEveryXIterations:payload.recurringEveryXIterations??null,isFixed:payload.isFixed??false,notifiesDisplaySync:false},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
