@@ -1345,6 +1345,109 @@ describe('DisplayScreenComponent', () => {
       expect(internals.onContentAdvanceListeners.length).toBe(0);
     });
   });
+
+  describe('CHG-028 top content blur-fill', () => {
+    it('SC-001: renders photo foreground with object-fit contain and a blurred backdrop', () => {
+      const fixture = createComponent(readyState);
+      const foreground = fixture.nativeElement.querySelector(
+        '.display-content-media[data-testid="display-content"]',
+      ) as HTMLElement | null;
+      const backdrop = fixture.nativeElement.querySelector(
+        '.top-region__media-backdrop[data-testid="display-content-backdrop"]',
+      ) as HTMLElement | null;
+      const frame = fixture.nativeElement.querySelector('.top-region__media-frame') as HTMLElement | null;
+
+      expect(frame).not.toBeNull();
+      expect(foreground).not.toBeNull();
+      expect(backdrop).not.toBeNull();
+      expect(globalThis.getComputedStyle(foreground!).objectFit).toBe('contain');
+      expect(globalThis.getComputedStyle(backdrop!).objectFit).toBe('cover');
+      expect(backdrop!.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('SC-001: renders video foreground with object-fit contain and a backdrop video layer', () => {
+      const fixture = createComponent({
+        ...readyState,
+        topContent: [{
+          ...readyState.topContent[0],
+          contentType: 'video',
+          sourceReference: 'https://example.com/welcome.mp4',
+        }],
+      });
+      const foreground = fixture.nativeElement.querySelector(
+        'video.display-content-media[data-testid="display-content"]',
+      ) as HTMLVideoElement | null;
+      const backdrop = fixture.nativeElement.querySelector(
+        'video.top-region__media-backdrop[data-testid="display-content-backdrop"]',
+      ) as HTMLVideoElement | null;
+
+      expect(foreground).not.toBeNull();
+      expect(backdrop).not.toBeNull();
+      expect(globalThis.getComputedStyle(foreground!).objectFit).toBe('contain');
+    });
+
+    it('SC-002: iframe mode has no media frame or backdrop', () => {
+      const fixture = createComponent({
+        ...readyState,
+        remoteControl: {
+          contentMode: 'iframe',
+          selectedIframeId: 'iframe-1',
+          adsVisible: true,
+          updatedAt: '2026-07-05T00:00:00Z',
+        },
+        selectedIframe: {
+          id: 'iframe-1',
+          organizationId: 'org-1',
+          url: 'https://example.org/live',
+          createdAt: '2026-07-05T00:00:00Z',
+          updatedAt: '2026-07-05T00:00:00Z',
+        },
+      });
+      expect(fixture.nativeElement.querySelector('.top-region__media-frame')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="display-content-backdrop"]')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="display-iframe"]')).not.toBeNull();
+    });
+
+    it('SC-002: fallback state has no media frame or backdrop', () => {
+      const fixture = createComponent({ ...readyState, topContent: [], ads: [], fallbackActive: true });
+      expect(fixture.nativeElement.querySelector('.top-region__media-frame')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[data-testid="display-content-backdrop"]')).toBeNull();
+    });
+
+    it('SC-003: region ratio 3:1 still applies while photo uses contain fit', () => {
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, topRegionRatio: 3, bottomRegionRatio: 1 },
+      });
+      const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement;
+      const ads = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement;
+      const total = top.getBoundingClientRect().height + ads.getBoundingClientRect().height;
+      expect(Math.abs(top.getBoundingClientRect().height / total - 3 / 4)).toBeLessThan(0.01);
+      expect(globalThis.getComputedStyle(
+        fixture.nativeElement.querySelector('.display-content-media[data-testid="display-content"]') as HTMLElement,
+      ).objectFit).toBe('contain');
+    });
+
+    it('SC-003: region ratio 7:3 still applies while photo uses contain fit', () => {
+      const fixture = createComponent({
+        ...readyState,
+        configuration: { ...readyState.configuration, topRegionRatio: 7, bottomRegionRatio: 3 },
+      });
+      const top = fixture.nativeElement.querySelector('.top-region') as HTMLElement;
+      const ads = fixture.nativeElement.querySelector('.sponsor-strip') as HTMLElement;
+      const total = top.getBoundingClientRect().height + ads.getBoundingClientRect().height;
+      expect(Math.abs(top.getBoundingClientRect().height / total - 7 / 10)).toBeLessThan(0.01);
+      expect(globalThis.getComputedStyle(
+        fixture.nativeElement.querySelector('.display-content-media[data-testid="display-content"]') as HTMLElement,
+      ).objectFit).toBe('contain');
+    });
+
+    it('uses solid frame background for reduced-motion fallback bands', () => {
+      const fixture = createComponent(readyState);
+      const frame = fixture.nativeElement.querySelector('.top-region__media-frame') as HTMLElement;
+      expect(globalThis.getComputedStyle(frame).backgroundColor).toBe('rgb(16, 40, 50)');
+    });
+  });
 });
 
 /**

@@ -66,7 +66,7 @@ type DisplayRenderableItem = Pick<
           <iframe
             [src]="safeIframeUrl(url)"
             title="Pinned iframe"
-            class="display-content-media"
+            class="display-content-media display-content-media--iframe"
             data-testid="display-iframe"
             frameborder="0"
             allowfullscreen
@@ -74,17 +74,36 @@ type DisplayRenderableItem = Pick<
         }
         @if (displayAvailable && !iframeUrl() && contentRenderItems.length) {
           @for (currentItem of contentRenderItems; track trackContent($index, currentItem)) {
-            <ng-container [ngSwitch]="currentItem.contentType">
+            <div
+              class="top-region__media-frame"
+              [@contentTransition]="contentTransition(currentItem)"
+            >
               @switch (currentItem.contentType) {
                 @case ('photo') {
                   <img
                     [src]="mediaSource(currentItem)"
+                    alt=""
+                    class="top-region__media-backdrop"
+                    aria-hidden="true"
+                    data-testid="display-content-backdrop"
+                  />
+                  <img
+                    [src]="mediaSource(currentItem)"
                     class="display-content-media"
-                    [@contentTransition]="contentTransition(currentItem)"
                     data-testid="display-content"
                   />
                 }
                 @case ('video') {
+                  <video
+                    [src]="mediaSource(currentItem)"
+                    muted
+                    autoplay
+                    playsinline
+                    [loop]="isFixedMode"
+                    class="top-region__media-backdrop"
+                    aria-hidden="true"
+                    data-testid="display-content-backdrop"
+                  ></video>
                   <video
                     #fixedVideo
                     [src]="mediaSource(currentItem)"
@@ -94,12 +113,11 @@ type DisplayRenderableItem = Pick<
                     [loop]="isFixedMode"
                     (ended)="onVideoEnded(currentItem)"
                     class="display-content-media"
-                    [@contentTransition]="contentTransition(currentItem)"
                     data-testid="display-content"
                   ></video>
                 }
               }
-            </ng-container>
+            </div>
             <div class="content-label">{{ currentItem.title }}</div>
           }
         }

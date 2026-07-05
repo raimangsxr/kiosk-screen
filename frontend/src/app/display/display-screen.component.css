@@ -155,18 +155,54 @@
 }
 
 /**
- * `object-fit: cover` is scoped to top-region media only (per
- * FR-009). The historical global `img, video, iframe` rule was
- * dropped because it forced ads to fill their figure with cropping.
+ * Top-region media frame: blurred backdrop (cover) + foreground (contain).
+ * See ADR-0007 / CHG-028.
  */
-.display-content-media {
+.top-region__media-frame {
   position: absolute;
   inset: 0;
   z-index: 2;
+  overflow: hidden;
+  background: #102832;
+}
+
+.top-region__media-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   border: 0;
   object-fit: cover;
+  transform: scale(1.08);
+  filter: blur(24px) saturate(1.1);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/**
+ * Foreground top-region media uses contain so the full frame is visible.
+ * Iframes fill the region edge-to-edge (object-fit does not apply).
+ */
+.display-content-media {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+}
+
+.display-content-media--iframe {
+  z-index: 2;
+  object-fit: unset;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-region__media-backdrop {
+    display: none;
+  }
 }
 
 .sponsor-strip img {

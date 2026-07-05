@@ -20,12 +20,14 @@ related_changes:
   - CHG-014
   - CHG-019
   - CHG-024
+  - CHG-028
   - CHG-005
   - CHG-007
   - CHG-008
 related_adrs:
   - ADR-0001
   - ADR-0002
+  - ADR-0007
 ---
 
 # Display Screen Runtime Contract
@@ -42,6 +44,8 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Landscape viewports 1280x720, 1920x1080, 2560x1440, and 3840x2160 render without scrollbars, clipped text, or layout shifts greater than one pixel when switching content modes.
 - Portrait viewports hide kiosk regions and show a single high-contrast rotate-device prompt while backend polling continues.
 - Ad figures reserve stable proportional cells; ad images fit without cropping, including tall portrait uploads.
+- Top-region photos and videos render the full frame without cropping (`object-fit: contain` on the foreground). Unused band space is filled with a blurred backdrop copy of the same media (blur-fill). Under `prefers-reduced-motion: reduce`, the backdrop degrades to solid `#102832` instead of blur. See `ADR-0007`.
+- Pinned iframes continue to fill the top region edge-to-edge without blur-fill framing (v1).
 - Ad rotation uses its own cadence and is not reset by faster top-content advances in loop/rotation mode; the same ad cadence continues in fixed, iframe, and paused states while ads remain visible.
 - The sponsor band avoids browser-extension bait in its rendered DOM class and test hook names (for example generic `ad-*` selectors) so Chrome deployments with cosmetic filtering still render first-party sponsor content.
 - Branding overlay is visible, legible, and non-overlapping when configured, hidden for iframe mode, and absent when branding is empty.
@@ -94,3 +98,4 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-007
 - CHG-008
 - CHG-020
+- CHG-028

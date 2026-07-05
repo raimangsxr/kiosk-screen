@@ -232,6 +232,7 @@ contracts:
       - CHG-014
       - CHG-019
       - CHG-024
+      - CHG-028
       - CHG-005
       - CHG-007
       - CHG-008
@@ -469,6 +470,16 @@ changes:
       - CONTENT.ROTATION
       - PUBLIC_CONTENT.API_KEYS
     depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-028
+    path: specs/changes/028-top-content-media-fit/spec.md
+    status: in-progress
+    modifies:
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-019
     consolidated_into: []
     read_by_default: true
 
