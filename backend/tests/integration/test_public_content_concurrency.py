@@ -16,6 +16,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+pytestmark = pytest.mark.postgres
+
 
 def _postgres_reachable() -> bool:
     """Return True if the configured DATABASE_URL points to a reachable Postgres."""

@@ -1,7 +1,7 @@
 ---
 id: CHG-034
 type: change
-status: draft
+status: implemented
 modifies:
   - OPS.PLATFORM
 depends_on: []
@@ -21,7 +21,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Fase 6 del plan maestro: workflow CI en cada pull request y push a main, tests backend y frontend, build, docker build sin push, y Postgres en CI para tests de concurrencia marcados postgres."
 
