@@ -41,7 +41,6 @@ def api_client() -> Iterator[TestClient]:
             yield session
 
     app.dependency_overrides[get_session] = override_session
-    app.state.auth_sessions = {}
     app.state.skip_bootstrap = True
     with TestClient(app) as client:
         yield client

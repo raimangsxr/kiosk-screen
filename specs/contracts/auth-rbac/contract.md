@@ -21,8 +21,10 @@ tests:
 related_changes:
   - CHG-001
   - CHG-010
+  - CHG-029
+  - CHG-031
 related_adrs:
-  []
+  - ADR-0008
 ---
 
 # Authentication and RBAC Contract
@@ -34,7 +36,12 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 ## Current behavior
 
 - Bootstrap creates an administrator only when no administrator exists and never exposes bootstrap secrets.
-- Authenticated sessions use secure, HTTP-only cookies and all privileged endpoints validate role membership.
+- Authenticated sessions are stored in `user_auth_sessions` (PostgreSQL), signed with `SESSION_SECRET`, and validated on every backend instance. In-memory session maps are not used.
+- Session cookies are HTTP-only; in `APP_ENV=production` they are also `Secure`. Development over HTTP keeps cookies usable without TLS.
+- Production startup (`APP_ENV=production`) refuses documented development defaults for `SESSION_SECRET` and `BOOTSTRAP_ADMIN_PASSWORD`.
+- `POST /auth/login` enforces per-client rate limiting on failed attempts (429 after threshold). Successful login clears the counter for that client.
+- Logout revokes the session server-side; reusing the old cookie fails authentication.
+- Session TTL is enforced server-side: 24 hours standard, 30 days with remember-me.
 - Users can be listed, created, edited, activated/deactivated, and assigned roles by authorized administrators.
 - The last active administrator cannot be removed or deactivated.
 - Frontend guards redirect unauthenticated users to login and prevent access to unauthorized admin routes.
@@ -75,3 +82,4 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - CHG-001
 - CHG-010
 - CHG-029
+- CHG-031

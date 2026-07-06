@@ -17,4 +17,5 @@ def test_settings_read_expected_environment_values(monkeypatch):
     assert settings.bootstrap_admin_email == "owner@example.com"
     assert settings.bootstrap_admin_password == "change-me"
     assert settings.bootstrap_admin_display_name == "Owner"
+    assert settings.app_env == "development"
 
