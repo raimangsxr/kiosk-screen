@@ -104,6 +104,7 @@ def test_duplicate_user_email_returns_conflict_envelope(hygiene_client: tuple[Te
         "displayName": "Duplicate",
         "isActive": True,
         "roles": ["display_viewer"],
+        "password": "duplicate-pass",
     }
     response = client.post("/api/users", json=payload)
 

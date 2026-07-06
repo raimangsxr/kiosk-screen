@@ -104,6 +104,14 @@ export class AuthService {
     this.rememberState.set(false);
   }
 
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(
+      '/api/auth/change-password',
+      { currentPassword, newPassword },
+      { withCredentials: true },
+    );
+  }
+
   /**
    * Hydrate the user signal by calling `/api/auth/me`. The session cookie is
    * the source of truth — localStorage only stores the non-sensitive flag

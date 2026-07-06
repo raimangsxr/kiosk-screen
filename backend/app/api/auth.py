@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import LoginRequest, UserSchema
+from app.api.schemas import ChangePasswordRequest, LoginRequest, UserSchema
 from app.auth.dependencies import SESSION_COOKIE_NAME, CurrentUser, get_current_user
+from app.auth.password_service import change_own_password
 from app.auth.session_service import (
     issue_user_session,
     revoke_user_session,
@@ -98,3 +99,12 @@ def logout(
 @router.get("/me", response_model=UserSchema)
 def me(user: CurrentUser = Depends(get_current_user)) -> UserSchema:
     return user_schema(user)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    payload: ChangePasswordRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    change_own_password(session, user.id, payload.current_password, payload.new_password)

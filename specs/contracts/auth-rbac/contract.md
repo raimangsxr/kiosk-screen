@@ -43,6 +43,9 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - Logout revokes the session server-side; reusing the old cookie fails authentication.
 - Session TTL is enforced server-side: 24 hours standard, 30 days with remember-me.
 - Users can be listed, created, edited, activated/deactivated, and assigned roles by authorized administrators.
+- New users require an administrator-provided initial password (minimum 8 characters); no hardcoded default password is assigned.
+- Administrators can reset another user's password within their organization (`PUT /users/{id}/password`).
+- Authenticated users can change their own password via `POST /auth/change-password` with current and new password.
 - The last active administrator cannot be removed or deactivated.
 - Frontend guards redirect unauthenticated users to login and prevent access to unauthorized admin routes.
 - The `authExpiredInterceptor` clears the client session and navigates to `/login` on HTTP 401 or 403 from protected API calls (excluding the login endpoint itself). Anonymous public reads are not affected.
@@ -55,6 +58,7 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - `POST /auth/login`
 - `POST /auth/logout`
 - `GET /auth/me`
+- `POST /auth/change-password`
 - `/api/v1/auth/*`
 - `/api/v1/users/*`
 
@@ -87,3 +91,4 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - CHG-029
 - CHG-031
 - CHG-032
+- CHG-033

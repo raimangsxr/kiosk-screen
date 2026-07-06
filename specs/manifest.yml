@@ -529,7 +529,7 @@ changes:
 
   - id: CHG-033
     path: specs/changes/033-user-password-lifecycle/spec.md
-    status: draft
+    status: implemented
     modifies:
       - AUTH.RBAC
       - USERS.ROLES.ADMIN

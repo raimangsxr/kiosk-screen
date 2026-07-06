@@ -43,7 +43,8 @@ def test_admin_readiness_configuration_iframes_events_and_users(api_client: Test
         "email": "new@example.com",
         "displayName": "New User",
         "roles": ["display_viewer"],
-        "isActive": True
+        "isActive": True,
+        "password": "new-user-pass",
     })
     assert user.status_code == 201
     assert user.json()["roles"] == ["display_viewer"]

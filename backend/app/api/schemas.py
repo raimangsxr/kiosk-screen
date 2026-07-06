@@ -46,6 +46,19 @@ class UserRequest(CamelModel):
     is_active: bool = Field(alias="isActive")
 
 
+class CreateUserRequest(UserRequest):
+    password: str = Field(min_length=8)
+
+
+class AdminPasswordResetRequest(CamelModel):
+    password: str = Field(min_length=8)
+
+
+class ChangePasswordRequest(CamelModel):
+    current_password: str = Field(min_length=1, alias="currentPassword")
+    new_password: str = Field(min_length=8, alias="newPassword")
+
+
 class KioskConfigurationSchema(CamelModel):
     id: UUID
     name: str

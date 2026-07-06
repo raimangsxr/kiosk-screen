@@ -64,7 +64,11 @@ describe('UsersFacade', () => {
   });
 
   it('save creates a new user and refreshes the list', () => {
-    facade.save({ email: 'op@example.com', displayName: 'Op', isActive: true, roles: ['event_operator'] }).subscribe();
+    facade.save(
+      { email: 'op@example.com', displayName: 'Op', isActive: true, roles: ['event_operator'] },
+      undefined,
+      { password: 'secure-pass' }
+    ).subscribe();
     const post = httpController.expectOne('/api/users');
     expect(post.request.method).toBe('POST');
     post.flush(buildUser({ email: 'op@example.com' }));
@@ -183,13 +187,15 @@ describe('UserFormComponent (Reactive Forms + Material)', () => {
     const form = fixture.componentInstance['form']!;
     form.controls.email.setValue('OP@Example.COM');
     form.controls.displayName.setValue('Operator');
+    form.controls.password.setValue('secure-pass');
     fixture.componentInstance.rolesArray.at(0).setValue(true);
     fixture.componentInstance.submit();
     const post = httpController.expectOne('/api/users');
     expect(post.request.body).toEqual(jasmine.objectContaining({
       email: 'op@example.com',
       displayName: 'Operator',
-      roles: ['administrator']
+      roles: ['administrator'],
+      password: 'secure-pass'
     }));
     post.flush(buildUser({ email: 'op@example.com' }));
     httpController.expectOne('/api/users').flush([]);
