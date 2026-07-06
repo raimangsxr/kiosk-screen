@@ -1,14 +1,20 @@
 import { Subject, of } from 'rxjs';
-import { signal } from '@angular/core';
+import { take } from 'rxjs/operators';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 import { DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
+import { ApplicationErrorContract } from '../shared/contracts/admin-contracts';
 import { EventBrandingService } from '../core/event-branding.service';
 import { EventConfigSyncService } from '../core/event-config-sync.service';
+import { CursorService } from './cursor.service';
+import { DisplayPollingService } from './display-polling.service';
 import { DisplayScreenComponent } from './display-screen.component';
 import { KioskRotationController } from './kiosk-rotation.controller';
+import { RecurringCadenceService } from './recurring-cadence.service';
+import { RotationSchedulerService } from './rotation-scheduler.service';
 
 describe('DisplayScreenComponent', () => {
   const readyState: DisplayState = {
@@ -49,6 +55,54 @@ describe('DisplayScreenComponent', () => {
     }],
     fallbackActive: false
   };
+
+  function createPollingMock(initialState: DisplayState, poll$?: Subject<DisplayState>) {
+    const stateSignal = signal<DisplayState | null>(null);
+    const consecutiveFailures = signal(0);
+    const openErrorSignal = signal<ApplicationErrorContract | null>(null);
+    let pollSub: { unsubscribe: () => void } | null = null;
+
+    return {
+      state: stateSignal.asReadonly(),
+      loading: signal(false).asReadonly(),
+      error: signal<ApplicationErrorContract | null>(null).asReadonly(),
+      openError: openErrorSignal.asReadonly(),
+      openInProgress: signal(false).asReadonly(),
+      consecutiveFailures: consecutiveFailures.asReadonly(),
+      reconnecting: computed(() => consecutiveFailures() > 0),
+      hasState: computed(() => stateSignal() !== null),
+      open: (cb: (s: DisplayState | null) => void) => cb(initialState),
+      retryOpen: jasmine.createSpy('retryOpen'),
+      start: () => {
+        pollSub?.unsubscribe();
+        if (poll$) {
+          pollSub = poll$.subscribe((s) => stateSignal.set(s));
+        }
+      },
+      stop: jasmine.createSpy('stop').and.callFake(() => {
+        pollSub?.unsubscribe();
+        pollSub = null;
+      }),
+      pollNow: () => (poll$ ? poll$.asObservable().pipe(take(1)) : of(initialState)),
+      reconfigureInterval: jasmine.createSpy('reconfigureInterval'),
+      setConsecutiveFailures: (n: number) => consecutiveFailures.set(n),
+      setOpenError: (err: ApplicationErrorContract | null) => openErrorSignal.set(err),
+    };
+  }
+
+  function patchDisplayScreenPolling(initialState: DisplayState, poll$?: Subject<DisplayState>) {
+    TestBed.overrideComponent(DisplayScreenComponent, {
+      set: {
+        providers: [
+          KioskRotationController,
+          CursorService,
+          RecurringCadenceService,
+          RotationSchedulerService,
+          { provide: DisplayPollingService, useValue: createPollingMock(initialState, poll$) },
+        ],
+      },
+    });
+  }
 
   function eventBrandingProvider(initial = { eventName: '', organizerName: '', organizerLogoUrl: null as string | null }) {
     const branding = signal(initial);
@@ -92,6 +146,7 @@ describe('DisplayScreenComponent', () => {
       provideNoopAnimations()
     ]
   });
+  patchDisplayScreenPolling(state);
   const fixture = TestBed.createComponent(DisplayScreenComponent);
   fixture.detectChanges();
   return fixture;
@@ -169,6 +224,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(readyState);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
 
@@ -321,6 +377,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
 
@@ -397,6 +454,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
@@ -467,6 +525,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
@@ -502,6 +561,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
 
@@ -789,6 +849,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations(),
       ],
     });
+    patchDisplayScreenPolling(initial);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.title).toBe('A');
@@ -877,6 +938,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(initial, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
@@ -937,6 +999,7 @@ describe('DisplayScreenComponent', () => {
         provideNoopAnimations()
       ]
     });
+    patchDisplayScreenPolling(initial, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
     expect(fixture.componentInstance.currentContent?.id).toBe('A');
@@ -1259,6 +1322,7 @@ describe('DisplayScreenComponent', () => {
           provideNoopAnimations()
         ]
       });
+      patchDisplayScreenPolling(readyState);
     }
 
     it('REGRESIÓN: no acumula listeners de content-advance entre instancias del componente', () => {
@@ -1496,6 +1560,7 @@ describe('DisplayScreenComponent', () => {
           provideNoopAnimations(),
         ],
       });
+      patchDisplayScreenPolling(readyState);
       const fixture = TestBed.createComponent(DisplayScreenComponent);
       fixture.detectChanges();
       const component = fixture.componentInstance as unknown as {
@@ -1528,12 +1593,41 @@ describe('DisplayScreenComponent', () => {
           provideNoopAnimations(),
         ],
       });
+      patchDisplayScreenPolling(emptyState);
       const fixture = TestBed.createComponent(DisplayScreenComponent);
       fixture.detectChanges();
       tick(500);
       expect(postRotationEvent).toHaveBeenCalledWith('content_rotation_empty', { reason: 'no_contents' });
       fixture.destroy();
     }));
+  });
+
+  describe('CHG-030 kiosk polling resilience', () => {
+    it('shows a reconnecting indicator after transient poll failures', () => {
+      const fixture = createComponent(readyState);
+      const polling = fixture.debugElement.injector.get(DisplayPollingService) as unknown as ReturnType<typeof createPollingMock>;
+      polling.setConsecutiveFailures(2);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="display-reconnecting"]')?.textContent).toContain('Reconectando');
+    });
+
+    it('shows open error UI with retry when display open fails', () => {
+      const fixture = createComponent(readyState);
+      const polling = fixture.debugElement.injector.get(DisplayPollingService) as unknown as ReturnType<typeof createPollingMock>;
+      polling.setOpenError({
+        code: 'unexpected_error',
+        message: 'No se pudo conectar con el servidor.',
+        category: 'unexpected',
+      });
+      fixture.detectChanges();
+      const error = fixture.nativeElement.querySelector('[data-testid="display-open-error"]');
+      expect(error).not.toBeNull();
+      expect(error?.textContent).toContain('No se pudo conectar');
+      const retry = fixture.nativeElement.querySelector('[data-testid="display-open-retry"]') as HTMLButtonElement;
+      expect(retry).not.toBeNull();
+      retry.click();
+      expect(polling.retryOpen).toHaveBeenCalled();
+    });
   });
 });
 

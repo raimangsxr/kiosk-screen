@@ -1,7 +1,7 @@
 ---
 id: CHG-030
 type: change
-status: draft
+status: implemented
 modifies:
   - DISPLAY.RUNTIME
 depends_on:

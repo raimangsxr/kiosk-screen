@@ -1,3 +1,51 @@
+.display-reconnecting {
+  position: fixed;
+  top: clamp(8px, 1.2vh, 16px);
+  right: clamp(8px, 1.2vw, 16px);
+  z-index: 90;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(16, 40, 50, 0.88);
+  color: #f2b84a;
+  font: 600 14px/1.2 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.display-open-error {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(16, 40, 50, 0.96);
+  color: #f2b84a;
+}
+
+.display-open-error p {
+  margin: 0;
+  font: 500 clamp(18px, 2.4vh, 28px)/1.35 system-ui, sans-serif;
+  max-width: 36ch;
+}
+
+.display-open-error__retry {
+  justify-self: center;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 8px;
+  background: #f2b84a;
+  color: #102832;
+  font: 700 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.display-open-error__retry:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .display-screen {
   width: 100vw;
   height: 100vh;

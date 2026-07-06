@@ -498,7 +498,7 @@ changes:
 
   - id: CHG-030
     path: specs/changes/030-kiosk-polling-resilience/spec.md
-    status: draft
+    status: implemented
     modifies:
       - DISPLAY.RUNTIME
     depends_on:
