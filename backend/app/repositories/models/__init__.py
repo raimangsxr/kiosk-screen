@@ -11,6 +11,7 @@ from app.repositories.models.operator_session import OperatorSession
 from app.repositories.models.organization import Organization
 from app.repositories.models.role_assignment import RoleAssignment
 from app.repositories.models.user import User
+from app.repositories.models.user_auth_session import UserAuthSession
 
 __all__ = [
     "ApiKey",
@@ -25,5 +26,6 @@ __all__ = [
     "Organization",
     "RoleAssignment",
     "TopContentItem",
-    "User"
+    "User",
+    "UserAuthSession"
 ]  # noqa: F401

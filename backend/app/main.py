@@ -9,7 +9,7 @@ from app.api.middleware import RequestIdMiddleware
 from app.api.router import api_router
 from app.api.v1.error_handlers import application_error_handler
 from app.api.v1.public_content.routes import router as public_content_router
-from app.config import get_settings
+from app.config import get_settings, validate_production_settings
 from app.repositories.session import create_session_factory
 from app.services.bootstrap_service import ensure_mvp_bootstrap_data
 from app.shared.errors.application_errors import ApplicationError
@@ -26,6 +26,7 @@ def bootstrap_default_data(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    validate_production_settings(get_settings())
     bootstrap_default_data(app)
     yield
 
@@ -37,7 +38,6 @@ settings = get_settings()
 # empty (no cross-origin browser access). When PUBLIC_API_CORS_ORIGINS is set,
 # browser-based callers can opt-in by adding their origin to the env var.
 public_app = FastAPI(title="Kiosk Screen Public API", version="0.1.0", lifespan=lifespan)
-public_app.state.auth_sessions = {}
 public_app.state.skip_bootstrap = True
 public_app.add_middleware(RequestIdMiddleware)
 public_app.add_exception_handler(APIError, api_error_handler)
@@ -67,7 +67,6 @@ class _MainAppBuilder:
         if self._main is not None:
             return self._main
         main = FastAPI(title="Kiosk Screen API", version="0.1.0", lifespan=lifespan)
-        main.state.auth_sessions = {}
         main.state.skip_bootstrap = False
         main.add_middleware(RequestIdMiddleware)
         main.add_exception_handler(APIError, api_error_handler)

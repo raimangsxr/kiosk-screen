@@ -1,7 +1,7 @@
 ---
 id: CHG-031
 type: change
-status: draft
+status: implemented
 modifies:
   - AUTH.RBAC
 depends_on: []

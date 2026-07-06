@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from app.domain.roles import Role
+from app.auth.session_service import resolve_authenticated_user_id
+from app.config import Settings, get_settings
 from app.repositories.api_keys import ApiKeyRepository
 from app.repositories.models.api_key import ApiKey
 from app.repositories.models.role_assignment import RoleAssignment
@@ -42,13 +44,20 @@ class ApiKeyPrincipal:
         self.label = key.label
 
 
-def get_current_user(request: Request, session: Session = Depends(get_session)) -> CurrentUser:
+def get_current_user(
+    request: Request,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> CurrentUser:
     user = getattr(request.state, "user", None)
     if user is not None:
         return user
 
-    session_token = request.cookies.get(SESSION_COOKIE_NAME)
-    session_user_id = getattr(request.app.state, "auth_sessions", {}).get(session_token)
+    session_user_id = resolve_authenticated_user_id(
+        session,
+        request.cookies.get(SESSION_COOKIE_NAME),
+        settings,
+    )
     if session_user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 

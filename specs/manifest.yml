@@ -508,7 +508,7 @@ changes:
 
   - id: CHG-031
     path: specs/changes/031-auth-session-hardening/spec.md
-    status: draft
+    status: implemented
     modifies:
       - AUTH.RBAC
     depends_on: []

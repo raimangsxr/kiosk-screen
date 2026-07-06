@@ -24,6 +24,7 @@ def test_ensure_mvp_bootstrap_data_is_idempotent(db_session):
     settings = Settings(
         database_url="sqlite+pysqlite:///:memory:",
         session_secret="test",
+        app_env="development",
         frontend_origin="http://localhost:4200",
         bootstrap_admin_email="admin@example.com",
         bootstrap_admin_password="admin",
