@@ -17,7 +17,7 @@ export const authExpiredInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(req).pipe(
     catchError((error) => {
-      if (error instanceof HttpErrorResponse && error.status === 401) {
+      if (error instanceof HttpErrorResponse && (error.status === 401 || error.status === 403)) {
         if (isLoginRequest(req.url)) {
           return throwError(() => error);
         }

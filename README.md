@@ -72,7 +72,7 @@ Prerequisites:
 - Docker or OrbStack
 - PostgreSQL client tools are optional, but useful for debugging
 
-The repository pins the local Node version in `.nvmrc` (currently `22.14.0`).
+The repository pins the local Node version in `.nvmrc` (currently `24`).
 Use `nvm use` from the repository root to switch automatically before running
 any frontend command.
 

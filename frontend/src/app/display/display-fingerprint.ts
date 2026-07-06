@@ -14,6 +14,12 @@ import { DisplayContentItem, DisplayKioskConfiguration } from '../core/api/displ
  * (queue shape, ads shape, configuration, remote-control fields,
  * selected iframe id).
  */
+function contentItemMaterialFingerprint(item: DisplayContentItem): string {
+  const duration = item.effectiveDurationSeconds ?? item.durationSeconds ?? null;
+  const mediaUrl = item.mediaFile?.mediaUrl ?? '';
+  return `${item.id}:${item.displayOrder}:${item.isActive}:${item.isFixed ?? false}:${item.isNovelty ?? false}:${item.recurringEveryXIterations ?? null}:${item.sourceReference}:${mediaUrl}:${duration}`;
+}
+
 export function sameTopContentState(
   prev: readonly DisplayContentItem[],
   curr: readonly DisplayContentItem[],
@@ -22,20 +28,16 @@ export function sameTopContentState(
     return false;
   }
   for (let i = 0; i < prev.length; i++) {
-    const p = prev[i];
-    const c = curr[i];
-    if (
-      p.id !== c.id ||
-      p.displayOrder !== c.displayOrder ||
-      p.isActive !== c.isActive ||
-      (p.isFixed ?? false) !== (c.isFixed ?? false) ||
-      (p.isNovelty ?? false) !== (c.isNovelty ?? false) ||
-      (p.recurringEveryXIterations ?? null) !== (c.recurringEveryXIterations ?? null)
-    ) {
+    if (contentItemMaterialFingerprint(prev[i]) !== contentItemMaterialFingerprint(curr[i])) {
       return false;
     }
   }
   return true;
+}
+
+/** Exported for kiosk rotation controller timer-preservation alignment (CHG-029). */
+export function topContentItemMaterialFingerprint(item: DisplayContentItem): string {
+  return contentItemMaterialFingerprint(item);
 }
 
 export function sameAdsState(

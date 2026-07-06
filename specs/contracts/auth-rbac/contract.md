@@ -38,6 +38,7 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - Users can be listed, created, edited, activated/deactivated, and assigned roles by authorized administrators.
 - The last active administrator cannot be removed or deactivated.
 - Frontend guards redirect unauthenticated users to login and prevent access to unauthorized admin routes.
+- The `authExpiredInterceptor` clears the client session and navigates to `/login` on HTTP 401 or 403 from protected API calls (excluding the login endpoint itself). Anonymous public reads are not affected.
 
 ## Public interfaces
 
@@ -73,3 +74,4 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 
 - CHG-001
 - CHG-010
+- CHG-029

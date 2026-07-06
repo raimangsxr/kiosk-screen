@@ -483,4 +483,68 @@ changes:
     consolidated_into: []
     read_by_default: true
 
+  - id: CHG-029
+    path: specs/changes/029-production-quick-wins/spec.md
+    status: implemented
+    modifies:
+      - PUBLIC_CONTENT.API_KEYS
+      - DISPLAY.RUNTIME
+      - DISPLAY.EVENTS.AUDIT
+      - AUTH.RBAC
+      - OPS.PLATFORM
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-030
+    path: specs/changes/030-kiosk-polling-resilience/spec.md
+    status: draft
+    modifies:
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-029
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-031
+    path: specs/changes/031-auth-session-hardening/spec.md
+    status: draft
+    modifies:
+      - AUTH.RBAC
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-032
+    path: specs/changes/032-backend-api-hygiene/spec.md
+    status: draft
+    modifies:
+      - DISPLAY.CONFIG_SESSION
+      - DISPLAY.CONTROL
+      - AUTH.RBAC
+      - READINESS.SETUP
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-033
+    path: specs/changes/033-user-password-lifecycle/spec.md
+    status: draft
+    modifies:
+      - AUTH.RBAC
+      - USERS.ROLES.ADMIN
+    depends_on:
+      - CHG-031
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-034
+    path: specs/changes/034-ci-pr-validation/spec.md
+    status: draft
+    modifies:
+      - OPS.PLATFORM
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
 archive: []  

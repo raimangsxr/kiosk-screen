@@ -36,6 +36,7 @@ This active contract is the current source of truth for `DISPLAY.EVENTS.AUDIT`. 
 - Secrets and tokens are sanitized before being stored in event metadata or messages.
 - Administrators can browse relevant display and API-key events.
 - Kiosk-originated empty-queue events are accepted only for supported event types.
+- In loop mode with zero eligible top content, the kiosk client posts `content_rotation_empty` to `POST /api/display/rotation-event` (debounced on the client per existing catalog semantics). The display screen wires the rotation controller sink to this endpoint at runtime.
 
 ## Public interfaces
 
@@ -68,3 +69,4 @@ This active contract is the current source of truth for `DISPLAY.EVENTS.AUDIT`. 
 - CHG-005
 - CHG-007
 - CHG-014
+- CHG-029

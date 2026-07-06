@@ -3,6 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
 import { DisplayApiService, DisplayContentItem } from '../core/api/display.api';
+import { topContentItemMaterialFingerprint } from './display-fingerprint';
 import { CursorService } from './cursor.service';
 import { DisplayRotationService } from './display-rotation.service';
 import { RecurringCadenceService } from './recurring-cadence.service';
@@ -139,7 +140,7 @@ export class KioskRotationController {
   private _advanceInProgress = false;
 
   private _queueItemFingerprint(item: DisplayContentItem): string {
-    return `${item.id}:${item.displayOrder}:${item.isActive}:${item.isFixed ?? false}:${item.isNovelty ?? false}:${item.recurringEveryXIterations ?? ''}`;
+    return topContentItemMaterialFingerprint(item);
   }
 
   /**

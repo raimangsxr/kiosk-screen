@@ -34,13 +34,14 @@ This active contract is the current source of truth for `PUBLIC_CONTENT.API_KEYS
 - Public content uploads follow the same media validation and content activation rules as admin uploads.
 - Public content uploads set `isNovelty = true` on the appended item so kiosks can intercept rotation (see `CONTENT.ROTATION`).
 - Revoked or deleted keys cannot upload content.
+- Public upload is exposed only at `POST /api/public/content/upload` (mounted on the `/api/public` sub-app). The main v1 API router MUST NOT register a duplicate public upload route on `/api/content/upload`.
 
 ## Public interfaces
 
 - `GET /api-keys`
 - `POST /api-keys`
 - `DELETE /api-keys/{id}`
-- `POST /public/content`
+- `POST /api/public/content/upload` (Bearer API key; sole public upload entry point)
 
 ## Owned code paths
 
@@ -65,3 +66,4 @@ This active contract is the current source of truth for `PUBLIC_CONTENT.API_KEYS
 
 - CHG-004
 - CHG-027
+- CHG-029
