@@ -15,7 +15,7 @@ import { ContentFacade } from './content.facade';
 import { ContentItem } from '../../core/api/content.api';
 import { injectExtendedColors } from '../../core/theme/extended-colors';
 import { RotationAnimation } from '../../shared/media-upload.models';
-import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { AdminListComponent } from '../../shared/ui/admin/admin-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
@@ -39,75 +39,71 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
     MatSlideToggleModule,
     CdkDropList,
     CdkDrag,
-    DataListComponent,
+    AdminListComponent,
     StatusChipComponent
   ],
   template: `
-    <app-data-list
+    <app-admin-list
       [title]="pageTitle"
       [description]="pageDescription"
       [loading]="facade.loading()"
       [error]="facade.error()"
-      errorTitle="Content unavailable"
+      errorTitle="Contenido no disponible"
       [empty]="listEmpty()"
       [emptyTitle]="emptyTitle()"
       [emptyMessage]="emptyMessage()"
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
-      emptyActionLabel="Add content"
+      [selectedCount]="selection().size"
+      emptyActionLabel="Añadir contenido"
       emptyActionRoute="/admin/content/new"
       emptyIcon="photo_library"
     >
+      @if (selection().size > 0) {
+        <ng-container adminListBulk>
+          <button
+            mat-stroked-button
+            color="primary"
+            type="button"
+            (click)="setActiveSelected(true)"
+            [disabled]="facade.saving()"
+            data-testid="content-activate-selected"
+          >
+            <mat-icon aria-hidden="true">check_circle</mat-icon>
+            Activar {{ selection().size }}
+          </button>
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="setActiveSelected(false)"
+            [disabled]="facade.saving()"
+            data-testid="content-deactivate-selected"
+          >
+            <mat-icon aria-hidden="true">pause_circle</mat-icon>
+            Desactivar {{ selection().size }}
+          </button>
+          <button
+            mat-stroked-button
+            color="warn"
+            type="button"
+            (click)="removeSelected()"
+            [disabled]="facade.saving()"
+            data-testid="content-delete-selected"
+          >
+            <mat-icon aria-hidden="true">delete_sweep</mat-icon>
+            Eliminar {{ selection().size }}
+          </button>
+        </ng-container>
+      }
       <mat-slide-toggle
-        dataListActions
+        adminListActions
         [checked]="noveltyFilterOnly()"
         (change)="noveltyFilterOnly.set($event.checked)"
         data-testid="content-novelty-filter"
       >
         Solo novedades
       </mat-slide-toggle>
-      @if (selection().size > 0) {
-        <button
-          dataListActions
-          mat-stroked-button
-          color="primary"
-          type="button"
-          (click)="setActiveSelected(true)"
-          [disabled]="facade.saving()"
-          data-testid="content-activate-selected"
-        >
-          <mat-icon aria-hidden="true">check_circle</mat-icon>
-          Activate {{ selection().size }} selected
-        </button>
-      }
-      @if (selection().size > 0) {
-        <button
-          dataListActions
-          mat-stroked-button
-          type="button"
-          (click)="setActiveSelected(false)"
-          [disabled]="facade.saving()"
-          data-testid="content-deactivate-selected"
-        >
-          <mat-icon aria-hidden="true">pause_circle</mat-icon>
-          Deactivate {{ selection().size }} selected
-        </button>
-      }
-      @if (selection().size > 0) {
-        <button
-          dataListActions
-          mat-stroked-button
-          color="warn"
-          type="button"
-          (click)="removeSelected()"
-          [disabled]="facade.saving()"
-          data-testid="content-delete-selected"
-        >
-          <mat-icon aria-hidden="true">delete_sweep</mat-icon>
-          Delete {{ selection().size }} selected
-        </button>
-      }
-      <ng-template #dataListTable>
+      <ng-template #adminListTable>
         <div
           cdkDropList
           class="content-list__drop"
@@ -216,7 +212,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               <th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let item">
                 <app-status-chip
-                  [label]="item.isActive ? 'Active' : 'Inactive'"
+                  [label]="item.isActive ? 'Activo' : 'Inactivo'"
                   [kind]="item.isActive ? 'success' : 'neutral'"
                 />
               </td>
@@ -235,16 +231,16 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                   data-testid="content-show-on-screen"
                 >
                   <mat-icon aria-hidden="true">play_circle</mat-icon>
-                  Show on screen
+                  Mostrar en pantalla
                 </button>
                 <a
                   mat-button
                   color="primary"
                   [routerLink]="['/admin/content', item.id, 'edit']"
-                  [attr.aria-label]="'Edit content ' + item.id"
+                  [attr.aria-label]="'Editar contenido ' + item.id"
                 >
                   <mat-icon aria-hidden="true">edit</mat-icon>
-                  Edit
+                  Editar
                 </a>
                 <button
                   mat-button
@@ -252,10 +248,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                   type="button"
                   (click)="remove(item)"
                   [disabled]="facade.saving()"
-                  [attr.aria-label]="'Delete content ' + item.id"
+                  [attr.aria-label]="'Eliminar contenido ' + item.id"
                 >
                   <mat-icon aria-hidden="true">delete</mat-icon>
-                  Delete
+                  Eliminar
                 </button>
               </td>
             </ng-container>
@@ -283,7 +279,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         }
       </ng-template>
 
-      <ng-template #dataListCards>
+      <ng-template #adminListCards>
         @for (item of visibleItems(); track item.id) {
           <mat-card
             appearance="outlined"
@@ -309,10 +305,39 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               }
             }
             <mat-card-content>
+              <div class="content-list__card-select">
+                <mat-checkbox
+                  [checked]="isSelected(item.id)"
+                  (change)="toggleSelection(item.id, $event.checked)"
+                  [attr.aria-label]="'Seleccionar ' + item.title"
+                />
+                @if (!noveltyFilterOnly()) {
+                  <div class="content-list__card-reorder">
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [disabled]="!canMove(item, -1)"
+                      (click)="moveItem(item, -1)"
+                      aria-label="Subir"
+                    >
+                      <mat-icon aria-hidden="true">arrow_upward</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [disabled]="!canMove(item, 1)"
+                      (click)="moveItem(item, 1)"
+                      aria-label="Bajar"
+                    >
+                      <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+                    </button>
+                  </div>
+                }
+              </div>
               <div class="content-list__card-header">
                 <h3 class="content-list__card-title">{{ item.title }}</h3>
                 <app-status-chip
-                  [label]="item.isActive ? 'Active' : 'Inactive'"
+                  [label]="item.isActive ? 'Activo' : 'Inactivo'"
                   [kind]="item.isActive ? 'success' : 'neutral'"
                 />
               </div>
@@ -363,7 +388,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           </mat-card>
         }
       </ng-template>
-    </app-data-list>
+    </app-admin-list>
   `,
   styles: [
     `
@@ -458,6 +483,17 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         gap: 8px;
         flex-wrap: wrap;
       }
+      .content-list__card-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .content-list__card-reorder {
+        display: inline-flex;
+        gap: 4px;
+      }
       .content-list__card-title {
         margin: 0;
         font: var(--mat-sys-title-medium);
@@ -491,15 +527,15 @@ export class ContentListComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(ConfirmDialogService);
 
-  protected readonly pageTitle = 'Top content';
+  protected readonly pageTitle = 'Contenido superior';
   protected readonly pageDescription =
-    'Photos, videos, and embedded web content shown in the top region. Drag rows to reorder.';
+    'Fotos, vídeos y contenido web de la zona superior. Arrastra filas para reordenar en escritorio.';
   protected readonly primaryAction = {
-    label: 'Add content',
+    label: 'Añadir contenido',
     route: '/admin/content/new',
     icon: 'add'
   };
-  protected readonly refreshAction = { route: '/admin/content', label: 'Refresh' };
+  protected readonly refreshAction = { route: '/admin/content', label: 'Actualizar' };
   protected readonly displayedColumns = [
     'select',
     'thumbnail',
@@ -531,13 +567,13 @@ export class ContentListComponent implements OnInit {
     if (this.noveltyFilterOnly() && this.facade.items().length > 0) {
       return 'No hay novedades pendientes';
     }
-    return 'No content yet';
+    return 'No hay contenido';
   });
   protected readonly emptyMessage = computed(() => {
     if (this.noveltyFilterOnly() && this.facade.items().length > 0) {
-      return 'Los uploads públicos aparecerán aquí hasta que el kiosk los muestre.';
+      return 'Los uploads públicos aparecerán aquí hasta que el quiosco los muestre.';
     }
-    return 'Add photos or videos for the top region.';
+    return 'Añade fotos o vídeos para la zona superior.';
   });
   private readonly rows = computed(() => this.visibleItems());
   protected readonly allChecked = computed(() => {
@@ -657,6 +693,33 @@ export class ContentListComponent implements OnInit {
 
   protected trackById(_index: number, item: ContentItem): string {
     return item.id;
+  }
+
+  protected canMove(item: ContentItem, direction: -1 | 1): boolean {
+    if (this.noveltyFilterOnly()) {
+      return false;
+    }
+    const items = this.visibleItems();
+    const index = items.findIndex((row) => row.id === item.id);
+    const target = index + direction;
+    return index >= 0 && target >= 0 && target < items.length;
+  }
+
+  protected moveItem(item: ContentItem, direction: -1 | 1): void {
+    if (!this.canMove(item, direction)) {
+      return;
+    }
+    const items = this.visibleItems();
+    const index = items.findIndex((row) => row.id === item.id);
+    const ids = items.map((row) => row.id);
+    moveItemInArray(ids, index, index + direction);
+    this.facade.reorder(ids).subscribe({
+      next: () => {
+        if (this.facade.error() === null) {
+          this.snackBar.open('Contenido reordenado.', 'Cerrar', { duration: 3000 });
+        }
+      }
+    });
   }
 
   protected typeLabel(type: ContentItem['contentType']): string {

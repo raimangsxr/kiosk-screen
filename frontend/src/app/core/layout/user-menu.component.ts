@@ -43,23 +43,23 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
         <div class="user-menu__email">{{ auth.email() }}</div>
       </div>
       <mat-divider />
-      <button mat-menu-item type="button" (click)="selectTheme('light')" [disabled]="theme.isLight()">
+        <button mat-menu-item type="button" (click)="selectTheme('light')" [disabled]="theme.isLight()">
         <mat-icon aria-hidden="true">light_mode</mat-icon>
-        <span>Light theme</span>
+        <span>Tema claro</span>
       </button>
       <button mat-menu-item type="button" (click)="selectTheme('dark')" [disabled]="theme.isDark()">
         <mat-icon aria-hidden="true">dark_mode</mat-icon>
-        <span>Dark theme</span>
+        <span>Tema oscuro</span>
       </button>
       <mat-divider />
       <button mat-menu-item type="button" (click)="openChangePassword()">
         <mat-icon aria-hidden="true">password</mat-icon>
-        <span>Change password</span>
+        <span>Cambiar contraseña</span>
       </button>
       <mat-divider />
       <button mat-menu-item type="button" (click)="signOut()">
         <mat-icon aria-hidden="true">logout</mat-icon>
-        <span>Sign out</span>
+        <span>Cerrar sesión</span>
       </button>
     </mat-menu>
   `,
@@ -120,7 +120,7 @@ export class UserMenuComponent {
     this.theme.isDark() ? 'light_mode' : 'dark_mode'
   );
   protected readonly themeLabel = computed(() =>
-    this.theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'
+    this.theme.isDark() ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
   );
 
   protected openChangePassword(): void {

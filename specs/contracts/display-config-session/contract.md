@@ -31,7 +31,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 
 ## Current behavior
 
-- Operators can configure kiosk name, durations, animation defaults, inline ad count, polling cadence, video-end delay, and enabled state.
+- Operators can configure kiosk name, durations, animation defaults, inline ad count, sponsor-strip item border (radius, width, color), polling cadence, video-end delay, and enabled state.
 - Operators can configure the region split: `topRegionRatio` and `bottomRegionRatio` are independent integer fields in `[1, 20]`, with defaults `5` (top) and `1` (bottom). The persisted columns accept any positive integer; the request schema enforces `[1, 20]` for input validation.
 - The admin form at `/admin/configuration` exposes the two ratio inputs with `min=1, max=20` and includes them in the PUT payload.
 - Opening a display creates a new operator session and supersedes any prior active sessions for the organization (sets `ended_at` on older rows). Remote control and state reads always target the latest active session.

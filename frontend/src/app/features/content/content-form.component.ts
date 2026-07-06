@@ -24,9 +24,9 @@ import { Observable, Subject, takeUntil } from 'rxjs';
 import { ContentFacade } from './content.facade';
 import { ContentItem, ContentItemRequest } from '../../core/api/content.api';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.component';
 import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
@@ -63,13 +63,13 @@ interface ContentFormValue {
     MatSlideToggleModule,
     MatDividerModule,
     MatSnackBarModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent,
-    FormPageComponent,
+    AdminFormShellComponent,
     FileInputComponent
   ],
   template: `
-    <app-page-header
+    <app-admin-page
       eyebrow="Administration"
       [title]="formTitle()"
       description="Configure ordering, rotation, animation, and availability for one top-region item."
@@ -83,7 +83,7 @@ interface ContentFormValue {
         novalidate
         aria-label="Content item form"
       >
-        <app-form-page [loading]="loading()">
+        <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
@@ -228,7 +228,7 @@ interface ContentFormValue {
             />
           }
 
-          <div formPageActions>
+          <div formShellActions>
             <a mat-button routerLink="/admin/content">Cancel</a>
             <button
               mat-flat-button
@@ -240,7 +240,7 @@ interface ContentFormValue {
               {{ facade.saving() ? 'Saving…' : 'Save' }}
             </button>
           </div>
-        </app-form-page>
+        </app-admin-form-shell>
       </form>
     }
   `,

@@ -59,6 +59,8 @@ describe('BreakpointService', () => {
     expect(service.isCompact()).toBeTrue();
     expect(service.isHandset()).toBeTrue();
     expect(service.columnsForGrid()).toBe(1);
+    expect(service.showOverlayNav()).toBeTrue();
+    expect(service.prefersCards()).toBeTrue();
   });
 
   it('reports the medium size class for tablet viewports', () => {

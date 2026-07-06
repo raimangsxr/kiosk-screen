@@ -10,7 +10,7 @@ import { MatTableModule } from '@angular/material/table';
 
 import { UsersFacade } from './users.facade';
 import { UserRecord } from '../../core/api/admin.api';
-import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { AdminListComponent } from '../../shared/ui/admin/admin-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 
 @Component({
@@ -26,11 +26,11 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
     MatCardModule,
     MatChipsModule,
     MatSnackBarModule,
-    DataListComponent,
+    AdminListComponent,
     StatusChipComponent
   ],
   template: `
-    <app-data-list
+    <app-admin-list
       [title]="pageTitle"
       [description]="pageDescription"
       [loading]="facade.loading()"
@@ -44,7 +44,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       emptyActionRoute="/admin/users/new"
       emptyIcon="group"
     >
-      <ng-template #dataListTable>
+      <ng-template #adminListTable>
         <table mat-table [dataSource]="facade.users()" aria-label="Users and roles" class="app-table users-list__table">
           <ng-container matColumnDef="email">
             <th mat-header-cell *matHeaderCellDef>Email</th>
@@ -107,7 +107,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
         </table>
       </ng-template>
 
-      <ng-template #dataListCards>
+      <ng-template #adminListCards>
         @for (user of facade.users(); track user.id) {
           <mat-card appearance="outlined" class="users-list__card-item">
             <mat-card-content>
@@ -151,7 +151,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           </mat-card>
         }
       </ng-template>
-    </app-data-list>
+    </app-admin-list>
   `,
   styles: [
     `

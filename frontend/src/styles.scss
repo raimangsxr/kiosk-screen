@@ -39,6 +39,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@import 'app/core/layout/admin-breakpoints.css';
+
 :root {
   --app-page-max: 1200px;
   --app-page-padding-xs: 12px;
@@ -118,7 +120,7 @@ a {
   border-radius: var(--mat-sys-corner-extra-small);
 }
 
-.form-page__actions--stacked > * {
+.admin-form-shell__actions--stacked > * {
   width: 100%;
   min-height: var(--app-touch-target);
 }
@@ -158,12 +160,7 @@ a {
   vertical-align: middle;
 }
 
-/* Zebra striping + hover highlight for `mat-table` rows. Scoped to rows
- * inside `app-data-list` so they only kick in for our shared list
- * component (the dashboard cards and the kiosk screen keep their own
- * minimal styling). The `prefers-contrast: more` media query raises the
- * contrast for users with the OS-level accessibility flag on.
- */
+/* Zebra striping for admin list tables */
 .app-table .mat-mdc-row:nth-child(even) {
   background: color-mix(in srgb, var(--mat-sys-surface) 92%, var(--mat-sys-surface-container));
 }

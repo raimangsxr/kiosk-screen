@@ -16,9 +16,9 @@ import { BrandingLayout } from '../../core/api/event-branding.api';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.component';
 import { FileInputComponent } from '../../shared/ui/file-input.component';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import {
   EventConfigFacade,
   EventConfigFormValue,
@@ -85,11 +85,11 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
     MatSnackBarModule,
     AdminStateComponent,
     FileInputComponent,
-    FormPageComponent,
-    PageHeaderComponent,
+    AdminFormShellComponent,
+    AdminPageComponent,
   ],
   template: `
-    <app-page-header
+    <app-admin-page
       eyebrow="Administration"
       title="Event configuration"
       description="Organizer, event name, logo, operator session duration, and kiosko branding layout."
@@ -103,7 +103,7 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
         novalidate
         aria-label="Event configuration form"
       >
-        <app-form-page [loading]="facade.loading()">
+        <app-admin-form-shell [loading]="facade.loading()">
           @if (facade.error(); as error) {
             <app-admin-state
               kind="error"
@@ -276,7 +276,7 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
             </fieldset>
           </section>
 
-          <div formPageActions>
+          <div formShellActions>
             <button
               mat-flat-button
               color="primary"
@@ -287,7 +287,7 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
               {{ facade.saving() ? 'Saving...' : 'Save' }}
             </button>
           </div>
-        </app-form-page>
+        </app-admin-form-shell>
       </form>
     }
   `,

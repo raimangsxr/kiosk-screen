@@ -12,7 +12,7 @@ import { MatTableModule } from '@angular/material/table';
 import { AdsFacade } from './ads.facade';
 import { AdItem } from '../../core/api/ads.api';
 import { RotationAnimation } from '../../shared/media-upload.models';
-import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { AdminListComponent } from '../../shared/ui/admin/admin-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
@@ -31,28 +31,29 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
     MatSnackBarModule,
     CdkDropList,
     CdkDrag,
-    DataListComponent,
+    AdminListComponent,
     StatusChipComponent
   ],
   template: `
-    <app-data-list
+    <app-admin-list
       [title]="pageTitle"
       [description]="pageDescription"
       [loading]="facade.loading()"
       [error]="facade.error()"
-      errorTitle="Ads unavailable"
+      errorTitle="Anuncios no disponibles"
       [empty]="facade.empty()"
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
-      emptyTitle="No ads yet"
-      emptyMessage="Upload client image ads for the bottom region."
-      emptyActionLabel="Add ad"
+      [selectedCount]="selection().size"
+      emptyTitle="Sin anuncios"
+      emptyMessage="Sube imágenes de anuncios para la zona inferior."
+      emptyActionLabel="Añadir anuncio"
       emptyActionRoute="/admin/ads/new"
       emptyIcon="campaign"
     >
       @if (selection().size > 0) {
         <button
-          dataListActions
+          adminListBulk
           mat-stroked-button
           color="warn"
           type="button"
@@ -61,10 +62,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           data-testid="ad-delete-selected"
         >
           <mat-icon aria-hidden="true">delete_sweep</mat-icon>
-          Delete {{ selection().size }} selected
+          Eliminar {{ selection().size }}
         </button>
       }
-      <ng-template #dataListTable>
+      <ng-template #adminListTable>
         <div
           cdkDropList
           class="ad-list__drop"
@@ -183,7 +184,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         }
       </ng-template>
 
-      <ng-template #dataListCards>
+      <ng-template #adminListCards>
         @for (ad of facade.ads(); track ad.id) {
           <mat-card appearance="outlined" class="ad-list__card-item">
             @if (ad.mediaFile?.mediaUrl) {
@@ -195,10 +196,37 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               />
             }
             <mat-card-content>
+              <div class="ad-list__card-select">
+                <mat-checkbox
+                  [checked]="isSelected(ad.id)"
+                  (change)="toggleSelection(ad.id, $event.checked)"
+                  [attr.aria-label]="'Seleccionar anuncio ' + ad.id"
+                />
+                <div class="ad-list__card-reorder">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    [disabled]="!canMove(ad, -1)"
+                    (click)="moveItem(ad, -1)"
+                    aria-label="Subir"
+                  >
+                    <mat-icon aria-hidden="true">arrow_upward</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    type="button"
+                    [disabled]="!canMove(ad, 1)"
+                    (click)="moveItem(ad, 1)"
+                    aria-label="Bajar"
+                  >
+                    <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+                  </button>
+                </div>
+              </div>
               <div class="ad-list__card-header">
-                <h3 class="ad-list__card-title">Ad #{{ ad.displayOrder }}</h3>
+                <h3 class="ad-list__card-title">Anuncio #{{ ad.displayOrder }}</h3>
                 <app-status-chip
-                  [label]="ad.isActive ? 'Active' : 'Inactive'"
+                  [label]="ad.isActive ? 'Activo' : 'Inactivo'"
                   [kind]="ad.isActive ? 'success' : 'neutral'"
                 />
               </div>
@@ -234,7 +262,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           </mat-card>
         }
       </ng-template>
-    </app-data-list>
+    </app-admin-list>
   `,
   styles: [
     `
@@ -312,6 +340,17 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         flex-wrap: wrap;
         min-width: 0;
       }
+      .ad-list__card-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .ad-list__card-reorder {
+        display: inline-flex;
+        gap: 4px;
+      }
       .ad-list__card-title {
         margin: 0;
         min-width: 0;
@@ -348,15 +387,15 @@ export class AdListComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(ConfirmDialogService);
 
-  protected readonly pageTitle = 'Client ads';
+  protected readonly pageTitle = 'Anuncios';
   protected readonly pageDescription =
-    'Image ads shown in the bottom region of the kiosk display. Drag rows to reorder.';
+    'Anuncios de clientes en la zona inferior. Arrastra filas para reordenar en escritorio.';
   protected readonly primaryAction = {
-    label: 'Add ad',
+    label: 'Añadir anuncio',
     route: '/admin/ads/new',
     icon: 'add'
   };
-  protected readonly refreshAction = { route: '/admin/ads', label: 'Refresh' };
+  protected readonly refreshAction = { route: '/admin/ads', label: 'Actualizar' };
   protected readonly displayedColumns = [
     'select',
     'thumbnail',
@@ -445,6 +484,30 @@ export class AdListComponent implements OnInit {
 
   protected trackById(_index: number, ad: AdItem): string {
     return ad.id;
+  }
+
+  protected canMove(ad: AdItem, direction: -1 | 1): boolean {
+    const items = this.facade.ads();
+    const index = items.findIndex((row) => row.id === ad.id);
+    const target = index + direction;
+    return index >= 0 && target >= 0 && target < items.length;
+  }
+
+  protected moveItem(ad: AdItem, direction: -1 | 1): void {
+    if (!this.canMove(ad, direction)) {
+      return;
+    }
+    const items = this.facade.ads();
+    const index = items.findIndex((row) => row.id === ad.id);
+    const ids = items.map((row) => row.id);
+    moveItemInArray(ids, index, index + direction);
+    this.facade.reorder(ids).subscribe({
+      next: () => {
+        if (this.facade.error() === null) {
+          this.snackBar.open('Anuncios reordenados.', 'Cerrar', { duration: 3000 });
+        }
+      }
+    });
   }
 
   protected mediaLabel(ad: AdItem): string {

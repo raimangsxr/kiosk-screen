@@ -108,10 +108,10 @@ describe('ReadinessComponent (Material)', () => {
     httpController.expectOne('/api/readiness').flush(buildReport({ blockers: ['Missing ad image', 'No client'] }));
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Blocked');
+    expect(text).toContain('Bloqueado');
     expect(text).toContain('Missing ad image');
     expect(text).toContain('No client');
-    expect(text).toContain('Resolve');
+    expect(text).toContain('Resolver');
   });
 
   it('renders ready state when report says ready', () => {
@@ -119,17 +119,17 @@ describe('ReadinessComponent (Material)', () => {
     httpController.expectOne('/api/readiness').flush(buildReport({ ready: true, blockers: [] }));
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Ready to open kiosk');
+    expect(text).toContain('Listo para abrir el quiosco');
   });
 
-  it('uses Setup check as the page title and description', () => {
+  it('uses Comprobación as the page title and description', () => {
     fixture.detectChanges();
     httpController.expectOne('/api/readiness').flush(buildReport({ ready: true, blockers: [] }));
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Setup check');
+    expect(text).toContain('Comprobación');
     expect(text).toContain(
-      'Verify all kiosk setup is complete before opening the display for an event.'
+      'Verifica que la configuración del quiosco esté completa antes del evento.'
     );
   });
 });

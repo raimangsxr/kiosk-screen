@@ -20,7 +20,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { RemoteControlFacade } from './remote-control.facade';
 import { RemoteControlContentMode } from './remote-control.models';
 
@@ -43,14 +43,13 @@ type LocalMode = RemoteControlContentMode;
     MatSnackBarModule,
     MatTooltipModule,
     AdminStateComponent,
-    PageHeaderComponent
+    AdminPageComponent
   ],
   template: `
     <main class="remote-control app-page" aria-label="Remote control">
-      <app-page-header
-        eyebrow="Administration"
-        title="Remote control"
-        description="Control what the running kiosk shows in the content region and whether the ad region is visible."
+      <app-admin-page
+        title="Control remoto"
+        description="Controla qué muestra el quiosco en la zona de contenido y si la zona de anuncios está visible."
       />
 
       @if (facade.loading() || facade.saving()) {

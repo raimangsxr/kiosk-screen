@@ -4,27 +4,10 @@
   --admin-focus-ring: var(--mat-sys-primary);
 }
 
-.page-header {
+.admin-page {
   display: grid;
   gap: 4px;
   margin-bottom: 16px;
-}
-
-.page-header h1,
-.page-header p {
-  margin: 0;
-}
-
-.page-header__eyebrow {
-  color: var(--mat-sys-primary);
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.section-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .confirm-dialog {
@@ -38,4 +21,5 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }

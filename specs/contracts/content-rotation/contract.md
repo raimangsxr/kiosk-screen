@@ -32,6 +32,7 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Loop mode advances eligible top content in display order using effective per-item or default durations.
 - Pause and resume affect loop rotation without stopping backend polling.
 - Ad rotation has an independent timer; top-content advances in loop/rotation mode must not clear or restart the ad timer.
+- `DisplayState.ads` includes every eligible active ad in display order. `inlineAdCount` controls how many ads the kiosk shows concurrently in the sponsor strip; it does not cap the polled ad list.
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
 - Recurring content with recurringEveryXIterations appears according to the controller cadence contract.
 - Empty content queues are debounced and reported through the display rotation event endpoint.

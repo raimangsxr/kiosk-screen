@@ -23,9 +23,9 @@ import { Subject, takeUntil } from 'rxjs';
 
 import { UsersFacade, AVAILABLE_ROLES, AvailableRole } from './users.facade';
 import { UserRecord } from '../../core/api/admin.api';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.component';
 import { MIN_PASSWORD_LENGTH, minPasswordLength, nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
@@ -54,12 +54,12 @@ interface UserFormValue {
     MatCheckboxModule,
     MatDividerModule,
     MatSnackBarModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent,
-    FormPageComponent
+    AdminFormShellComponent
   ],
   template: `
-    <app-page-header
+    <app-admin-page
       eyebrow="Administration"
       [title]="formTitle()"
       description="Create or update an authorized account. Assign at least one existing role type."
@@ -73,7 +73,7 @@ interface UserFormValue {
         novalidate
         aria-label="User form"
       >
-        <app-form-page [loading]="loading()">
+        <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
@@ -173,7 +173,7 @@ interface UserFormValue {
             />
           }
 
-          <div formPageActions>
+          <div formShellActions>
             <a mat-button routerLink="/admin/users">Cancel</a>
             <button
               mat-flat-button
@@ -185,7 +185,7 @@ interface UserFormValue {
               {{ facade.saving() ? 'Saving…' : 'Save' }}
             </button>
           </div>
-        </app-form-page>
+        </app-admin-form-shell>
       </form>
     }
   `,

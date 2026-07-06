@@ -30,6 +30,9 @@ describe('DisplayScreenComponent', () => {
       defaultTopAnimationDurationMilliseconds: 300,
       defaultAdAnimationDurationMilliseconds: 300,
       inlineAdCount: 2,
+      inlineAdItemBorderRadiusPx: 5,
+      inlineAdItemBorderWidthPx: 0,
+      inlineAdItemBorderColor: '#ffffff',
       isEnabled: true
     },
     topContent: [{
@@ -614,6 +617,56 @@ describe('DisplayScreenComponent', () => {
     });
 
     expect(fixture.componentInstance.visibleAds.length).toBe(1);
+  });
+
+  it('updates the visible sponsor count when inlineAdCount changes on poll', () => {
+    const ads = Array.from({ length: 4 }, (_, i) => ({
+      ...readyState.ads[0],
+      id: `ad-${i + 1}`,
+      displayOrder: i + 1,
+    }));
+    const fixture = createComponent({
+      ...readyState,
+      configuration: { ...readyState.configuration, inlineAdCount: 2 },
+      ads,
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.visibleAds.length).toBe(2);
+
+    const component = fixture.componentInstance as unknown as {
+      applyState: (s: DisplayState, o: { resetRotation: boolean }) => void;
+    };
+    component.applyState(
+      {
+        ...readyState,
+        configuration: { ...readyState.configuration, inlineAdCount: 4 },
+        ads,
+      },
+      { resetRotation: false },
+    );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.visibleAds.length).toBe(4);
+    const figures = fixture.nativeElement.querySelectorAll('.sponsor-strip__item');
+    expect(figures.length).toBe(4);
+  });
+
+  it('applies configured sponsor item border styles from display configuration', () => {
+    const fixture = createComponent({
+      ...readyState,
+      configuration: {
+        ...readyState.configuration,
+        inlineAdItemBorderRadiusPx: 8,
+        inlineAdItemBorderWidthPx: 2,
+        inlineAdItemBorderColor: '#102832',
+      },
+    });
+    fixture.detectChanges();
+
+    const item = fixture.nativeElement.querySelector('.sponsor-strip__item') as HTMLElement;
+    expect(item.style.borderRadius).toBe('8px');
+    expect(item.style.borderWidth).toBe('2px');
+    expect(item.style.borderColor).toBe('rgb(16, 40, 50)');
   });
 
   it('distributes every visible ad across the sponsor-strip width (6 ads)', () => {

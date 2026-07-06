@@ -73,6 +73,9 @@ export function sameDisplayConfiguration(
     prev.defaultTopAnimationDurationMilliseconds === curr.defaultTopAnimationDurationMilliseconds &&
     prev.defaultAdAnimationDurationMilliseconds === curr.defaultAdAnimationDurationMilliseconds &&
     prev.inlineAdCount === curr.inlineAdCount &&
+    prev.inlineAdItemBorderRadiusPx === curr.inlineAdItemBorderRadiusPx &&
+    prev.inlineAdItemBorderWidthPx === curr.inlineAdItemBorderWidthPx &&
+    prev.inlineAdItemBorderColor === curr.inlineAdItemBorderColor &&
     prev.remoteControlPollingSeconds === curr.remoteControlPollingSeconds &&
     prev.videoEndDelaySeconds === curr.videoEndDelaySeconds &&
     prev.isEnabled === curr.isEnabled

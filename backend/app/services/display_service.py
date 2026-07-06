@@ -80,7 +80,7 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
     if configuration is None:
         raise ValueError("Display configuration is required.")
     top_content = eligible_top_content(session, organization_id, now)
-    ads = eligible_ads(session, organization_id, now)[:configuration.inline_ad_count]
+    ads = eligible_ads(session, organization_id, now)
     control_service = DisplayControlService(session)
     remote_control = control_service.read_state_for_active_session(organization_id)
     selected_iframe = control_service.selected_iframe(remote_control) if remote_control is not None else None

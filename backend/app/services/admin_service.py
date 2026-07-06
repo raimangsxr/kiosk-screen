@@ -39,6 +39,9 @@ class AdminService:
                 or payload.default_ad_rotation_animation != configuration.default_ad_rotation_animation
                 or payload.default_ad_animation_duration_milliseconds != configuration.default_ad_animation_duration_milliseconds
                 or payload.inline_ad_count != configuration.inline_ad_count
+                or payload.inline_ad_item_border_radius_px != configuration.inline_ad_item_border_radius_px
+                or payload.inline_ad_item_border_width_px != configuration.inline_ad_item_border_width_px
+                or payload.inline_ad_item_border_color != configuration.inline_ad_item_border_color
                 or payload.remote_control_polling_seconds != configuration.remote_control_polling_seconds
                 or payload.video_end_delay_seconds != configuration.video_end_delay_seconds
             ):
@@ -61,6 +64,9 @@ class AdminService:
         configuration.default_top_animation_duration_milliseconds = payload.default_top_animation_duration_milliseconds
         configuration.default_ad_animation_duration_milliseconds = payload.default_ad_animation_duration_milliseconds
         configuration.inline_ad_count = payload.inline_ad_count
+        configuration.inline_ad_item_border_radius_px = payload.inline_ad_item_border_radius_px
+        configuration.inline_ad_item_border_width_px = payload.inline_ad_item_border_width_px
+        configuration.inline_ad_item_border_color = payload.inline_ad_item_border_color
         configuration.remote_control_polling_seconds = payload.remote_control_polling_seconds
         configuration.video_end_delay_seconds = payload.video_end_delay_seconds
         configuration.is_enabled = payload.is_enabled

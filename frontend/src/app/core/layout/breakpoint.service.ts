@@ -15,6 +15,10 @@ export interface AdminLayoutSignals {
   readonly isDesktop: Signal<boolean>;
   readonly isHandsetOrTablet: Signal<boolean>;
   readonly columnsForGrid: Signal<1 | 2 | 3>;
+  /** Overlay sidenav, hamburger menu, action overflow. */
+  readonly showOverlayNav: Signal<boolean>;
+  /** Card layout in admin lists instead of tables. */
+  readonly prefersCards: Signal<boolean>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -103,4 +107,8 @@ export class BreakpointService {
     }
     return 1;
   });
+
+  readonly showOverlayNav = this.isCompact;
+
+  readonly prefersCards = computed(() => this.isCompact() || this.isHandsetOrTablet());
 }

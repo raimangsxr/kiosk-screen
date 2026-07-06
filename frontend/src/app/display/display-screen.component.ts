@@ -141,14 +141,14 @@ type DisplayRenderableItem = Pick<
           aria-label="Patrocinadores del evento"
         >
           <h2 class="sponsor-strip__title">Patrocinadores del evento</h2>
-          @if (visibleAds.length) {
+          @if (sponsorStripAds().length) {
             <div
               class="sponsor-strip__list"
-              [style.--sponsor-count]="visibleAds.length"
+              [style.--sponsor-count]="sponsorStripAds().length"
               data-testid="sponsor-strip-list"
             >
-              @for (ad of visibleAds; track trackAdByRotation($index, ad)) {
-                <figure class="sponsor-strip__item">
+              @for (ad of sponsorStripAds(); track trackAdByRotation($index, ad)) {
+                <figure class="sponsor-strip__item" [ngStyle]="sponsorItemBorderStyle()">
                   <img
                     [src]="mediaSource(ad)"
                     [alt]="ad.advertiser ?? 'Sponsor'"
@@ -372,6 +372,33 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       videoEndDelay: s.configuration.videoEndDelaySeconds ?? 2,
     };
   });
+
+  /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
+  protected readonly sponsorStripAds = computed(() => {
+    this.stateVersion();
+    this.kioskRotation.adIndex();
+    if (!this.sponsorStripVisible()) {
+      return [] as DisplayAdItem[];
+    }
+    return this.kioskRotation.visibleAds() as unknown as DisplayAdItem[];
+  });
+
+  protected readonly sponsorItemBorderStyle = computed(() => {
+    this.stateVersion();
+    const cfg = this.state?.configuration;
+    const width = cfg?.inlineAdItemBorderWidthPx ?? 0;
+    return {
+      borderRadius: `${cfg?.inlineAdItemBorderRadiusPx ?? 5}px`,
+      borderWidth: `${width}px`,
+      borderStyle: width > 0 ? 'solid' : 'none',
+      borderColor: cfg?.inlineAdItemBorderColor ?? '#ffffff',
+    };
+  });
+
+  private sponsorStripVisible(): boolean {
+    return this.state?.configuration.isEnabled !== false
+      && this.state?.remoteControl?.adsVisible !== false;
+  }
   contentRenderItems: DisplayContentItem[] = [];
   fullscreenPromptVisible = false;
   readonly branding = this.eventBranding.branding;
@@ -421,10 +448,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   get visibleAds(): DisplayAdItem[] {
-    if (!this.adsVisible) {
-      return [];
-    }
-    return this.kioskRotation.visibleAds() as unknown as DisplayAdItem[];
+    return this.sponsorStripAds();
   }
 
   get currentAd(): DisplayAdItem | null {
@@ -637,6 +661,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     this.reconfigurePollingIfNeeded();
     this.syncContentRenderItems();
+    this.cdr.markForCheck();
   }
 
   private handleFixedModeTransition(
@@ -834,7 +859,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       .subscribe();
     this.polling.pollNow()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
+      .subscribe((state) => {
+        if (state) {
+          this.applyState(state, { resetRotation: false });
+        }
+      });
   }
 
   private reconfigurePollingIfNeeded(): void {

@@ -69,6 +69,28 @@ def test_fallback_activation_records_warning_event(db_session):
     assert event.severity == "warning"
 
 
+def test_get_display_state_returns_all_eligible_ads_not_only_inline_count(db_session):
+    result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
+    result.configuration.inline_ad_count = 2
+    for order, suffix in ((2, "b"), (3, "c")):
+        db_session.add(
+            ClientAdItem(
+                organization_id=result.organization.id,
+                source_reference=f"https://example.com/ad-{suffix}.jpg",
+                is_active=True,
+                display_order=order,
+                advertiser=f"Sponsor {suffix.upper()}",
+            )
+        )
+    db_session.commit()
+
+    state = get_display_state(db_session, result.organization.id)
+
+    assert result.configuration.inline_ad_count == 2
+    assert len(eligible_ads(db_session, result.organization.id)) == 3
+    assert len(state.ads) == 3
+
+
 def test_availability_window_excludes_expired_content(db_session):
     result = bootstrap_mvp_data(db_session, "admin@example.com", "admin")
     result.top_content.available_until = utc_now() - timedelta(minutes=1)

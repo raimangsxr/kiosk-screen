@@ -9,7 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDividerModule } from '@angular/material/divider';
 
 import { ReadinessFacade } from './readiness.facade';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
 
 @Component({
@@ -24,52 +24,51 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
     MatIconModule,
     MatProgressBarModule,
     MatDividerModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent
   ],
   template: `
-    <app-page-header
-      eyebrow="Administration"
-      title="Setup check"
-      description="Verify all kiosk setup is complete before opening the display for an event."
+    <app-admin-page
+      title="Comprobación"
+      description="Verifica que la configuración del quiosco esté completa antes del evento."
     />
 
     <mat-card appearance="outlined" class="readiness__card">
       <mat-card-content>
         @if (facade.loading()) {
-          <mat-progress-bar mode="indeterminate" aria-label="Loading setup check" />
+          <mat-progress-bar mode="indeterminate" aria-label="Cargando comprobación" />
         }
         @if (facade.error(); as error) {
           <app-admin-state
-            type="error"
-            title="Setup check unavailable"
+            kind="error"
+            title="Comprobación no disponible"
             [message]="error.message"
           />
         }
 
         @if (facade.ready()) {
           <div class="readiness__ready">
-            <span class="readiness__pill readiness__pill--ready">Ready to open kiosk</span>
-            <p>All required setup items are present. You can open kiosk mode from the hall.</p>
+            <span class="readiness__pill readiness__pill--ready">Listo para abrir el quiosco</span>
+            <p>Todos los requisitos están completos. Puedes abrir el modo quiosco desde el hall.</p>
           </div>
         }
 
         @if (facade.blocked()) {
           <div class="readiness__blocked">
-            <span class="readiness__pill readiness__pill--blocked">Blocked</span>
-            <p>Resolve each blocker below before opening kiosk mode.</p>
+            <span class="readiness__pill readiness__pill--blocked">Bloqueado</span>
+            <p>Resuelve cada bloqueo antes de abrir el modo quiosco.</p>
           </div>
         }
 
         @if (facade.blockers().length > 0) {
-          <h3>Blockers</h3>
+          <h3>Bloqueos</h3>
           <ul class="readiness__list">
             @for (blocker of facade.blockers(); track blocker) {
-              <li>
+              <li class="admin-stack">
                 <span class="readiness__message">{{ blocker }}</span>
                 <a mat-stroked-button color="primary" [routerLink]="resolveRoute(blocker)">
                   <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                  Resolve
+                  Resolver
                 </a>
               </li>
             }
@@ -78,14 +77,14 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
 
         @if (facade.warnings().length > 0) {
           <mat-divider />
-          <h3>Warnings</h3>
+          <h3>Advertencias</h3>
           <ul class="readiness__list">
             @for (warning of facade.warnings(); track warning) {
-              <li>
+              <li class="admin-stack">
                 <span class="readiness__message">{{ warning }}</span>
                 <a mat-stroked-button [routerLink]="resolveRoute(warning)">
                   <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                  Review
+                  Revisar
                 </a>
               </li>
             }
@@ -94,9 +93,9 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
 
         @if (!facade.loading() && !facade.error() && !facade.report()) {
           <app-admin-state
-            type="empty"
-            title="No setup check yet"
-            message="The setup check has not been computed yet."
+            kind="empty"
+            title="Sin comprobación"
+            message="La comprobación aún no se ha ejecutado."
           />
         }
       </mat-card-content>
@@ -116,7 +115,6 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
         padding: 4px 12px;
         border-radius: 999px;
         font: var(--mat-sys-label-medium);
-        letter-spacing: var(--mat-sys-label-medium-tracking);
         font-weight: 600;
         margin-bottom: 8px;
       }
@@ -147,9 +145,11 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
       .readiness__message {
         flex: 1;
       }
+      .readiness__list a {
+        min-height: var(--app-touch-target);
+      }
       h3 {
         font: var(--mat-sys-title-small);
-        letter-spacing: var(--mat-sys-title-small-tracking);
         color: var(--mat-sys-on-surface-variant);
         text-transform: uppercase;
         margin: 16px 0 8px;
@@ -166,20 +166,23 @@ export class ReadinessComponent implements OnInit {
 
   resolveRoute(message: string): string {
     const lower = message.toLowerCase();
-    if (lower.includes('content')) {
+    if (lower.includes('user') || lower.includes('rol') || lower.includes('usuario')) {
+      return '/admin/users';
+    }
+    if (lower.includes('content') || lower.includes('contenido')) {
       return '/admin/content';
     }
-    if (lower.includes('ad')) {
+    if (lower.includes('anuncio') || /\bad(s)?\b/.test(lower)) {
       return '/admin/ads';
     }
     if (lower.includes('iframe') || lower.includes('embedded')) {
       return '/admin/iframes';
     }
-    if (lower.includes('configuration') || lower.includes('display')) {
+    if (lower.includes('configuration') || lower.includes('display') || lower.includes('pantalla')) {
       return '/admin/configuration';
     }
-    if (lower.includes('user') || lower.includes('role')) {
-      return '/admin/users';
+    if (lower.includes('event') || lower.includes('evento')) {
+      return '/admin/event';
     }
     return '/admin';
   }

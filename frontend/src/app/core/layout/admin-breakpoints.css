@@ -1,0 +1,19 @@
+:root {
+  --admin-bp-compact-max: 599.98px;
+  --admin-bp-medium-min: 600px;
+  --admin-bp-expanded-min: 960px;
+  --admin-drawer-width: 280px;
+  --admin-drawer-width-compact: min(82vw, 320px);
+  --admin-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 599.98px) {
+  .admin-stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-stack > * {
+    width: 100%;
+  }
+}

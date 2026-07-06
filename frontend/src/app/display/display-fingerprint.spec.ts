@@ -147,4 +147,16 @@ describe('sameDisplayConfiguration', () => {
   it('returns false when polling interval changes', () => {
     expect(sameDisplayConfiguration(makeConfig({ remoteControlPollingSeconds: 5 }), makeConfig({ remoteControlPollingSeconds: 3 }))).toBeFalse();
   });
+
+  it('returns false when sponsor item border styling changes', () => {
+    expect(
+      sameDisplayConfiguration(makeConfig({ inlineAdItemBorderRadiusPx: 5 }), makeConfig({ inlineAdItemBorderRadiusPx: 8 })),
+    ).toBeFalse();
+    expect(
+      sameDisplayConfiguration(makeConfig({ inlineAdItemBorderWidthPx: 0 }), makeConfig({ inlineAdItemBorderWidthPx: 2 })),
+    ).toBeFalse();
+    expect(
+      sameDisplayConfiguration(makeConfig({ inlineAdItemBorderColor: '#ffffff' }), makeConfig({ inlineAdItemBorderColor: '#102832' })),
+    ).toBeFalse();
+  });
 });
