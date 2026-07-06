@@ -22,6 +22,7 @@ related_changes:
   - CHG-024
   - CHG-028
   - CHG-029
+  - CHG-030
   - CHG-005
   - CHG-007
   - CHG-008
@@ -56,12 +57,19 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Display state fingerprint comparison treats changes to `sourceReference`, `mediaFile.mediaUrl`, `effectiveDurationSeconds` (per content item), and `selectedIframe.url` as material even when content or iframe ids are unchanged. Rotation timers are preserved when only immaterial fields differ and remote-control fingerprint is unchanged.
 - When the rotation engine detects an empty loop queue, `DisplayScreenComponent` wires `KioskRotationController.rotationEventSink` to `DisplayApiService.postRotationEvent()` so `content_rotation_empty` is posted to the backend audit pipeline.
 - When the organizer logo URL changes after a prior load failure, the kiosk clears `hiddenLogoUrl` so the new URL is attempted without a full page reload.
+- `DisplayPollingService` owns the kiosk polling lifecycle: `open()`, `start()`, `stop()`, `pollNow()`, exponential backoff (1–30 s with ±20 % jitter) on transient poll failures, fatal 401/403 handling, and `reconnecting` / `openError` signals for operator feedback. `DisplayScreenComponent` delegates open, polling, and manual refresh to this service instead of inline `watchState()` subscriptions.
+- Transient poll failures keep rendering the last known state and show a non-intrusive reconnecting indicator. Initial `openDisplay` failure shows recoverable error UI with explicit retry; repeated open retries use the same backoff curve.
+- Leaving `/display` stops polling and releases timers without subscription leaks.
 
 ## Public interfaces
 
 - `Angular route /display`
 - `DisplayApiService.openDisplay()`
-- `DisplayApiService.watchState()`
+- `DisplayApiService.getState()`
+- `DisplayPollingService.open()`
+- `DisplayPollingService.start()`
+- `DisplayPollingService.stop()`
+- `DisplayPollingService.pollNow()`
 - `DisplayApiService.postRotationEvent()`
 - `KioskRotationController.attach()`
 

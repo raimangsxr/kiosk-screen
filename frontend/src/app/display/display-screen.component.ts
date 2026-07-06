@@ -7,6 +7,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
+import { ApplicationErrorContract } from '../shared/contracts/admin-contracts';
 import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
 import { EventConfigSyncService } from '../core/event-config-sync.service';
@@ -167,6 +168,32 @@ type DisplayRenderableItem = Pick<
         [visible]="fullscreenPromptVisible"
         (enter)="enterFullscreenFromDisplay()"
       />
+
+      @if (openError(); as err) {
+        <div class="display-open-error" role="alert" data-testid="display-open-error">
+          <p>{{ openErrorMessage(err) }}</p>
+          <button
+            type="button"
+            class="display-open-error__retry"
+            (click)="retryOpenDisplay()"
+            [disabled]="openInProgress()"
+            data-testid="display-open-retry"
+          >
+            Reintentar
+          </button>
+        </div>
+      }
+
+      @if (reconnecting()) {
+        <div
+          class="display-reconnecting"
+          role="status"
+          aria-live="polite"
+          data-testid="display-reconnecting"
+        >
+          Reconectando…
+        </div>
+      }
     </main>
   `,
   styleUrl: './display-screen.component.css',
@@ -195,6 +222,7 @@ type DisplayRenderableItem = Pick<
 })
 export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly api = inject(DisplayApiService);
+  private readonly polling = inject(DisplayPollingService);
   private readonly eventBranding = inject(EventBrandingService);
   private readonly eventConfigSync = inject(EventConfigSyncService);
   private readonly displaySync = inject(DisplayControlSyncService);
@@ -214,6 +242,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
    * next/previous, fixed-mode).
    */
   private unsubscribeAdvanceListener: (() => void) | undefined;
+  private pollingActive = false;
+
+  protected readonly reconnecting = this.polling.reconnecting;
+  protected readonly openError = this.polling.openError;
+  protected readonly openInProgress = this.polling.openInProgress;
 
   constructor() {
     this.unsubscribeAdvanceListener = this.kioskRotation.registerContentAdvanceListener(() => {
@@ -250,6 +283,16 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       this.brandingViewModel().organizerLogoUrl;
       this.hiddenLogoUrl = null;
     });
+
+    effect(() => {
+      if (!this.pollingActive) {
+        return;
+      }
+      const polled = this.polling.state();
+      if (polled) {
+        this.applyState(polled, { resetRotation: false });
+      }
+    });
   }
 
   /**
@@ -270,9 +313,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   @ViewChild('fixedVideo') private fixedVideoRef?: ElementRef<HTMLVideoElement>;
 
   private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
-  private pollSub: Subscription | null = null;
   private syncSub: Subscription | null = null;
-  private currentPollIntervalMs = 0;
   private lastNavigationCommandId: string | null = null;
   private cachedIframeUrl: string | null = null;
   private cachedSafeIframeUrl: SafeResourceUrl | null = null;
@@ -416,12 +457,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     // they cannot leak when the operator navigates away from /display.
     // The previous design called .subscribe() without storing the
     // subscription, which leaked one observable per poll.
-    this.api.openDisplay()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((state) => {
+    this.polling.open((state) => {
+      if (state) {
         this.applyState(state, { resetRotation: true });
-        this.startPolling();
-      });
+        this.pollingActive = true;
+        this.polling.start(this.pollIntervalMs());
+      }
+    });
     this.syncSub = this.displaySync.changes$
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.pollNow());
@@ -440,13 +482,20 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.portraitQuery?.removeEventListener?.('change', this.portraitListener);
     this.portraitQuery = null;
     this.clearTimers();
-    this.pollSub?.unsubscribe();
-    this.pollSub = null;
+    this.polling.stop();
     this.syncSub?.unsubscribe();
     this.syncSub = null;
     this.unsubscribeAdvanceListener?.();
     this.unsubscribeAdvanceListener = undefined;
     this.kioskRotation.detach();
+  }
+
+  protected openErrorMessage(err: ApplicationErrorContract): string {
+    return err.message || 'No se pudo abrir la pantalla. Comprueba la conexión e inténtalo de nuevo.';
+  }
+
+  retryOpenDisplay(): void {
+    this.polling.retryOpen();
   }
 
   mediaSource(item: DisplayRenderableItem): string {
@@ -776,41 +825,23 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return (this.state?.configuration.remoteControlPollingSeconds ?? 5) * 1000;
   }
 
-  private startPolling(): void {
-    this.pollSub?.unsubscribe();
-    this.currentPollIntervalMs = this.pollIntervalMs();
-    this.pollSub = this.api.watchState(this.currentPollIntervalMs)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((pollState) => {
-        this.eventBranding.refresh()
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe();
-        this.applyState(pollState, { resetRotation: false });
-      });
-  }
-
   private pollNow(): void {
-    if (this.state === null) {
+    if (!this.pollingActive) {
       return;
     }
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
-    this.api.getState()
+    this.polling.pollNow()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((state) => {
-        this.applyState(state, { resetRotation: false });
-      });
+      .subscribe();
   }
 
   private reconfigurePollingIfNeeded(): void {
-    if (!this.pollSub) {
+    if (!this.pollingActive) {
       return;
     }
-    const nextInterval = this.pollIntervalMs();
-    if (nextInterval !== this.currentPollIntervalMs) {
-      this.startPolling();
-    }
+    this.polling.reconfigureInterval(this.pollIntervalMs());
   }
 
   private setCurrentContent(item: DisplayContentItem | null): void {

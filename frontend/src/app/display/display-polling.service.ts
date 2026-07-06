@@ -1,30 +1,28 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Observable, Subscription, timer } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { Observable, Subscription, of } from 'rxjs';
+import { catchError, finalize, tap } from 'rxjs/operators';
 
 import { AuthService } from '../core/auth/auth.service';
 import { ApplicationErrorContract } from '../shared/contracts/admin-contracts';
 import { adaptApiError } from '../core/errors/api-error-adapter';
-import { DisplayApiService, DisplayState } from '../core/api/display.api';
+import {
+  DisplayApiService,
+  DisplayState,
+  equalByDisplayFingerprint,
+} from '../core/api/display.api';
 import { Router } from '@angular/router';
 
 /**
  * Owns the kiosk polling lifecycle. Wraps {@link DisplayApiService} with:
  *
- *  - A single `state` signal that the rest of the kiosk reads from.
- *  - An exponential-backoff loop on transient failures (5xx, network)
- *    so a WiFi blip during an event does not hammer the backend or
- *    crash the kiosk. The first failure waits ~1 s; each subsequent
- *    consecutive failure doubles the wait up to a 30 s cap, with ±20 %
- *    jitter to spread reconnects from multiple kiosks.
- *  - Fatal failure handling for 401/403: clears the session and
- *    redirects to `/login` (existing auth interceptor behavior). The
- *    session-cleared state is also surfaced through `error` so the UI
- *    can react.
- *  - Manual `pollNow()` and `stop()` hooks for the component.
+ *  - A `state` signal updated only when the display fingerprint changes.
+ *  - Exponential backoff on transient failures (5xx, network) from ~1 s to
+ *    a 30 s cap with ±20 % jitter.
+ *  - Fatal failure handling for 401/403.
+ *  - Recoverable open-display failures with operator retry.
  *
- * @see specs/changes/021-kiosk-runtime-refactor/spec.md FR-3
+ * @see specs/changes/030-kiosk-polling-resilience/spec.md
  */
 @Injectable()
 export class DisplayPollingService {
@@ -32,76 +30,81 @@ export class DisplayPollingService {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  /** Backoff configuration (FR-3). Exposed as constants for spec-friendly access. */
   static readonly MIN_BACKOFF_MS = 1000;
   static readonly MAX_BACKOFF_MS = 30_000;
   static readonly JITTER_RATIO = 0.2;
 
-  /** Latest polled state. Null until the first poll resolves. */
   readonly state = signal<DisplayState | null>(null);
-  /** True while a poll request is in flight (initial open + each cycle). */
   readonly loading = signal<boolean>(false);
-  /** Most recent error mapped through `adaptApiError`. Null on success. */
   readonly error = signal<ApplicationErrorContract | null>(null);
-  /** Number of consecutive transient failures; resets on every successful poll. */
+  readonly openError = signal<ApplicationErrorContract | null>(null);
+  readonly openInProgress = signal<boolean>(false);
   readonly consecutiveFailures = signal<number>(0);
-
-  /** Convenience: state with a null guard for templates. */
+  readonly reconnecting = computed(() => this.consecutiveFailures() > 0);
   readonly hasState = computed(() => this.state() !== null);
 
-  private timerSub: Subscription | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private openRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private inFlightSub: Subscription | null = null;
   private armedIntervalMs = 5000;
+  private openConsecutiveFailures = 0;
+  private lastFingerprintState: DisplayState | null = null;
+  private running = false;
+  private openCallback: ((state: DisplayState | null) => void) | null = null;
 
-  /**
-   * Open the display session (POST /api/display/open) and start the
-   * polling loop. The first poll fires immediately on subscribe; every
-   * subsequent poll waits `configuredIntervalMs` or the backoff curve.
-   */
+  open(onResult?: (state: DisplayState | null) => void): void {
+    this.openCallback = onResult ?? null;
+    this.clearOpenRetryTimer();
+    this.performOpen(0);
+  }
+
+  retryOpen(): void {
+    this.clearOpenRetryTimer();
+    const delay =
+      this.openConsecutiveFailures > 0
+        ? this.nextBackoffMs(this.openConsecutiveFailures)
+        : 0;
+    this.performOpen(delay);
+  }
+
   start(configuredIntervalMs: number): void {
-    this.stop();
+    this.stopPollingLoop();
+    this.running = true;
     this.armedIntervalMs = Math.max(1000, configuredIntervalMs);
     this.consecutiveFailures.set(0);
-    this.timerSub = timer(0, this.armedIntervalMs)
-      .pipe(
-        switchMap(() => this.fetchOnce()),
-        catchError(() => {
-          // The error has already been routed to `error` / fatal-handler.
-          // Returning an empty observable keeps the polling loop alive.
-          return [];
-        })
-      )
-      .subscribe();
+    this.schedulePoll(this.armedIntervalMs);
   }
 
-  /**
-   * Fetch a single state snapshot. Public so the component can drive a
-   * "refresh now" button without exposing the polling internals.
-   * Resolves to `null` on error (after the error has been routed).
-   */
   pollNow(): Observable<DisplayState | null> {
-    return this.fetchOnce();
-  }
-
-  /**
-   * Stop the polling loop and clear the timer. Idempotent.
-   */
-  stop(): void {
-    if (this.timerSub !== null) {
-      this.timerSub.unsubscribe();
-      this.timerSub = null;
+    if (!this.running) {
+      return of(null);
     }
+    this.clearPollTimer();
+    return this.fetchState({ reschedule: true });
   }
 
-  /**
-   * Compute the next backoff window in milliseconds for the given
-   * consecutive-failure count. Public for spec coverage and for tests
-   * that want to assert the curve without mocking timers.
-   *
-   *   0 → MIN_BACKOFF_MS (success path: reverts to configured interval)
-   *   1 → MIN_BACKOFF_MS * 2 + jitter
-   *   2 → MIN_BACKOFF_MS * 4 + jitter
-   *   … capped at MAX_BACKOFF_MS + jitter
-   */
+  reconfigureInterval(configuredIntervalMs: number): void {
+    const next = Math.max(1000, configuredIntervalMs);
+    if (next === this.armedIntervalMs) {
+      return;
+    }
+    this.armedIntervalMs = next;
+    if (!this.running) {
+      return;
+    }
+    this.clearPollTimer();
+    this.schedulePoll(this.armedIntervalMs);
+  }
+
+  stop(): void {
+    this.running = false;
+    this.stopPollingLoop();
+    this.clearOpenRetryTimer();
+    this.inFlightSub?.unsubscribe();
+    this.inFlightSub = null;
+    this.openCallback = null;
+  }
+
   nextBackoffMs(consecutiveFailures: number): number {
     if (consecutiveFailures <= 0) {
       return this.armedIntervalMs;
@@ -112,54 +115,125 @@ export class DisplayPollingService {
     const offset = (Math.random() * 2 - 1) * jitter;
     return Math.max(
       DisplayPollingService.MIN_BACKOFF_MS,
-      Math.min(DisplayPollingService.MAX_BACKOFF_MS, Math.round(base + offset))
+      Math.min(DisplayPollingService.MAX_BACKOFF_MS, Math.round(base + offset)),
     );
   }
 
-  private fetchOnce(): Observable<DisplayState | null> {
-    this.loading.set(true);
-    return this.api.getState().pipe(
-      switchMap((state) => {
-        this.state.set(state);
-        this.error.set(null);
-        this.consecutiveFailures.set(0);
-        this.loading.set(false);
-        // The polling timer reschedules with the configured interval
-        // on success. When the controller wants a different cadence it
-        // can read `consecutiveFailures` and decide; the timer here is
-        // a constant-interval loop because RxJS `timer` does not support
-        // dynamic intervals without a re-subscribe.
-        return [state];
-      }),
-      catchError((error: unknown) => {
-        this.loading.set(false);
-        const contract = adaptApiError(error);
-        this.error.set(contract);
-        this.handleFatalError(error, contract);
-        return [null];
-      })
-    );
-  }
-
-  /**
-   * Apply fatal-error semantics: 401/403 (session expired) clear the
-   * session and route to /login. Everything else is just recorded and
-   * bumps the failure counter so the next interval surfaces the
-   * backoff curve.
-   *
-   * We inspect the raw `HttpErrorResponse.status` because the adapted
-   * contract collapses everything to a category (`unexpected`,
-   * `permission`, …) and does not always carry the numeric status —
-   * the backend envelope may not include a `code` field.
-   */
-  private handleFatalError(error: unknown, contract: ApplicationErrorContract): void {
-    const status = error instanceof HttpErrorResponse ? error.status : null;
-    const isFatal = status === 401 || status === 403 || contract.category === 'permission';
-    if (isFatal) {
-      this.auth.clearSession();
-      void this.router.navigateByUrl('/login');
+  private performOpen(delayMs: number): void {
+    this.clearOpenRetryTimer();
+    if (delayMs <= 0) {
+      this.executeOpen();
       return;
     }
-    this.consecutiveFailures.update((n) => n + 1);
+    this.openRetryTimer = setTimeout(() => this.executeOpen(), delayMs);
+  }
+
+  private executeOpen(): void {
+    this.openInProgress.set(true);
+    this.openError.set(null);
+    this.inFlightSub?.unsubscribe();
+    this.inFlightSub = this.api.openDisplay().subscribe({
+      next: (state) => {
+        this.openInProgress.set(false);
+        this.openConsecutiveFailures = 0;
+        this.lastFingerprintState = state;
+        this.openCallback?.(state);
+      },
+      error: (error: unknown) => {
+        this.openInProgress.set(false);
+        const contract = adaptApiError(error);
+        this.openError.set(contract);
+        if (this.isFatalError(error, contract)) {
+          this.handleFatalError();
+          this.openCallback?.(null);
+          return;
+        }
+        this.openConsecutiveFailures += 1;
+        this.openCallback?.(null);
+      },
+    });
+  }
+
+  private schedulePoll(delayMs: number): void {
+    this.clearPollTimer();
+    if (!this.running) {
+      return;
+    }
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      if (!this.running) {
+        return;
+      }
+      this.inFlightSub?.unsubscribe();
+      this.inFlightSub = this.fetchState({ reschedule: true }).subscribe();
+    }, delayMs);
+  }
+
+  private fetchState(options: { reschedule: boolean }): Observable<DisplayState | null> {
+    this.loading.set(true);
+    return this.api.getState().pipe(
+      tap((state) => {
+        this.publishStateIfChanged(state, false);
+        this.error.set(null);
+        this.consecutiveFailures.set(0);
+      }),
+      catchError((error: unknown) => {
+        const contract = adaptApiError(error);
+        this.error.set(contract);
+        if (this.isFatalError(error, contract)) {
+          this.handleFatalError();
+          return of(null);
+        }
+        this.consecutiveFailures.update((n) => n + 1);
+        return of(null);
+      }),
+      finalize(() => {
+        this.loading.set(false);
+        if (!options.reschedule || !this.running) {
+          return;
+        }
+        const delay =
+          this.consecutiveFailures() > 0
+            ? this.nextBackoffMs(this.consecutiveFailures())
+            : this.armedIntervalMs;
+        this.schedulePoll(delay);
+      }),
+    );
+  }
+
+  private publishStateIfChanged(state: DisplayState, force: boolean): void {
+    if (force || !equalByDisplayFingerprint(this.lastFingerprintState, state)) {
+      this.lastFingerprintState = state;
+      this.state.set(state);
+    }
+  }
+
+  private isFatalError(error: unknown, contract: ApplicationErrorContract): boolean {
+    const status = error instanceof HttpErrorResponse ? error.status : null;
+    return status === 401 || status === 403 || contract.category === 'permission';
+  }
+
+  private handleFatalError(): void {
+    this.stop();
+    this.auth.clearSession();
+    void this.router.navigateByUrl('/login');
+  }
+
+  private stopPollingLoop(): void {
+    this.clearPollTimer();
+  }
+
+  private clearPollTimer(): void {
+    if (this.pollTimer !== null) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  private clearOpenRetryTimer(): void {
+    if (this.openRetryTimer !== null) {
+      clearTimeout(this.openRetryTimer);
+      this.openRetryTimer = null;
+    }
   }
 }
