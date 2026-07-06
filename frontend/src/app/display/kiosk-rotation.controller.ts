@@ -273,13 +273,6 @@ export class KioskRotationController {
 
         const queueById = new Map(queue.map((c) => [c.id, this._queueItemFingerprint(c)]));
 
-        // #region agent log
-        const recurringSnapshot = queue.filter((c) => c.recurringEveryXIterations != null).map((c) => ({ id: c.id, n: c.recurringEveryXIterations }));
-        if (fp !== lastFingerprint && recurringSnapshot.length > 0) {
-          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'D',location:'kiosk-rotation.controller.ts:bindInputs',message:'queue fingerprint changed with recurring items',data:{recurringSnapshot,cadenceCounter:this.cadenceCounter(),currentContentId:this.currentContentId(),smallestCadence:this.cadence.smallestRecurringCadence(queue)},timestamp:Date.now()})}).catch(()=>{});
-        }
-        // #endregion
-
         if (fp !== lastFingerprint) {
           const pendingNovelties = this.rotation.pendingNovelties(queue, new Set()).map((i) => i.id);
           const noveltyAdded = pendingNovelties.some((id) => !lastQueueById.has(id));
@@ -291,9 +284,6 @@ export class KioskRotationController {
             rotationConfigChanged,
             noveltyAdded,
           );
-          // #region agent log
-          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',runId:'post-fix-delete',location:'kiosk-rotation.controller.ts:bindInputs',message:'fingerprint changed',data:{pendingNoveltyIds:pendingNovelties,currentContentId:this.currentContentId(),mode,hasContentTimer:this.scheduler.hasContentTimer(),rotationConfigChanged,preserveContentTimer,removedIds:[...lastQueueById.keys()].filter(id=>!queueById.has(id)),action:preserveContentTimer?'armNonContentOnly':'armAllTimers'},timestamp:Date.now(),hypothesisId:'A-delete'})}).catch(()=>{});
-          // #endregion
           lastFingerprint = fp;
           lastRotationConfigFp = rotationConfigFp;
           lastQueueById = queueById;
@@ -471,9 +461,6 @@ export class KioskRotationController {
         // Wait for `(ended)` event; nothing to arm here.
       } else {
         const dur = this._effectiveDurationSeconds(current) * 1000;
-        // #region agent log
-        fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_armContentTimerOnly',message:'content timer armed',data:{contentId:current?.id,durationMs:dur,contentType:current?.contentType},timestamp:Date.now(),hypothesisId:'A-B'})}).catch(()=>{});
-        // #endregion
         this.scheduler.armContent(dur, () => this._advanceContent());
       }
     }
@@ -492,10 +479,6 @@ export class KioskRotationController {
       this.contentMode() === 'loop' &&
       !this.isPaused() &&
       (this._noveltyBurstActive || pending.length > 0);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_advanceContent',message:'advance triggered',data:{needsNovelty,pendingNoveltyIds:pending.map(i=>i.id),currentContentId:this.currentContentId(),burstActive:this._noveltyBurstActive},timestamp:Date.now(),hypothesisId:'D-E'})}).catch(()=>{});
-    // #endregion
 
     if (needsNovelty) {
       void this._advanceContentAsync();
@@ -606,9 +589,6 @@ export class KioskRotationController {
         if (claimed) {
           this._locallyShownNoveltyIds.add(candidate.id);
           this.currentContentId.set(candidate.id);
-          // #region agent log
-          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'kiosk-rotation.controller.ts:_tryAdvanceNovelty',message:'novelty shown',data:{noveltyId:candidate.id,resumeCursorId:this._resumeRegularCursorId},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-          // #endregion
           this._notifyContentAdvance();
           return true;
         }

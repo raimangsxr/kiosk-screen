@@ -3,11 +3,13 @@ import { catchError, concatMap, from, of, tap, throwError, toArray } from 'rxjs'
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
 import { AdItem, AdPayload, AdsApiService } from '../../core/api/ads.api';
+import { DisplayControlSyncService } from '../../core/display-control-sync.service';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 @Injectable({ providedIn: 'root' })
 export class AdsFacade {
   private readonly api = inject(AdsApiService);
+  private readonly displaySync = inject(DisplayControlSyncService);
   private readonly adsState = signal<readonly AdItem[]>([]);
   private readonly currentState = signal<AdItem | null>(null);
   private readonly loadingState = signal(false);
@@ -67,6 +69,7 @@ export class AdsFacade {
     return request.pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -85,6 +88,7 @@ export class AdsFacade {
       toArray(),
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -101,6 +105,7 @@ export class AdsFacade {
     return this.api.deleteAd(id).pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -133,6 +138,7 @@ export class AdsFacade {
       toArray(),
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -169,6 +175,7 @@ export class AdsFacade {
     return this.api.reorderAds(orderedIds).pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -187,5 +194,9 @@ export class AdsFacade {
 
   clearCurrent(): void {
     this.currentState.set(null);
+  }
+
+  private notifyDisplayChanged(): void {
+    this.displaySync.notifyDisplayStateChanged();
   }
 }

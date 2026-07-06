@@ -253,73 +253,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const queue = this.state?.topContent ?? [];
     const id = this.kioskRotation.currentContentId();
     const item = id ? queue.find((c) => c.id === id) ?? null : null;
-    const prevId = this._debugPrevContentId;
     this.contentRenderItems = item ? [item] : [];
     this.cdr.detectChanges();
-
-    // #region agent log
-    const newId = item?.id ?? null;
-    if (newId !== prevId) {
-      const transition = item ? this.contentTransition(item) : null;
-      const mediaEl = globalThis.document?.querySelector('[data-testid="display-content"]') ?? null;
-      const sameDomElement = mediaEl !== null && mediaEl === this._debugPrevMediaEl;
-      const isAnimating = (mediaEl as HTMLElement | null)?.classList.contains('ng-animating') ?? false;
-      const resolvedAnimation = item ? this.contentRotationAnimation(item) : null;
-      const debugPayload = {
-        sessionId: '6d5964',
-        runId: 'post-fix',
-        hypothesisId: 'A',
-        location: 'display-screen.component.ts:syncContentRenderItems',
-        message: 'content advance render',
-        data: {
-          prevId,
-          newId,
-          sameDomElement,
-          isAnimatingImmediately: isAnimating,
-          resolvedAnimation,
-          effectiveRotationAnimation: item?.effectiveRotationAnimation ?? null,
-          rotationAnimation: item?.rotationAnimation ?? null,
-          durationMs: transition?.params.duration ?? 0,
-          transitionValue: transition?.value ?? null,
-          enterTransform: transition?.params.enterTransform ?? null,
-          contentType: item?.contentType ?? null,
-          noveltyBurstActive: this.kioskRotation.noveltyBurstActive(),
-          usesNoveltyDefaults: item ? this.usesNoveltyDefaults(item) : false,
-        },
-        timestamp: Date.now(),
-      };
-      fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d5964' },
-        body: JSON.stringify(debugPayload),
-      }).catch(() => undefined);
-      if (transition && transition.params.duration > 0) {
-        globalThis.setTimeout(() => {
-          const laterEl = globalThis.document?.querySelector('[data-testid="display-content"]') as HTMLElement | null;
-          fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '6d5964' },
-            body: JSON.stringify({
-              sessionId: '6d5964',
-              runId: 'post-fix',
-              hypothesisId: 'A',
-              location: 'display-screen.component.ts:syncContentRenderItems:postDuration',
-              message: 'content advance post-animation check',
-              data: {
-                newId,
-                wasAnimatingDuringWindow: laterEl?.classList.contains('ng-animating') ?? false,
-                hasNgTriggerClass: laterEl?.classList.contains('ng-trigger-contentTransition') ?? false,
-                durationMs: transition.params.duration,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => undefined);
-        }, transition.params.duration + 50);
-      }
-      this._debugPrevContentId = newId;
-      this._debugPrevMediaEl = mediaEl;
-    }
-    // #endregion
   }
 
 
@@ -335,8 +270,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private lastFullscreenRequested: boolean | null = null;
   protected hiddenLogoUrl: string | null = null;
   private lastFixedContentId: string | null = null;
-  private _debugPrevContentId: string | null = null;
-  private _debugPrevMediaEl: Element | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -611,14 +544,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private applyState(state: DisplayState, options: { resetRotation: boolean }): void {
     const previousContentMode = this.state?.remoteControl?.contentMode;
     const previousDisplayAvailable = this.displayAvailable;
-    const prevRecurring = (this.state?.topContent ?? []).map((c) => ({ id: c.id, n: c.recurringEveryXIterations ?? null }));
     this.state = state;
     this.stateVersion.update((v) => v + 1);
-    // #region agent log
-    const nextRecurring = state.topContent.map((c) => ({ id: c.id, n: c.recurringEveryXIterations ?? null }));
-    const recurringChanged = JSON.stringify(prevRecurring) !== JSON.stringify(nextRecurring);
-    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'B',location:'display-screen.component.ts:applyState',message:'display state applied',data:{resetRotation:options.resetRotation,recurringChanged,prevRecurring,nextRecurring,stateVersion:this.stateVersion(),cadenceCounter:this.kioskRotation.cadenceCounter()},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
 
     const newContentMode = state.remoteControl?.contentMode ?? 'loop';
@@ -811,9 +738,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     const durationMs = this.computeContentDurationSeconds(this.currentContent) * 1000;
     if (durationMs <= 1000) return;
     this.preTransitionPollTimer = setTimeout(() => {
-      // #region agent log
-      fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'57a093'},body:JSON.stringify({sessionId:'57a093',location:'display-screen.component.ts:schedulePreTransitionPoll',message:'pre-transition poll fired',data:{currentContentId:this.currentContent?.id,durationMs},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       this.eventBranding.refresh()
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe();
@@ -859,9 +783,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     if (this.state === null) {
       return;
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'A',location:'display-screen.component.ts:pollNow',message:'immediate poll triggered',data:{source:'displaySync'},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();

@@ -63,11 +63,9 @@ export class ContentFacade {
     this.errorState.set(null);
     const request = id ? this.api.update(id, payload) : this.api.create(payload);
     return request.pipe(
-      tap((saved) => {
+      tap(() => {
         this.savingState.set(false);
-        // #region agent log
-        fetch('http://127.0.0.1:7494/ingest/cecf0506-0954-4144-b1d7-20e5d805fd48',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'4a229f'},body:JSON.stringify({sessionId:'4a229f',runId:'pre-fix',hypothesisId:'A',location:'content.facade.ts:save',message:'content saved',data:{id:saved?.id??id??null,recurringEveryXIterations:payload.recurringEveryXIterations??null,isFixed:payload.isFixed??false,notifiesDisplaySync:false},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -85,6 +83,7 @@ export class ContentFacade {
     return request.pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -103,6 +102,7 @@ export class ContentFacade {
       toArray(),
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -119,6 +119,7 @@ export class ContentFacade {
     return this.api.delete(id).pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -157,6 +158,7 @@ export class ContentFacade {
       toArray(),
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -197,6 +199,7 @@ export class ContentFacade {
       toArray(),
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -244,6 +247,7 @@ export class ContentFacade {
     return this.api.reorderContent(orderedIds).pipe(
       tap(() => {
         this.savingState.set(false);
+        this.notifyDisplayChanged();
         this.refresh().subscribe();
       }),
       catchError((error: unknown) => {
@@ -271,6 +275,10 @@ export class ContentFacade {
    */
   showOnScreen(id: string) {
     return this.remoteControl.navigate('jump_to', id);
+  }
+
+  private notifyDisplayChanged(): void {
+    this.displaySync.notifyDisplayStateChanged();
   }
 
   /**
