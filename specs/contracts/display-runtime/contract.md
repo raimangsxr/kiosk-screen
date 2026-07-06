@@ -45,7 +45,8 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Default layout is stable before the first poll, and ads-hidden mode lets the top region fill the viewport.
 - Landscape viewports 1280x720, 1920x1080, 2560x1440, and 3840x2160 render without scrollbars, clipped text, or layout shifts greater than one pixel when switching content modes.
 - Portrait viewports hide kiosk regions and show a single high-contrast rotate-device prompt while backend polling continues.
-- Ad figures reserve stable proportional cells; ad images fit without cropping, including tall portrait uploads.
+- Ad figures reserve stable 1:1 cells; border radius, width, and color come from `inlineAdItemBorderRadiusPx`, `inlineAdItemBorderWidthPx`, and `inlineAdItemBorderColor` in the polled configuration (defaults: 5px radius, 0px width, `#ffffff`). Ad images fill each cell edge-to-edge via `object-fit: cover` (square sponsor assets are the supported format).
+- Display configuration changes saved in the admin (including `inlineAdCount` and sponsor-strip border fields) propagate to an open kiosk through the existing `DisplayControlSyncService` cross-tab channel plus the normal polling cycle; no manual page reload is required.
 - Top-region photos and videos render the full frame without cropping (`object-fit: contain` on the foreground). Unused band space is filled with a blurred backdrop copy of the same media (blur-fill). Under `prefers-reduced-motion: reduce`, the backdrop degrades to solid `#102832` instead of blur. See `ADR-0007`.
 - Pinned iframes continue to fill the top region edge-to-edge without blur-fill framing (v1).
 - Ad rotation uses its own cadence and is not reset by faster top-content advances in loop/rotation mode; the same ad cadence continues in fixed, iframe, and paused states while ads remain visible.

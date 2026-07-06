@@ -46,14 +46,14 @@ describe('AdListComponent (Material)', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Sponsor');
     expect(text).toContain('External source');
-    expect(text).toContain('Active');
+    expect(text).toContain('Activo');
   });
 
   it('shows empty state when no ads are returned', () => {
     fixture.componentInstance['facade'].refresh().subscribe();
     httpController.expectOne('/api/ads').flush([]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No ads yet');
+    expect(fixture.nativeElement.textContent).toContain('Sin anuncios');
   });
 
   it('exposes a redacted error message when list fails', () => {
@@ -66,7 +66,7 @@ describe('AdListComponent (Material)', () => {
       );
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Ads unavailable');
+    expect(text).toContain('Anuncios no disponibles');
     expect(text).not.toContain('/var/log/');
   });
 });

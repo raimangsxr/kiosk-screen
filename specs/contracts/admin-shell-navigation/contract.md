@@ -15,6 +15,7 @@ tests:
   - frontend/src/app/**/*.spec.ts
 related_changes:
   - CHG-013
+  - CHG-035
 related_adrs:
   []
 ---
@@ -27,18 +28,24 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 
 ## Current behavior
 
-- Authenticated users see a Material admin shell with persistent navigation to configured admin pages.
-- The hall page and dashboard route operators to setup and live-event workflows.
+- Authenticated users see a Material admin shell with grouped sidenav navigation (Operación, Configuración, Acceso), search filter, and footer links to hall and kiosk mode.
+- `BreakpointService.isCompact()` drives overlay sidenav: hamburger menu, backdrop, auto-close on navigation. This applies to handsets and narrow desktop windows.
+- `BreakpointService.prefersCards()` (`isCompact() || isHandsetOrTablet()`) selects card vs table layout in `AdminListComponent`.
+- `AdminRouteContextService` supplies toolbar and page title, subtitle (e.g. Editar on `/admin/content/:id/edit`), and breadcrumbs on expanded viewports.
+- `AdminPageComponent` shows a compact page header on all viewports; expanded viewports also show breadcrumbs.
+- Admin UI copy is Spanish. Shared primitives: `AdminPage`, `AdminList`, `AdminFormShell`, `AdminActionBar`, `AdminEntityCard`.
+- List screens provide card view with full mobile parity: content/ads support selection, bulk actions, and reorder via up/down controls in card view; iframes have card view with edit/delete.
+- Confirmations use `MatBottomSheet` on compact viewports and `MatDialog` on expanded viewports.
 - Dirty forms warn before navigation loses unsaved changes.
 - Navigation respects route guards and user roles.
-- Shared admin UI components provide consistent loading, empty, error, and confirmation states.
-- On handset viewports (`BreakpointService.isHandset()`), the toolbar section title, the section breadcrumb, and the in-page page-header are hidden; the side-nav selection (Material activated background, primary accent, and inset shadow) is the sole module identifier. The brand block "Kiosk Screen / Administration" stays visible as the app context anchor.
-- Admin pages never introduce horizontal page scroll on any viewport. Tables that exceed the viewport scroll internally inside their data-list card; long identifiers (emails, URLs) wrap inside their cells; `.app-page` and `.admin-shell__main` use `min-width: 0` and `overflow-x: clip` to prevent grid blowout from intrinsic child widths.
+- Admin pages never introduce horizontal page scroll. Tables scroll inside list cards; long identifiers wrap; `.app-page` and `.admin-shell__main` use `min-width: 0` and `overflow-x: clip`.
 
 ## Public interfaces
 
 - `Angular routes under /admin`
 - `Dirty-form guard contract`
+- `AdminRouteContextService` (title, subtitle, breadcrumbs)
+- `AdminNavigationService` (grouped nav items)
 
 ## Owned code paths
 
@@ -58,8 +65,10 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 ## Non-goals
 
 - A public marketing site is outside this contract.
+- Bottom navigation bar on mobile.
 
 ## Change history
 
 - CHG-013
 - Bug fix — hide redundant module name on handset viewports and prevent horizontal page scroll.
+- CHG-035 — mobile-first refactor: grouped drawer, unified primitives, Spanish copy, list mobile parity.

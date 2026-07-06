@@ -190,10 +190,10 @@ export class BreadcrumbComponent {
 
   private labelForSegment(segment: string): string {
     if (segment === 'new') {
-      return 'New';
+      return 'Nuevo';
     }
     if (segment === 'edit') {
-      return 'Edit';
+      return 'Editar';
     }
     return segment;
   }

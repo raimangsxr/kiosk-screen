@@ -20,9 +20,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
 
 import { DisplayConfigFacade } from './display-config.facade';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.component';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
@@ -39,6 +39,9 @@ interface DisplayConfigFormValue {
   defaultTopAnimationDurationMilliseconds: number;
   defaultAdAnimationDurationMilliseconds: number;
   inlineAdCount: number;
+  inlineAdItemBorderRadiusPx: number;
+  inlineAdItemBorderWidthPx: number;
+  inlineAdItemBorderColor: string;
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
   isEnabled: boolean;
@@ -59,12 +62,12 @@ interface DisplayConfigFormValue {
     MatSlideToggleModule,
     MatDividerModule,
     MatSnackBarModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent,
-    FormPageComponent
+    AdminFormShellComponent
   ],
   template: `
-    <app-page-header
+    <app-admin-page
       eyebrow="Administration"
       title="Display configuration"
       description="Kiosk-wide rotation timing, animation, inline ad count, and enabled state."
@@ -78,7 +81,7 @@ interface DisplayConfigFormValue {
         novalidate
         aria-label="Display configuration form"
       >
-        <app-form-page [loading]="loading()">
+        <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
@@ -212,6 +215,32 @@ interface DisplayConfigFormValue {
           </div>
 
           <mat-divider />
+          <h3 class="display-config__section">Ad strip item style</h3>
+          <div class="display-config__row">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Corner radius (px)</mat-label>
+              <input matInput type="number" formControlName="inlineAdItemBorderRadiusPx" min="0" max="32" required />
+              @if (form.controls.inlineAdItemBorderRadiusPx.hasError('min') || form.controls.inlineAdItemBorderRadiusPx.hasError('max')) {
+                <mat-error>Must be between 0 and 32.</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Border width (px)</mat-label>
+              <input matInput type="number" formControlName="inlineAdItemBorderWidthPx" min="0" max="8" required />
+              @if (form.controls.inlineAdItemBorderWidthPx.hasError('min') || form.controls.inlineAdItemBorderWidthPx.hasError('max')) {
+                <mat-error>Must be between 0 and 8.</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Border color</mat-label>
+              <input matInput formControlName="inlineAdItemBorderColor" maxlength="32" autocomplete="off" />
+              <mat-hint>CSS color, e.g. #ffffff</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <mat-divider />
           <h3 class="display-config__section">Kiosk settings</h3>
           <div class="display-config__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -263,7 +292,7 @@ interface DisplayConfigFormValue {
             />
           }
 
-          <div formPageActions>
+          <div formShellActions>
             <button
               mat-flat-button
               color="primary"
@@ -274,7 +303,7 @@ interface DisplayConfigFormValue {
               {{ facade.saving() ? 'Saving…' : 'Save' }}
             </button>
           </div>
-        </app-form-page>
+        </app-admin-form-shell>
       </form>
     }
   `,
@@ -336,6 +365,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     defaultTopAnimationDurationMilliseconds: FormControl<number>;
     defaultAdAnimationDurationMilliseconds: FormControl<number>;
     inlineAdCount: FormControl<number>;
+    inlineAdItemBorderRadiusPx: FormControl<number>;
+    inlineAdItemBorderWidthPx: FormControl<number>;
+    inlineAdItemBorderColor: FormControl<string>;
     remoteControlPollingSeconds: FormControl<number>;
     videoEndDelaySeconds: FormControl<number>;
     isEnabled: FormControl<boolean>;
@@ -389,6 +421,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       defaultTopAnimationDurationMilliseconds: value.defaultTopAnimationDurationMilliseconds,
       defaultAdAnimationDurationMilliseconds: value.defaultAdAnimationDurationMilliseconds,
       inlineAdCount: value.inlineAdCount,
+      inlineAdItemBorderRadiusPx: value.inlineAdItemBorderRadiusPx,
+      inlineAdItemBorderWidthPx: value.inlineAdItemBorderWidthPx,
+      inlineAdItemBorderColor: value.inlineAdItemBorderColor.trim(),
       remoteControlPollingSeconds: value.remoteControlPollingSeconds,
       videoEndDelaySeconds: value.videoEndDelaySeconds,
       isEnabled: value.isEnabled
@@ -438,6 +473,15 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       inlineAdCount: this.fb.nonNullable.control(1, {
         validators: [Validators.required, positiveInteger('positiveInteger')]
       }),
+      inlineAdItemBorderRadiusPx: this.fb.nonNullable.control(5, {
+        validators: [Validators.required, Validators.min(0), Validators.max(32)]
+      }),
+      inlineAdItemBorderWidthPx: this.fb.nonNullable.control(0, {
+        validators: [Validators.required, Validators.min(0), Validators.max(8)]
+      }),
+      inlineAdItemBorderColor: this.fb.nonNullable.control('#ffffff', {
+        validators: [Validators.required, Validators.maxLength(32)]
+      }),
       remoteControlPollingSeconds: this.fb.nonNullable.control(3, {
         validators: [Validators.required, positiveInteger('positiveInteger'), Validators.min(1), Validators.max(60)]
       }),
@@ -463,6 +507,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       defaultTopAnimationDurationMilliseconds: config.defaultTopAnimationDurationMilliseconds,
       defaultAdAnimationDurationMilliseconds: config.defaultAdAnimationDurationMilliseconds,
       inlineAdCount: config.inlineAdCount,
+      inlineAdItemBorderRadiusPx: config.inlineAdItemBorderRadiusPx ?? 5,
+      inlineAdItemBorderWidthPx: config.inlineAdItemBorderWidthPx ?? 0,
+      inlineAdItemBorderColor: config.inlineAdItemBorderColor ?? '#ffffff',
       remoteControlPollingSeconds: config.remoteControlPollingSeconds,
       videoEndDelaySeconds: config.videoEndDelaySeconds ?? 2,
       isEnabled: config.isEnabled

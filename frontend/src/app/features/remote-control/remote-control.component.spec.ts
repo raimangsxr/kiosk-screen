@@ -135,12 +135,11 @@ describe('RemoteControlComponent', () => {
     expect(fixture.nativeElement.querySelector('mat-toolbar')).toBeNull();
   });
 
-  it('renders the page header with the Administration eyebrow and the Remote control title', () => {
-    const header = fixture.nativeElement.querySelector('app-page-header');
+  it('renders the admin page header with the remote control title', () => {
+    const header = fixture.nativeElement.querySelector('app-admin-page');
     expect(header).not.toBeNull();
     const text = header.textContent;
-    expect(text).toContain('Administration');
-    expect(text).toContain('Remote control');
+    expect(text).toContain('Control remoto');
   });
 
   it('renders the status pill with the current mode, ads visibility, display online, and updated time', () => {

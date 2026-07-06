@@ -11,6 +11,9 @@ export const adminTestConfiguration = {
   defaultTopAnimationDurationMilliseconds: 300,
   defaultAdAnimationDurationMilliseconds: 300,
   inlineAdCount: 2,
+  inlineAdItemBorderRadiusPx: 5,
+  inlineAdItemBorderWidthPx: 0,
+  inlineAdItemBorderColor: '#ffffff',
   remoteControlPollingSeconds: 3,
   isEnabled: true
 };

@@ -24,5 +24,8 @@ def test_configuration_and_iframe_models(db_session):
     assert configuration.top_region_ratio == 5
     assert configuration.bottom_region_ratio == 1
     assert configuration.video_end_delay_seconds == 2
+    assert configuration.inline_ad_item_border_radius_px == 5
+    assert configuration.inline_ad_item_border_width_px == 0
+    assert configuration.inline_ad_item_border_color == "#ffffff"
     assert event_configuration.event_duration_minutes == 60
     assert iframe.url == "https://example.com"

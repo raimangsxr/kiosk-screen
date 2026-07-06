@@ -131,12 +131,12 @@ export class AdminDashboardService {
 
   private sectionContent(snap: AdminDashboardSnapshot, degraded: string[]): AdminSectionSummary {
     if (!snap.content.ok) {
-      degraded.push('Content');
-      return { label: 'Content', value: '—', route: '/admin/content', status: 'degraded' };
+      degraded.push('Contenido');
+      return { label: 'Contenido', value: '—', route: '/admin/content', status: 'degraded' };
     }
     return {
-      label: 'Content',
-      value: `${snap.content.value.length} items`,
+      label: 'Contenido',
+      value: `${snap.content.value.length} elementos`,
       route: '/admin/content',
       status: snap.content.value.hasActive ? 'ready' : 'blocked'
     };
@@ -144,12 +144,12 @@ export class AdminDashboardService {
 
   private sectionAds(snap: AdminDashboardSnapshot, degraded: string[]): AdminSectionSummary {
     if (!snap.ads.ok) {
-      degraded.push('Ads');
-      return { label: 'Ads', value: '—', route: '/admin/ads', status: 'degraded' };
+      degraded.push('Anuncios');
+      return { label: 'Anuncios', value: '—', route: '/admin/ads', status: 'degraded' };
     }
     return {
-      label: 'Ads',
-      value: `${snap.ads.value.length} ads`,
+      label: 'Anuncios',
+      value: `${snap.ads.value.length} anuncios`,
       route: '/admin/ads',
       status: snap.ads.value.hasActive ? 'ready' : 'warning'
     };
@@ -157,13 +157,13 @@ export class AdminDashboardService {
 
   private sectionEvent(snap: AdminDashboardSnapshot, degraded: string[]): AdminSectionSummary {
     if (!snap.eventConfig.ok) {
-      degraded.push('Event');
-      return { label: 'Event', value: '—', route: '/admin/event', status: 'degraded' };
+      degraded.push('Evento');
+      return { label: 'Evento', value: '—', route: '/admin/event', status: 'degraded' };
     }
     const name = snap.eventConfig.value.eventName;
     return {
-      label: 'Event',
-      value: name || 'Not set',
+      label: 'Evento',
+      value: name || 'Sin definir',
       route: '/admin/event',
       status: name ? 'ready' : 'warning'
     };
@@ -184,12 +184,12 @@ export class AdminDashboardService {
 
   private sectionDisplay(snap: AdminDashboardSnapshot, degraded: string[]): AdminSectionSummary {
     if (!snap.configuration.ok) {
-      degraded.push('Display');
-      return { label: 'Display', value: '—', route: '/admin/configuration', status: 'degraded' };
+      degraded.push('Pantalla');
+      return { label: 'Pantalla', value: '—', route: '/admin/configuration', status: 'degraded' };
     }
     return {
-      label: 'Display',
-      value: snap.configuration.value.isEnabled ? 'Enabled' : 'Disabled',
+      label: 'Pantalla',
+      value: snap.configuration.value.isEnabled ? 'Activada' : 'Desactivada',
       route: '/admin/configuration',
       status: snap.configuration.value.isEnabled ? 'ready' : 'blocked'
     };
@@ -197,12 +197,12 @@ export class AdminDashboardService {
 
   private sectionUsers(snap: AdminDashboardSnapshot, degraded: string[]): AdminSectionSummary {
     if (!snap.users.ok) {
-      degraded.push('Users');
-      return { label: 'Users', value: '—', route: '/admin/users', status: 'degraded' };
+      degraded.push('Usuarios');
+      return { label: 'Usuarios', value: '—', route: '/admin/users', status: 'degraded' };
     }
     return {
-      label: 'Users',
-      value: `${snap.users.value.length} users`,
+      label: 'Usuarios',
+      value: `${snap.users.value.length} usuarios`,
       route: '/admin/users',
       status: snap.users.value.length ? 'ready' : 'warning'
     };

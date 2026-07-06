@@ -55,8 +55,8 @@ describe('AdminDashboardService', () => {
     expect(state.setupStatus).toBe('ready');
     expect(state.degradedSections).toEqual([]);
     expect(state.sectionSummaries.length).toBe(6);
-    expect(state.sectionSummaries.find((s) => s.label === 'Content')?.value).toBe('0 items');
-    expect(state.sectionSummaries.find((s) => s.label === 'Display')?.status).toBe('ready');
+    expect(state.sectionSummaries.find((s) => s.label === 'Contenido')?.value).toBe('0 elementos');
+    expect(state.sectionSummaries.find((s) => s.label === 'Pantalla')?.status).toBe('ready');
   });
 
   it('marks only the failing section as degraded when one endpoint errors', async () => {
@@ -89,12 +89,12 @@ describe('AdminDashboardService', () => {
 
     const state = await promise;
     expect(state.setupStatus).toBe('degraded');
-    expect(state.degradedSections).toEqual(['Content']);
-    const content = state.sectionSummaries.find((s) => s.label === 'Content');
+    expect(state.degradedSections).toEqual(['Contenido']);
+    const content = state.sectionSummaries.find((s) => s.label === 'Contenido');
     expect(content?.status).toBe('degraded');
     expect(content?.value).toBe('—');
     // Other sections kept their real values.
-    expect(state.sectionSummaries.find((s) => s.label === 'Ads')?.value).toBe('0 ads');
+    expect(state.sectionSummaries.find((s) => s.label === 'Anuncios')?.value).toBe('0 anuncios');
   });
 
   it('falls back to degraded when the readiness endpoint errors', async () => {
@@ -159,7 +159,7 @@ describe('AdminDashboardService', () => {
     http.expectOne('/api/users').flush([]);
 
     const state = await promise;
-    expect(state.degradedSections).toContain('Display');
-    expect(state.degradedSections).toContain('Ads');
+    expect(state.degradedSections).toContain('Pantalla');
+    expect(state.degradedSections).toContain('Anuncios');
   });
 });

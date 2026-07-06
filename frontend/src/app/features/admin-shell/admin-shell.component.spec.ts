@@ -7,6 +7,7 @@ import { provideRouter, Router, Routes } from '@angular/router';
 import { BreakpointObserver, BreakpointState, Breakpoints } from '@angular/cdk/layout';
 import { BehaviorSubject } from 'rxjs';
 
+import { AdminRouteContextService } from '../../core/layout/admin-route-context.service';
 import { AdminShellComponent } from './admin-shell.component';
 
 @Component({ selector: 'app-stub-page', standalone: true, template: '' })
@@ -48,7 +49,8 @@ const stubRoutes: Routes = [
     children: [
       { path: '', component: StubPageComponent },
       { path: 'remote-control', component: StubPageComponent },
-      { path: 'users', component: StubPageComponent }
+      { path: 'users', component: StubPageComponent },
+      { path: 'content/:id/edit', component: StubPageComponent }
     ]
   }
 ];
@@ -74,70 +76,86 @@ describe('AdminShellComponent', () => {
     localStorage.clear();
   });
 
-  it('renders accessible admin navigation with a kiosk entry', () => {
+  it('renders grouped navigation with Spanish labels and kiosk entry', () => {
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
-    const nav = fixture.nativeElement.querySelector('mat-nav-list');
-
-    expect(nav?.getAttribute('aria-label')).toBe('Admin sections');
-    expect(text).toContain('Iframes');
-    expect(text).toContain('Content');
-    expect(text).toContain('Users and roles');
-    expect(text).toContain('Setup check');
-    expect(text).toContain('Remote control');
-    expect(text).toContain('Back to hall');
-    expect(text).toContain('Enter kiosk mode');
-
-    const hallLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
-      .find((link) => link.getAttribute('href') === '/hall');
-    expect(hallLink).toBeTruthy();
-    expect(hallLink?.textContent).toContain('Back to hall');
-
-    const kioskLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
-      .find((link) => link.getAttribute('href') === '/display');
-    expect(kioskLink).toBeTruthy();
-    expect(kioskLink?.textContent).toContain('Enter kiosk mode');
-
-    const remoteLink = Array.from(fixture.nativeElement.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>)
-      .find((link) => link.getAttribute('href') === '/admin/remote-control');
-    expect(remoteLink).toBeTruthy();
-    expect(remoteLink?.textContent).toContain('Remote control');
+    expect(text).toContain('Operación');
+    expect(text).toContain('Contenido');
+    expect(text).toContain('Usuarios');
+    expect(text).toContain('Control remoto');
+    expect(text).toContain('Volver al hall');
+    expect(text).toContain('Entrar en quiosco');
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-nav-search"]')).not.toBeNull();
   });
 
-  it('renders the brand in the admin toolbar and not in the sidenav', () => {
+  it('renders the brand in the admin toolbar on desktop', () => {
+    emitBreakpoints(breakpointObserver, {
+      HandsetPortrait: false,
+      Web: true,
+      Large: true,
+      XSmall: false,
+      Small: false,
+      Medium: false,
+      XLarge: false
+    });
+
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
     const toolbar = fixture.nativeElement.querySelector('mat-toolbar');
-
     expect(toolbar?.textContent).toContain('Kiosk Screen');
-    expect(toolbar?.textContent).toContain('Administration');
-
-    expect(fixture.nativeElement.querySelector('[aria-label="Signed in user"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.drawer-header__user')).toBeNull();
+    expect(toolbar?.textContent).toContain('Administración');
   });
 
-  it('updates the toolbar title when navigation changes', async () => {
+  it('shows menu button on compact non-handset viewports', () => {
+    emitBreakpoints(breakpointObserver, {
+      HandsetPortrait: false,
+      XSmall: true,
+      Small: false,
+      Medium: false,
+      Large: false,
+      XLarge: false
+    });
+
+    const fixture = TestBed.createComponent(AdminShellComponent);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Abrir navegación"]')).not.toBeNull();
+  });
+
+  it('updates route context title when navigation changes', async () => {
     const router = TestBed.inject(Router);
+    const routeContext = TestBed.inject(AdminRouteContextService);
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
     await router.navigateByUrl('/admin');
     fixture.detectChanges();
-    expect(fixture.componentInstance['toolbarTitle']()).toBe('Dashboard');
+    expect(routeContext.title()).toBe('Panel');
 
     await router.navigateByUrl('/admin/users');
     fixture.detectChanges();
-    expect(fixture.componentInstance['toolbarTitle']()).toBe('Users and roles');
+    expect(routeContext.title()).toBe('Usuarios');
 
     await router.navigateByUrl('/admin/remote-control');
     fixture.detectChanges();
-    expect(fixture.componentInstance['toolbarTitle']()).toBe('Remote control');
+    expect(routeContext.title()).toBe('Control remoto');
   });
 
-  it('hides the section breadcrumb on handset viewports', async () => {
+  it('exposes edit subtitle on deep routes', async () => {
+    const router = TestBed.inject(Router);
+    const routeContext = TestBed.inject(AdminRouteContextService);
+    const fixture = TestBed.createComponent(AdminShellComponent);
+    fixture.detectChanges();
+
+    await router.navigateByUrl('/admin/content/abc/edit');
+    fixture.detectChanges();
+    expect(routeContext.subtitle()).toBe('Editar');
+  });
+
+  it('hides breadcrumb on compact viewports', async () => {
     emitBreakpoints(breakpointObserver, {
       HandsetPortrait: true,
       XSmall: true,
@@ -155,7 +173,7 @@ describe('AdminShellComponent', () => {
     expect(fixture.nativeElement.querySelector('app-breadcrumb')).toBeNull();
   });
 
-  it('renders the section breadcrumb on desktop viewports', async () => {
+  it('renders breadcrumb on expanded viewports', async () => {
     emitBreakpoints(breakpointObserver, {
       HandsetPortrait: false,
       Web: true,

@@ -35,12 +35,12 @@ describe('BreadcrumbComponent', () => {
     expect(fixture.nativeElement.querySelector('.breadcrumb')).toBeNull();
   });
 
-  it('renders the Dashboard crumb on /admin', async () => {
+  it('renders the Panel crumb on /admin', async () => {
     await goTo('/admin');
     const fixture = TestBed.createComponent(BreadcrumbComponent);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.breadcrumb__current')?.textContent).toContain(
-      'Dashboard'
+      'Panel'
     );
   });
 
@@ -50,9 +50,9 @@ describe('BreadcrumbComponent', () => {
     fixture.detectChanges();
     const links = fixture.nativeElement.querySelectorAll('.breadcrumb__link');
     expect(links.length).toBe(1);
-    expect(links[0].textContent).toContain('Content');
+    expect(links[0].textContent).toContain('Contenido');
     expect(links[0].getAttribute('href')).toBe('/admin/content');
     const current = fixture.nativeElement.querySelector('.breadcrumb__current');
-    expect(current?.textContent).toContain('Edit');
+    expect(current?.textContent).toContain('Editar');
   });
 });

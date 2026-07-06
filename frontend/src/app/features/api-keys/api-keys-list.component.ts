@@ -9,7 +9,7 @@ import { MatTableModule } from '@angular/material/table';
 
 import { ApiKeysFacade } from './api-keys.facade';
 import { ApiKeysApiKeyCreateDialogComponent } from './api-keys-create-dialog.component';
-import { DataListComponent } from '../../shared/ui/data-list/data-list.component';
+import { AdminListComponent } from '../../shared/ui/admin/admin-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 
@@ -25,11 +25,11 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
     MatCardModule,
     MatDialogModule,
     MatSnackBarModule,
-    DataListComponent,
+    AdminListComponent,
     StatusChipComponent,
   ],
   template: `
-    <app-data-list
+    <app-admin-list
       [title]="pageTitle"
       [description]="pageDescription"
       [loading]="facade.loading()"
@@ -43,11 +43,11 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       (refresh)="onRefresh()"
       (emptyAction)="onCreate()"
     >
-      <button dataListActions mat-flat-button color="primary" type="button" (click)="onCreate()" data-testid="create-key">
+      <button adminListActions mat-flat-button color="primary" type="button" (click)="onCreate()" data-testid="create-key">
         <mat-icon>add</mat-icon>
         Create key
       </button>
-      <ng-template #dataListTable>
+      <ng-template #adminListTable>
         <table mat-table [dataSource]="facade.keys()" aria-label="API keys" class="app-table api-keys-list__table">
           <ng-container matColumnDef="label">
             <th mat-header-cell *matHeaderCellDef>Label</th>
@@ -137,7 +137,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         </table>
       </ng-template>
 
-      <ng-template #dataListCards>
+      <ng-template #adminListCards>
         @for (key of facade.keys(); track key.id) {
           <mat-card appearance="outlined" class="api-keys-list__card-item">
             <mat-card-content>
@@ -205,7 +205,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           </mat-card>
         }
       </ng-template>
-    </app-data-list>
+    </app-admin-list>
   `,
   styles: [
     `

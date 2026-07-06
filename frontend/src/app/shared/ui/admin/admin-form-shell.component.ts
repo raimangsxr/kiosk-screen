@@ -1,43 +1,39 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
-import { BreakpointService } from '../../core/layout/breakpoint.service';
+import { BreakpointService } from '../../../core/layout/breakpoint.service';
 
 @Component({
-  selector: 'app-form-page',
+  selector: 'app-admin-form-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, MatCardModule, MatProgressBarModule],
+  imports: [MatCardModule, MatProgressBarModule],
   template: `
-    <mat-card appearance="outlined" class="form-page">
-      <mat-card-header class="form-page__header">
-        <ng-content select="[formPageHeader]" />
+    <mat-card appearance="outlined" class="admin-form-shell">
+      <mat-card-header class="admin-form-shell__header">
+        <ng-content select="[formShellHeader]" />
         @if (title()) {
-          <mat-card-title class="form-page__title">{{ title() }}</mat-card-title>
+          <mat-card-title class="admin-form-shell__title">{{ title() }}</mat-card-title>
         }
         @if (subtitle()) {
-          <mat-card-subtitle class="form-page__subtitle">{{ subtitle() }}</mat-card-subtitle>
+          <mat-card-subtitle class="admin-form-shell__subtitle">{{ subtitle() }}</mat-card-subtitle>
         }
       </mat-card-header>
 
-      <mat-card-content class="form-page__content">
+      <mat-card-content class="admin-form-shell__content">
         @if (loading()) {
-          <mat-progress-bar
-            mode="indeterminate"
-            aria-label="Loading"
-          />
+          <mat-progress-bar mode="indeterminate" [attr.aria-label]="'Cargando'" />
         }
         <ng-content />
       </mat-card-content>
 
       <mat-card-actions
-        class="form-page__actions"
-        [align]="isHandset() ? 'start' : 'end'"
-        [class.form-page__actions--stacked]="isHandset()"
+        class="admin-form-shell__actions"
+        [align]="isCompact() ? 'start' : 'end'"
+        [class.admin-form-shell__actions--stacked]="isCompact()"
       >
-        <ng-content select="[formPageActions]" />
+        <ng-content select="[formShellActions]" />
       </mat-card-actions>
     </mat-card>
   `,
@@ -46,44 +42,48 @@ import { BreakpointService } from '../../core/layout/breakpoint.service';
       :host {
         display: block;
       }
-      .form-page {
+      .admin-form-shell {
         display: block;
         background: var(--mat-sys-surface);
       }
-      .form-page__header {
+      .admin-form-shell__header {
         padding: 24px 24px 8px;
       }
-      .form-page__title {
+      .admin-form-shell__title {
         font: var(--mat-sys-title-large);
         letter-spacing: var(--mat-sys-title-large-tracking);
       }
-      .form-page__subtitle {
+      .admin-form-shell__subtitle {
         margin-top: 4px;
         font: var(--mat-sys-body-medium);
         letter-spacing: var(--mat-sys-body-medium-tracking);
         color: var(--mat-sys-on-surface-variant);
       }
-      .form-page__content {
+      .admin-form-shell__content {
         padding: 16px 24px;
         display: grid;
         gap: 16px;
       }
-      .form-page__actions {
+      .admin-form-shell__actions {
         padding: 8px 24px 24px;
         gap: 8px;
         display: flex;
         flex-wrap: wrap;
       }
-      .form-page__actions--stacked {
+      .admin-form-shell__actions--stacked {
         flex-direction: column;
         align-items: stretch;
+      }
+      .admin-form-shell__actions--stacked > * {
+        width: 100%;
+        min-height: var(--app-touch-target);
       }
     `
   ]
 })
-export class FormPageComponent {
+export class AdminFormShellComponent {
   private readonly breakpoint = inject(BreakpointService);
-  protected readonly isHandset = this.breakpoint.isHandset;
+  protected readonly isCompact = this.breakpoint.isCompact;
 
   readonly title = input<string>('');
   readonly subtitle = input<string>('');

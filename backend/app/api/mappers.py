@@ -47,6 +47,9 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         defaultTopAnimationDurationMilliseconds=configuration.default_top_animation_duration_milliseconds,
         defaultAdAnimationDurationMilliseconds=configuration.default_ad_animation_duration_milliseconds,
         inlineAdCount=configuration.inline_ad_count,
+        inlineAdItemBorderRadiusPx=configuration.inline_ad_item_border_radius_px,
+        inlineAdItemBorderWidthPx=configuration.inline_ad_item_border_width_px,
+        inlineAdItemBorderColor=configuration.inline_ad_item_border_color,
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         videoEndDelaySeconds=configuration.video_end_delay_seconds,
         isEnabled=configuration.is_enabled

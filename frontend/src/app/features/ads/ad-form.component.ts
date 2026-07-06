@@ -23,9 +23,9 @@ import { Observable, Subject, takeUntil } from 'rxjs';
 import { AdsFacade } from './ads.facade';
 import { AdItem, AdPayload } from '../../core/api/ads.api';
 import { ROTATION_ANIMATIONS, RotationAnimation } from '../../shared/media-upload.models';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { FormPageComponent } from '../../shared/ui/form-page.component';
+import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.component';
 import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
@@ -56,13 +56,13 @@ interface AdFormValue {
     MatSlideToggleModule,
     MatDividerModule,
     MatSnackBarModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent,
-    FormPageComponent,
+    AdminFormShellComponent,
     FileInputComponent
   ],
   template: `
-    <app-page-header
+    <app-admin-page
       eyebrow="Administration"
       [title]="formTitle()"
       description="Upload an image ad for the bottom region. The advertiser field is optional and free-form."
@@ -76,7 +76,7 @@ interface AdFormValue {
         novalidate
         aria-label="Ad form"
       >
-        <app-form-page [loading]="loading()">
+        <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
@@ -186,7 +186,7 @@ interface AdFormValue {
             />
           }
 
-          <div formPageActions>
+          <div formShellActions>
             <a mat-button routerLink="/admin/ads">Cancel</a>
             <button
               mat-flat-button
@@ -198,7 +198,7 @@ interface AdFormValue {
               {{ facade.saving() ? 'Saving…' : 'Save' }}
             </button>
           </div>
-        </app-form-page>
+        </app-admin-form-shell>
       </form>
     }
   `,

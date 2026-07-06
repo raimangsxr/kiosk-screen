@@ -1,0 +1,29 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+.admin-shell {
+  min-height: calc(100vh - var(--app-touch-target));
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+.admin-shell__sidenav {
+  width: var(--admin-drawer-width);
+  background: var(--mat-sys-surface-container);
+  border-right: 1px solid var(--mat-sys-outline-variant);
+}
+
+.admin-shell__main {
+  padding-top: 16px;
+  padding-bottom: calc(32px + var(--admin-safe-bottom, 0px));
+  min-width: 0;
+  overflow-x: clip;
+}
+
+@media (max-width: 599.98px) {
+  .admin-shell__sidenav {
+    width: var(--admin-drawer-width-compact);
+  }
+}

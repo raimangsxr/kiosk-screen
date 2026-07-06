@@ -214,6 +214,7 @@ contracts:
       - frontend/src/app/shared/ui/**
     related_changes:
       - CHG-013
+      - CHG-035
 
   - id: DISPLAY.RUNTIME
     path: specs/contracts/display-runtime/contract.md
@@ -543,6 +544,15 @@ changes:
     status: implemented
     modifies:
       - OPS.PLATFORM
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-035
+    path: specs/changes/035-admin-mobile-refactor/spec.md
+    status: in-progress
+    modifies:
+      - ADMIN.SHELL.NAVIGATION
     depends_on: []
     consolidated_into: []
     read_by_default: true

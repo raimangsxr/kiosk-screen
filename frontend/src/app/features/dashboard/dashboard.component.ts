@@ -7,7 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 
 import { AdminDashboardService } from './dashboard.service';
 import { AdminDashboardState, AdminNavigationItem, AdminQuickAction, AdminSectionSummary } from '../../shared/admin-ui.models';
-import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { StatusChipComponent, StatusKind } from '../../shared/ui/status-chip.component';
 import { BreakpointService } from '../../core/layout/breakpoint.service';
@@ -23,21 +23,20 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    PageHeaderComponent,
+    AdminPageComponent,
     AdminStateComponent,
     StatusChipComponent
   ],
   template: `
-    <app-page-header
-      eyebrow="Administration"
-      title="Dashboard"
-      description="Kiosk setup status, section summaries, and quick actions."
+    <app-admin-page
+      title="Panel"
+      description="Estado del quiosco, resumen de secciones y accesos rápidos."
     />
 
     @if (error(); as err) {
       <app-admin-state
         kind="error"
-        title="Dashboard unavailable"
+        title="Panel no disponible"
         [message]="err"
       />
     }
@@ -51,7 +50,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         />
         <a mat-button color="primary" routerLink="/admin/readiness">
           <mat-icon aria-hidden="true">fact_check</mat-icon>
-          Run setup check
+          Ejecutar comprobación
         </a>
       </div>
 
@@ -59,7 +58,8 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
         class="dashboard__grid"
         [class.dashboard__grid--two]="isTwoColumns()"
         [class.dashboard__grid--three]="isThreeColumns()"
-        aria-label="Section summaries"
+        [class.dashboard__grid--compact]="isCompact()"
+        aria-label="Resumen de secciones"
       >
         @for (summary of s.sectionSummaries; track summary.route) {
           <mat-card appearance="outlined" class="dashboard__tile">
@@ -78,7 +78,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
               />
               <a mat-button color="primary" [routerLink]="summary.route">
                 <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                Open
+                Abrir
               </a>
             </mat-card-actions>
           </mat-card>
@@ -87,7 +87,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
 
       @if (s.blockers.length || s.warnings.length) {
         <section class="dashboard__alerts">
-          <h3 class="dashboard__alerts-title">Setup check</h3>
+          <h3 class="dashboard__alerts-title">Comprobación</h3>
           <ul class="dashboard__alerts-list">
             @for (blocker of s.blockers; track blocker) {
               <li class="dashboard__alert dashboard__alert--blocked">
@@ -106,8 +106,8 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
       }
 
       @if (s.quickActions.length) {
-        <section class="dashboard__actions" aria-label="Quick actions">
-          <h3 class="dashboard__actions-title">Quick actions</h3>
+        <section class="dashboard__actions" aria-label="Accesos rápidos">
+          <h3 class="dashboard__actions-title">Accesos rápidos</h3>
           <div
             class="dashboard__actions-grid"
             [class.dashboard__actions-grid--two]="isTwoColumns()"
@@ -122,7 +122,7 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
                 <mat-card-actions align="end">
                   <a mat-button color="primary" [routerLink]="action.route">
                     <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                    Open
+                    Abrir
                   </a>
                 </mat-card-actions>
               </mat-card>
@@ -158,6 +158,9 @@ import { adaptApiError } from '../../core/errors/api-error-adapter';
       .dashboard__grid--three,
       .dashboard__actions-grid--three {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .dashboard__grid--compact .mat-mdc-card-actions .mat-mdc-button-base {
+        width: 100%;
       }
       .dashboard__tile,
       .dashboard__action {
@@ -235,6 +238,7 @@ export class AdminDashboardComponent implements OnInit {
 
   protected readonly isTwoColumns = computed(() => this.breakpoint.isMedium() || this.breakpoint.isExpanded());
   protected readonly isThreeColumns = computed(() => this.breakpoint.isExpanded());
+  protected readonly isCompact = this.breakpoint.isCompact;
 
   ngOnInit(): void {
     this.dashboard.load().subscribe({
@@ -251,12 +255,12 @@ export class AdminDashboardComponent implements OnInit {
 
   protected setupLabel(status: AdminDashboardState['setupStatus']): string {
     if (status === 'ready') {
-      return 'Ready';
+      return 'Listo';
     }
     if (status === 'blocked') {
-      return 'Blocked';
+      return 'Bloqueado';
     }
-    return 'Action required';
+    return 'Acción requerida';
   }
 
   protected setupKind(status: AdminDashboardState['setupStatus']): StatusKind {

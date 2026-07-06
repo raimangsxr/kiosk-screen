@@ -4,11 +4,28 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { BreakpointObserver, BreakpointState, Breakpoints } from '@angular/cdk/layout';
+import { BehaviorSubject } from 'rxjs';
 
 import { ContentApiService, ContentItem } from '../../core/api/content.api';
 import { ContentFacade } from './content.facade';
 import { ContentListComponent } from './content-list.component';
 import { ContentFormComponent } from './content-form.component';
+
+class BreakpointObserverStub {
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {
+      [Breakpoints.Large]: true,
+      [Breakpoints.HandsetPortrait]: false,
+      [Breakpoints.TabletPortrait]: false
+    }
+  });
+
+  observe() {
+    return this.events.asObservable();
+  }
+}
 
 function buildItem(partial: Partial<ContentItem> = {}): ContentItem {
   return {
@@ -35,6 +52,7 @@ describe('ContentListComponent (Material)', () => {
       imports: [ContentListComponent, NoopAnimationsModule],
       providers: [
         { provide: ContentApiService, useValue: api },
+        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() },
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting()
@@ -48,7 +66,7 @@ describe('ContentListComponent (Material)', () => {
   it('renders item title and active status', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Agenda');
-    expect(text).toContain('Active');
+    expect(text).toContain('Activo');
   });
 
   it('shows empty state when no items are returned', () => {
@@ -56,7 +74,7 @@ describe('ContentListComponent (Material)', () => {
     fixture.componentInstance['facade'].refresh().subscribe();
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('No content yet');
+    expect(text).toContain('No hay contenido');
   });
 
   it('exposes error message when list fails', () => {
@@ -66,7 +84,7 @@ describe('ContentListComponent (Material)', () => {
     fixture.componentInstance['facade'].refresh().subscribe({ error: () => undefined });
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Content unavailable');
+    expect(text).toContain('Contenido no disponible');
     expect(text).not.toContain('/var/log/');
   });
 

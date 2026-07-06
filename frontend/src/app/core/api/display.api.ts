@@ -18,6 +18,9 @@ export interface DisplayKioskConfiguration {
   defaultTopAnimationDurationMilliseconds?: number;
   defaultAdAnimationDurationMilliseconds?: number;
   inlineAdCount?: number;
+  inlineAdItemBorderRadiusPx?: number;
+  inlineAdItemBorderWidthPx?: number;
+  inlineAdItemBorderColor?: string;
   remoteControlPollingSeconds?: number;
   videoEndDelaySeconds?: number;
   isEnabled: boolean;
