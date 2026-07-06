@@ -29,6 +29,13 @@ tooling for the FastAPI + Angular stack.
 - Release workflows publish both the release tag and `latest` for each
   backend/frontend image, and keep uploading the `release-tag` artifact
   consumed by the argocd bump workflow.
+- Pull requests and pushes to `main` run `.github/workflows/ci.yml`:
+  backend tests on SQLite (`pytest -m "not postgres"`), PostgreSQL-marked
+  integration tests against a GitHub Actions `postgres:16-alpine` service
+  container with migrations applied, frontend unit tests, production build,
+  and Docker image builds without registry push.
+- PR CI complements `release-images.yml` and `bump-app.yml` (CHG-025/026);
+  it does not replace release publishing.
 
 ## Owned Files
 
@@ -40,3 +47,4 @@ tooling for the FastAPI + Angular stack.
 - `frontend/.dockerignore`
 - `.github/workflows/release-images.yml`
 - `.github/workflows/bump-app.yml`
+- `.github/workflows/ci.yml`

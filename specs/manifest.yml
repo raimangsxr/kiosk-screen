@@ -540,7 +540,7 @@ changes:
 
   - id: CHG-034
     path: specs/changes/034-ci-pr-validation/spec.md
-    status: draft
+    status: implemented
     modifies:
       - OPS.PLATFORM
     depends_on: []
