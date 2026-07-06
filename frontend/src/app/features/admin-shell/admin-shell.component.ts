@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -178,6 +179,7 @@ import { AdminNavigationService } from './admin-navigation.service';
 export class AdminShellComponent implements OnInit {
   private readonly breakpoint = inject(BreakpointService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly navigation = inject(AdminNavigationService);
   private readonly sidenav = viewChild<MatSidenav>('sidenav');
 
@@ -191,7 +193,10 @@ export class AdminShellComponent implements OnInit {
     this.currentUrl.set(this.router.url);
     this.updateToolbarTitle(this.router.url);
     this.router.events
-      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe((event) => {
         this.currentUrl.set(event.urlAfterRedirects);
         this.updateToolbarTitle(event.urlAfterRedirects);

@@ -108,6 +108,17 @@ export class DisplayApiService {
     );
   }
 
+  postRotationEvent(
+    eventType: 'content_rotation_empty',
+    payload: Record<string, unknown> = {},
+  ): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      '/api/display/rotation-event',
+      { eventType, payload },
+      { withCredentials: true },
+    );
+  }
+
   watchState(pollIntervalMs: number = 5000): Observable<DisplayState> {
     return timer(0, pollIntervalMs).pipe(
       switchMap(() => this.getState()),
@@ -132,6 +143,7 @@ export function equalByDisplayFingerprint(prev: DisplayState | null, curr: Displ
     prev.remoteControl?.navigationCommandId === curr.remoteControl?.navigationCommandId &&
     prev.remoteControl?.jumpToContentId === curr.remoteControl?.jumpToContentId &&
     prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
-    prev.selectedIframe?.id === curr.selectedIframe?.id
+    prev.selectedIframe?.id === curr.selectedIframe?.id &&
+    (prev.selectedIframe?.url ?? '') === (curr.selectedIframe?.url ?? '')
   );
 }

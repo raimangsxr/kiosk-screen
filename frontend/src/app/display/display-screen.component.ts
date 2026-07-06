@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectorRef, Component, DestroyRef, ElementRef, Injector, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, Injector, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -241,6 +241,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       inlineAdCount: () => this.stateFingerprint()?.inlineAdCount ?? 1,
       videoEndDelaySeconds: () => this.stateFingerprint()?.videoEndDelay ?? 2,
     }, this.injector);
+
+    this.kioskRotation.rotationEventSink = (eventType, payload) => {
+      this.api.postRotationEvent(eventType, payload).subscribe({ error: () => undefined });
+    };
+
+    effect(() => {
+      this.brandingViewModel().organizerLogoUrl;
+      this.hiddenLogoUrl = null;
+    });
   }
 
   /**
@@ -578,6 +587,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       this.schedulePreTransitionPoll();
     }
     this.reconfigurePollingIfNeeded();
+    this.syncContentRenderItems();
   }
 
   private handleFixedModeTransition(

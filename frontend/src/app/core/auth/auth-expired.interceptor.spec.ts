@@ -108,7 +108,20 @@ describe('authExpiredInterceptor', () => {
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('passes non-401 errors through untouched', async () => {
+  it('clears the session and redirects to /login on a 403 from a protected endpoint', async () => {
+    auth.setAuthenticated(true, { id: 'user-1', email: 'a@b.com', displayName: 'A', roles: [] });
+    const pending = runRequest('/api/users');
+
+    const request = http.expectOne('/api/users');
+    request.flush('forbidden', { status: 403, statusText: 'Forbidden' });
+
+    await expectAsync(pending).toBeRejectedWith(jasmine.any(HttpErrorResponse));
+    expect(auth.clearCount).toBe(1);
+    expect(auth.isAuthenticated()).toBeFalse();
+    expect(router.navigateByUrl).toHaveBeenCalledOnceWith('/login');
+  });
+
+  it('passes non-auth errors through untouched', async () => {
     auth.setAuthenticated(true, { id: 'user-1', email: 'a@b.com', displayName: 'A', roles: [] });
     const pending = runRequest('/api/content');
 

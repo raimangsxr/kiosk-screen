@@ -323,6 +323,41 @@ describe('KioskRotationController', () => {
     controller.detach();
   }));
 
+  it('preserves the content timer when only media fields change on the current item (CHG-029)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      {
+        ...makeContent('a', 1, 5),
+        sourceReference: 'https://example.com/one.jpg',
+        mediaFile: { id: 'm1', mediaType: 'image', contentType: 'image/png', fileSizeBytes: 1, originalFilename: 'one.jpg', mediaUrl: 'https://cdn.example.com/one.jpg' },
+      },
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 5,
+      adDurationSeconds: () => 5,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 2,
+    }, testInjector);
+    TestBed.tick();
+    tick(10);
+    const scheduler = (controller as unknown as { scheduler: RotationSchedulerService }).scheduler;
+    expect(scheduler.hasContentTimer()).toBeTrue();
+
+    queue.set([
+      {
+        ...makeContent('a', 1, 5),
+        sourceReference: 'https://example.com/two.jpg',
+        mediaFile: { id: 'm1', mediaType: 'image', contentType: 'image/png', fileSizeBytes: 1, originalFilename: 'two.jpg', mediaUrl: 'https://cdn.example.com/two.jpg' },
+      },
+    ]);
+    TestBed.tick();
+    expect(scheduler.hasContentTimer()).toBeTrue();
+    controller.detach();
+  }));
+
   it('debounces the empty-queue rotation event to once per 60s (FR-009 / spec 007)', fakeAsync(() => {
     const sink = jasmine.createSpy('sink');
     controller.rotationEventSink = sink;

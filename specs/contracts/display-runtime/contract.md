@@ -21,6 +21,7 @@ related_changes:
   - CHG-019
   - CHG-024
   - CHG-028
+  - CHG-029
   - CHG-005
   - CHG-007
   - CHG-008
@@ -52,12 +53,16 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Fullscreen requests are surfaced with a user-action prompt when browser policy blocks automatic entry.
 - KioskRotationController is the single owner of rotation timers and state; the component must not reach into private controller fields.
 - The kiosk subscribes to the cross-tab event-config sync channel (`kiosk-event-config-sync`, see `EVENT.BRANDING`) so that an admin form save in another tab/window triggers `EventBrandingService.refresh()` within the same event loop turn, without waiting for the next polling cycle (CHG-024). The existing polling cycle is preserved as a fallback for cross-machine scenarios where BroadcastChannel cannot reach the kiosk host.
+- Display state fingerprint comparison treats changes to `sourceReference`, `mediaFile.mediaUrl`, `effectiveDurationSeconds` (per content item), and `selectedIframe.url` as material even when content or iframe ids are unchanged. Rotation timers are preserved when only immaterial fields differ and remote-control fingerprint is unchanged.
+- When the rotation engine detects an empty loop queue, `DisplayScreenComponent` wires `KioskRotationController.rotationEventSink` to `DisplayApiService.postRotationEvent()` so `content_rotation_empty` is posted to the backend audit pipeline.
+- When the organizer logo URL changes after a prior load failure, the kiosk clears `hiddenLogoUrl` so the new URL is attempted without a full page reload.
 
 ## Public interfaces
 
 - `Angular route /display`
 - `DisplayApiService.openDisplay()`
 - `DisplayApiService.watchState()`
+- `DisplayApiService.postRotationEvent()`
 - `KioskRotationController.attach()`
 
 ## Owned code paths

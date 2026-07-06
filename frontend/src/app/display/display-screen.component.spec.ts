@@ -1448,6 +1448,93 @@ describe('DisplayScreenComponent', () => {
       expect(globalThis.getComputedStyle(frame).backgroundColor).toBe('rgb(16, 40, 50)');
     });
   });
+
+  describe('CHG-029 production quick wins', () => {
+    it('applyState with a media-only change updates rendered content for the same id', () => {
+      const fixture = createComponent(readyState);
+      const component = fixture.componentInstance as unknown as {
+        applyState: (s: DisplayState, o: { resetRotation: boolean }) => void;
+        contentRenderItems: DisplayContentItem[];
+      };
+      const updated: DisplayState = {
+        ...readyState,
+        topContent: [{
+          ...readyState.topContent[0],
+          mediaFile: { id: 'm2', mediaType: 'image', contentType: 'image/png', fileSizeBytes: 1, originalFilename: 'new.jpg', mediaUrl: 'https://example.com/new-welcome.jpg' },
+        }],
+      };
+      component.applyState(updated, { resetRotation: false });
+      expect(component.contentRenderItems[0]?.mediaFile?.mediaUrl).toBe('https://example.com/new-welcome.jpg');
+    });
+
+    it('clears hiddenLogoUrl when organizerLogoUrl changes', () => {
+      const branding = signal<{ eventName: string; organizerName: string; organizerLogoUrl: string | null }>({
+        eventName: '',
+        organizerName: 'ACME',
+        organizerLogoUrl: 'https://bad.png',
+      });
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(readyState),
+              watchState: () => of(readyState),
+              postRotationEvent: () => of({ status: 'accepted' }),
+            },
+          },
+          {
+            provide: EventBrandingService,
+            useValue: {
+              branding: branding.asReadonly(),
+              refresh: () => of(branding()),
+              clear: () => branding.set({ eventName: '', organizerName: '', organizerLogoUrl: null }),
+            },
+          },
+          provideRouter([]),
+          provideNoopAnimations(),
+        ],
+      });
+      const fixture = TestBed.createComponent(DisplayScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance as unknown as {
+        hideBrokenLogo: (url: string) => void;
+        logoVisible: (url: string) => boolean;
+      };
+      component.hideBrokenLogo('https://bad.png');
+      expect(component.logoVisible('https://bad.png')).toBeFalse();
+      branding.set({ eventName: '', organizerName: 'ACME', organizerLogoUrl: 'https://good.png' });
+      fixture.detectChanges();
+      expect(component.logoVisible('https://good.png')).toBeTrue();
+    });
+
+    it('posts content_rotation_empty via DisplayApiService when the queue is empty', fakeAsync(() => {
+      const postRotationEvent = jasmine.createSpy('postRotationEvent').and.returnValue(of({ status: 'accepted' }));
+      const emptyState: DisplayState = { ...readyState, topContent: [] };
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(emptyState),
+              watchState: () => of(emptyState),
+              postRotationEvent,
+            },
+          },
+          eventBrandingProvider(),
+          provideRouter([]),
+          provideNoopAnimations(),
+        ],
+      });
+      const fixture = TestBed.createComponent(DisplayScreenComponent);
+      fixture.detectChanges();
+      tick(500);
+      expect(postRotationEvent).toHaveBeenCalledWith('content_rotation_empty', { reason: 'no_contents' });
+      fixture.destroy();
+    }));
+  });
 });
 
 /**

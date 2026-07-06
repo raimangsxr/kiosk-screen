@@ -66,6 +66,28 @@ describe('KioskBrandingOverlayComponent', () => {
     expect(fixture.nativeElement.querySelector('img')).toBeNull();
   });
 
+  it('shows a new logo URL after hiddenLogoUrl matched a previous broken URL', () => {
+    fixture.componentRef.setInput('branding', {
+      ...emptyBranding(),
+      organizerName: 'ACME',
+      organizerLogoUrl: 'https://example.com/broken.png'
+    });
+    fixture.componentRef.setInput('hiddenLogoUrl', 'https://example.com/broken.png');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('img')).toBeNull();
+
+    fixture.componentRef.setInput('branding', {
+      ...emptyBranding(),
+      organizerName: 'ACME',
+      organizerLogoUrl: 'https://example.com/fixed.png'
+    });
+    fixture.componentRef.setInput('hiddenLogoUrl', null);
+    fixture.detectChanges();
+    const img = fixture.nativeElement.querySelector('img') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute('src')).toBe('https://example.com/fixed.png');
+  });
+
   it('emits logoBroken when the image fails to load', () => {
     const emitted: string[] = [];
     fixture.componentRef.setInput('branding', {

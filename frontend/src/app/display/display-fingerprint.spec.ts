@@ -85,6 +85,30 @@ describe('sameTopContentState', () => {
     const b = [makeContent('a', 1, { recurringEveryXIterations: 3 })];
     expect(sameTopContentState(a, b)).toBeFalse();
   });
+
+  it('returns false when sourceReference changes on the same id', () => {
+    const a = [makeContent('a', 1, { sourceReference: 'https://example.com/a.jpg' })];
+    const b = [makeContent('a', 1, { sourceReference: 'https://example.com/b.jpg' })];
+    expect(sameTopContentState(a, b)).toBeFalse();
+  });
+
+  it('returns false when mediaFile.mediaUrl changes on the same id', () => {
+    const a = [makeContent('a', 1, { mediaFile: { id: 'm1', mediaType: 'image', contentType: 'image/png', fileSizeBytes: 1, originalFilename: '1.jpg', mediaUrl: 'https://cdn.example.com/1.jpg' } })];
+    const b = [makeContent('a', 1, { mediaFile: { id: 'm1', mediaType: 'image', contentType: 'image/png', fileSizeBytes: 1, originalFilename: '2.jpg', mediaUrl: 'https://cdn.example.com/2.jpg' } })];
+    expect(sameTopContentState(a, b)).toBeFalse();
+  });
+
+  it('returns false when effectiveDurationSeconds changes on the same id', () => {
+    const a = [makeContent('a', 1, { effectiveDurationSeconds: 10 })];
+    const b = [makeContent('a', 1, { effectiveDurationSeconds: 20 })];
+    expect(sameTopContentState(a, b)).toBeFalse();
+  });
+
+  it('returns true when only immaterial fields such as title would differ', () => {
+    const a = [makeContent('a', 1, { title: 'Before' })];
+    const b = [makeContent('a', 1, { title: 'After' })];
+    expect(sameTopContentState(a, b)).toBeTrue();
+  });
 });
 
 describe('sameAdsState', () => {

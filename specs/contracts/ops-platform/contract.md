@@ -5,6 +5,7 @@ tooling for the FastAPI + Angular stack.
 
 ## Golden Path
 
+- The repository root `.nvmrc` pins Node.js **24**. Local setup docs and the release CI workflow (`release-images.yml`) use the same major version. Contributors run `nvm use` from the repository root before frontend commands.
 - Local development runs with the root `docker-compose.yml`.
 - Compose starts `postgres`, `migrate`, `backend`, and `frontend`.
 - PostgreSQL is the only service with a Docker Compose healthcheck.
@@ -31,6 +32,7 @@ tooling for the FastAPI + Angular stack.
 
 ## Owned Files
 
+- `.nvmrc`
 - `docker-compose.yml`
 - `backend/Dockerfile`
 - `backend/.dockerignore`
