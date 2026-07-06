@@ -517,7 +517,7 @@ changes:
 
   - id: CHG-032
     path: specs/changes/032-backend-api-hygiene/spec.md
-    status: draft
+    status: implemented
     modifies:
       - DISPLAY.CONFIG_SESSION
       - DISPLAY.CONTROL

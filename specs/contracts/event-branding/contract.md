@@ -51,6 +51,7 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - The event-name pill is rendered with `white-space: nowrap` and no `max-width` / `overflow` constraints, so the full text is always visible on a single line regardless of length or size; very long names may extend leftward past the logo and must be sized or shortened to avoid overlap.
 - Layout changes saved in the admin form are reflected in the kiosk through two complementary mechanisms (CHG-024): (a) a cross-tab `BroadcastChannel` notification (`kiosk-event-config-sync`, localStorage key `kiosk-event-config-sync-event`) emitted by the admin on every successful save (auto or explicit); (b) the existing `remoteControlPollingSeconds` polling cycle (default 3-5 s, minimum 1 s) which still catches cross-machine changes. The notification path makes same-browser iteration feel instant (~1 s end-to-end) without removing the polling safety net. No manual reload is required in either path.
 - Branding is not shown over iframe mode.
+- `GET /event-branding` is anonymous and single-tenant: it returns branding for the first (and only supported) organization in the deployment. Request context does not carry an organization id; multi-tenant scoping is not implemented.
 
 ## Public interfaces
 
@@ -118,3 +119,4 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - CHG-019
 - CHG-023
 - CHG-024
+- CHG-032

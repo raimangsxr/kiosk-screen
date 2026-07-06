@@ -135,9 +135,9 @@ def test_pause_command_is_rejected_outside_loop_mode(api_client: TestClient) -> 
     resume = api_client.post("/api/display/remote-control/navigation", json={"command": "resume"})
 
     assert pause.status_code == 400
-    assert "Pause/Resume solo es válido en modo rotación." in pause.json()["detail"]
+    assert "Pause/Resume solo es válido en modo rotación." in pause.json()["message"]
     assert resume.status_code == 400
-    assert "Pause/Resume solo es válido en modo rotación." in resume.json()["detail"]
+    assert "Pause/Resume solo es válido en modo rotación." in resume.json()["message"]
 
 
 def test_navigation_command_requires_rotation_mode(api_client: TestClient) -> None:
@@ -202,7 +202,7 @@ def test_jump_to_command_is_rejected_outside_loop_mode(api_client: TestClient) -
     )
 
     assert response.status_code == 400
-    assert "Jump-to requires rotation mode." in response.json()["detail"]
+    assert "Jump-to requires rotation mode." in response.json()["message"]
 
 
 def test_jump_to_command_rejects_unknown_target(api_client: TestClient) -> None:
@@ -216,7 +216,7 @@ def test_jump_to_command_rejects_unknown_target(api_client: TestClient) -> None:
     )
 
     assert response.status_code == 400
-    assert "Selected content is not available." in response.json()["detail"]
+    assert "Selected content is not available." in response.json()["message"]
 
 
 def test_jump_to_command_rejects_fixed_target(api_client: TestClient) -> None:
@@ -245,7 +245,7 @@ def test_jump_to_command_rejects_fixed_target(api_client: TestClient) -> None:
     )
 
     assert response.status_code == 400
-    assert "Fixed content cannot be a jump target." in response.json()["detail"]
+    assert "Fixed content cannot be a jump target." in response.json()["message"]
 
 
 def test_jump_to_command_requires_target(api_client: TestClient) -> None:
@@ -259,7 +259,7 @@ def test_jump_to_command_requires_target(api_client: TestClient) -> None:
     )
 
     assert response.status_code == 400
-    assert "Jump-to requires a target content id." in response.json()["detail"]
+    assert "Jump-to requires a target content id." in response.json()["message"]
 
 
 def test_next_command_clears_previous_jump_to(api_client: TestClient) -> None:

@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from uuid import uuid4
 
@@ -34,12 +35,23 @@ class DisplayControlService:
             .order_by(OperatorSession.created_at.desc())
         )
 
+    def read_state_for_active_session(self, organization_id: str) -> DisplayControlState | None:
+        """Read-only path for polling: no inserts, commits, or audit events."""
+        display_session = self.latest_active_session(organization_id)
+        if display_session is None:
+            return None
+        state = self._existing_state(organization_id, display_session.id)
+        if state is None:
+            state = self._synthetic_default_state(organization_id, display_session.id)
+        else:
+            state = self._copy_control_state(state)
+        return self._apply_read_fallbacks(state, organization_id)
+
     def get_state_for_active_session(self, organization_id: str) -> DisplayControlState:
         display_session = self.latest_active_session(organization_id)
         if display_session is None:
             raise LookupError("No active display session.")
         state = self.ensure_default_state(organization_id, display_session.id, display_session.user_id)
-        # FR-024: if the fixed target was deleted or unmarked, fall back to loop.
         self._auto_fallback_fixed(state, organization_id)
         return state
 
@@ -49,14 +61,9 @@ class DisplayControlService:
         display_session_id: str,
         user_id: str | None = None,
     ) -> DisplayControlState:
-        state = self.session.scalar(
-            select(DisplayControlState).where(
-                DisplayControlState.organization_id == organization_id,
-                DisplayControlState.display_session_id == display_session_id,
-            )
-        )
-        if state is not None:
-            return state
+        existing = self._existing_state(organization_id, display_session_id)
+        if existing is not None:
+            return existing
 
         state = DisplayControlState(
             organization_id=organization_id,
@@ -69,7 +76,14 @@ class DisplayControlService:
             updated_by_user_id=user_id,
         )
         self.session.add(state)
-        self.session.flush()
+        try:
+            self.session.flush()
+        except IntegrityError:
+            self.session.rollback()
+            raced = self._existing_state(organization_id, display_session_id)
+            if raced is None:
+                raise
+            return raced
         return state
 
     def update_active_state(
@@ -169,7 +183,7 @@ class DisplayControlService:
 
         # FR-019 / FR-020 / FR-021 / FR-024: emit display_control_fixed_changed when
         # entering/changing fixed mode. The auto-fallback path also emits this event
-        # via _auto_fallback_fixed (called on read).
+        # via _auto_fallback_fixed (write paths only).
         fixed_changed = (
             previous_content_mode == "fixed"
             or content_mode == "fixed"
@@ -385,6 +399,57 @@ class DisplayControlService:
             severity="warning",
         )
         self.session.commit()
+
+    def _existing_state(self, organization_id: str, display_session_id: str) -> DisplayControlState | None:
+        return self.session.scalar(
+            select(DisplayControlState).where(
+                DisplayControlState.organization_id == organization_id,
+                DisplayControlState.display_session_id == display_session_id,
+            )
+        )
+
+    def _synthetic_default_state(self, organization_id: str, display_session_id: str) -> DisplayControlState:
+        return DisplayControlState(
+            organization_id=organization_id,
+            display_session_id=display_session_id,
+            content_mode="loop",
+            selected_iframe_id=None,
+            selected_fixed_content_id=None,
+            ads_visible=True,
+            fullscreen_requested=False,
+        )
+
+    def _copy_control_state(self, state: DisplayControlState) -> DisplayControlState:
+        copied = DisplayControlState(
+            organization_id=state.organization_id,
+            display_session_id=state.display_session_id,
+            content_mode=state.content_mode,
+            selected_iframe_id=state.selected_iframe_id,
+            selected_fixed_content_id=state.selected_fixed_content_id,
+            ads_visible=state.ads_visible,
+            fullscreen_requested=state.fullscreen_requested,
+            navigation_command=state.navigation_command,
+            navigation_command_id=state.navigation_command_id,
+            jump_to_content_id=state.jump_to_content_id,
+            updated_by_user_id=state.updated_by_user_id,
+        )
+        copied.id = state.id
+        copied.created_at = state.created_at
+        copied.updated_at = state.updated_at
+        return copied
+
+    def _apply_read_fallbacks(self, state: DisplayControlState, organization_id: str) -> DisplayControlState:
+        if state.content_mode == "iframe" and state.selected_iframe_id is not None:
+            if self._iframe(organization_id, state.selected_iframe_id) is None:
+                state.content_mode = "loop"
+                state.selected_iframe_id = None
+        if state.content_mode == "fixed" and state.selected_fixed_content_id is not None:
+            target = self._fixed_content(organization_id, state.selected_fixed_content_id)
+            if target is None or not target.is_fixed:
+                state.content_mode = "loop"
+                state.selected_fixed_content_id = None
+                state.selected_iframe_id = None
+        return state
 
     def _iframe(self, organization_id: str, iframe_id: str) -> Iframe | None:
         return self.session.scalar(

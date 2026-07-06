@@ -46,6 +46,9 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - The last active administrator cannot be removed or deactivated.
 - Frontend guards redirect unauthenticated users to login and prevent access to unauthorized admin routes.
 - The `authExpiredInterceptor` clears the client session and navigates to `/login` on HTTP 401 or 403 from protected API calls (excluding the login endpoint itself). Anonymous public reads are not affected.
+- Auth, display, and user-admin failures return the application error envelope (`code`, `message`, `category`, optional `details`, optional `correlationId` from `x-request-id`).
+- Invalid role strings stored for a user yield HTTP 403 with code `invalid_role` when RBAC is enforced (not an unhandled 500).
+- Duplicate user email within an organization returns HTTP 409 with code `duplicate_email`.
 
 ## Public interfaces
 
@@ -83,3 +86,4 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - CHG-010
 - CHG-029
 - CHG-031
+- CHG-032

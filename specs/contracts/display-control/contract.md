@@ -37,7 +37,7 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 - Navigation commands are next, previous, pause, resume, and jump_to; jump_to is valid only in loop mode and requires an active non-fixed target.
 - The fixed-mode selector lists fixed-eligible content with a visual preview when a thumbnail or media URL is available, falling back to a content-type icon when no preview asset is present.
 - Ads visibility and fullscreen request changes are propagated through display polling and audited.
-- Fixed mode validates fixed-eligible content and auto-falls back to loop if the target disappears or is unmarked.
+- Fixed mode validates fixed-eligible content and auto-falls back to loop if the target disappears or is unmarked. Auto-fallback persists only on write paths (`PUT /display/remote-control/state`, navigation commands, and related mutations); read polling applies the same effective mode in memory without database writes.
 - Cross-tab sync keeps multiple kiosk tabs aligned without direct private-field access to the controller.
 
 ## Public interfaces
@@ -74,3 +74,4 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 - CHG-006
 - CHG-007
 - CHG-014
+- CHG-032

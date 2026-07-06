@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_user_schema
@@ -7,6 +7,7 @@ from app.auth.dependencies import CurrentUser, require_roles
 from app.domain.roles import ADMIN_ROLES
 from app.repositories.session import get_session
 from app.services.admin_service import AdminService
+from app.shared.errors.application_errors import NotFoundApplicationError
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -36,5 +37,5 @@ def update_user(
     try:
         row, roles = AdminService(session).update_user(user.organization_id, user.id, user_id, payload)
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise NotFoundApplicationError("user_not_found", str(exc)) from exc
     return to_user_schema(row, roles)
