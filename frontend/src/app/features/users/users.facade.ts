@@ -1,8 +1,8 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { catchError, tap, throwError } from 'rxjs';
+import { catchError, map, of, switchMap, tap, throwError } from 'rxjs';
 
 import { adaptApiError } from '../../core/errors/api-error-adapter';
-import { AdminApiService, UserRecord, UserRequest } from '../../core/api/admin.api';
+import { AdminApiService, CreateUserRequest, UserRecord, UserRequest } from '../../core/api/admin.api';
 import type { ApplicationErrorContract } from '../../shared/contracts/admin-contracts';
 
 export const AVAILABLE_ROLES = [
@@ -72,10 +72,18 @@ export class UsersFacade {
     );
   }
 
-  save(payload: UserRequest, id?: string) {
+  save(payload: UserRequest, id?: string, options?: { password?: string; resetPassword?: string }) {
     this.savingState.set(true);
     this.errorState.set(null);
-    const request = id ? this.api.updateUser(id, payload) : this.api.createUser(payload);
+    const request = id
+      ? this.api.updateUser(id, payload).pipe(
+          switchMap((user) =>
+            options?.resetPassword
+              ? this.api.resetUserPassword(id, options.resetPassword).pipe(map(() => user))
+              : of(user)
+          )
+        )
+      : this.api.createUser({ ...payload, password: options?.password ?? '' } as CreateUserRequest);
     return request.pipe(
       tap(() => {
         this.savingState.set(false);

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_user_schema
-from app.api.schemas import UserRequest, UserSchema
+from app.api.schemas import AdminPasswordResetRequest, CreateUserRequest, UserRequest, UserSchema
 from app.auth.dependencies import CurrentUser, require_roles
 from app.domain.roles import ADMIN_ROLES
 from app.repositories.session import get_session
@@ -19,7 +19,7 @@ def list_users(user: CurrentUser = Depends(require_roles(ADMIN_ROLES)), session:
 
 @router.post("", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 def create_user(
-    payload: UserRequest,
+    payload: CreateUserRequest,
     user: CurrentUser = Depends(require_roles(ADMIN_ROLES)),
     session: Session = Depends(get_session)
 ) -> UserSchema:
@@ -39,3 +39,16 @@ def update_user(
     except LookupError as exc:
         raise NotFoundApplicationError("user_not_found", str(exc)) from exc
     return to_user_schema(row, roles)
+
+
+@router.put("/{user_id}/password", status_code=status.HTTP_204_NO_CONTENT)
+def reset_user_password(
+    user_id: str,
+    payload: AdminPasswordResetRequest,
+    user: CurrentUser = Depends(require_roles(ADMIN_ROLES)),
+    session: Session = Depends(get_session),
+) -> None:
+    try:
+        AdminService(session).reset_user_password(user.organization_id, user.id, user_id, payload.password)
+    except LookupError as exc:
+        raise NotFoundApplicationError("user_not_found", str(exc)) from exc

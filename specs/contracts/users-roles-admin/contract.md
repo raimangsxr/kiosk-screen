@@ -31,7 +31,8 @@ This active contract is the current source of truth for `USERS.ROLES.ADMIN`. His
 ## Current behavior
 
 - Authorized administrators can list users with active status and role assignments.
-- New users require valid email, display name, and at least one supported role.
+- New users require valid email, display name, at least one supported role, and an initial password (minimum 8 characters).
+- Administrators can reset passwords for existing users in their organization.
 - Editing user roles and active state preserves the last-administrator guard.
 - Inactive users cannot continue using privileged admin workflows after session refresh.
 - User-facing validation errors are clear and do not expose internals.
@@ -39,8 +40,9 @@ This active contract is the current source of truth for `USERS.ROLES.ADMIN`. His
 ## Public interfaces
 
 - `GET /users`
-- `POST /users`
+- `POST /users` (requires `password` in body)
 - `PUT /users/{id}`
+- `PUT /users/{id}/password`
 
 ## Owned code paths
 
@@ -59,9 +61,10 @@ This active contract is the current source of truth for `USERS.ROLES.ADMIN`. His
 
 ## Non-goals
 
-- Password reset flows are not part of this admin contract.
+- Email invitation / magic-link onboarding is outside scope.
 
 ## Change history
 
 - CHG-010
 - CHG-001
+- CHG-033

@@ -21,3 +21,17 @@ export function nonBlankString(messageKey = 'required'): ValidatorFn {
     return null;
   };
 }
+
+export const MIN_PASSWORD_LENGTH = 8;
+
+export function minPasswordLength(messageKey = 'minPasswordLength'): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    if (control.value === null || control.value === undefined || control.value === '') {
+      return null;
+    }
+    if (typeof control.value !== 'string' || control.value.length < MIN_PASSWORD_LENGTH) {
+      return { [messageKey]: true };
+    }
+    return null;
+  };
+}

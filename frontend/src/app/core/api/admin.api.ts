@@ -14,6 +14,10 @@ export interface UserRecord {
 
 export type UserRequest = Omit<UserRecord, 'id'>;
 
+export type CreateUserRequest = UserRequest & {
+  password: string;
+};
+
 export interface KioskConfiguration {
   id: string;
   name: string;
@@ -47,11 +51,15 @@ export class AdminApiService {
     return this.http.get<UserRecord[]>('/api/users', { withCredentials: true });
   }
 
-  createUser(payload: UserRequest): Observable<UserRecord> {
+  createUser(payload: CreateUserRequest): Observable<UserRecord> {
     return this.http.post<UserRecord>('/api/users', payload, { withCredentials: true });
   }
 
   updateUser(id: string, payload: UserRequest): Observable<UserRecord> {
     return this.http.put<UserRecord>(`/api/users/${id}`, payload, { withCredentials: true });
+  }
+
+  resetUserPassword(id: string, password: string): Observable<void> {
+    return this.http.put<void>(`/api/users/${id}/password`, { password }, { withCredentials: true });
   }
 }

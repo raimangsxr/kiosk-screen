@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.api.schemas import KioskConfigurationRequest, UserRequest
+from app.api.schemas import CreateUserRequest, KioskConfigurationRequest, UserRequest
+from app.auth.password_service import validate_new_password
 from app.auth.service import hash_password
 from app.domain.display_events import create_display_event
 from app.domain.media import validate_rotation_animation
@@ -71,12 +72,13 @@ class AdminService:
         users = self.session.query(User).filter_by(organization_id=organization_id).order_by(User.email).all()
         return [(user, self._roles(user.id)) for user in users]
 
-    def create_user(self, organization_id: str, user_id: str, payload: UserRequest) -> tuple[User, list[str]]:
+    def create_user(self, organization_id: str, user_id: str, payload: CreateUserRequest) -> tuple[User, list[str]]:
+        validate_new_password(payload.password)
         user = User(
             organization_id=organization_id,
             email=payload.email,
             display_name=payload.display_name,
-            password_hash=hash_password("change-me"),
+            password_hash=hash_password(payload.password),
             is_active=payload.is_active
         )
         self.session.add(user)
@@ -85,6 +87,21 @@ class AdminService:
         self._record(organization_id, user_id, "user_changed", "User changed")
         self.session.commit()
         return user, self._roles(user.id)
+
+    def reset_user_password(
+        self,
+        organization_id: str,
+        actor_id: str,
+        target_user_id: str,
+        password: str,
+    ) -> None:
+        validate_new_password(password)
+        user = self.session.query(User).filter_by(organization_id=organization_id, id=target_user_id).one_or_none()
+        if user is None:
+            raise LookupError("User not found.")
+        user.password_hash = hash_password(password)
+        self._record(organization_id, actor_id, "user_password_reset", "User password reset")
+        self.session.commit()
 
     def update_user(self, organization_id: str, user_id: str, target_user_id: str, payload: UserRequest) -> tuple[User, list[str]]:
         user = self.session.query(User).filter_by(organization_id=organization_id, id=target_user_id).one_or_none()

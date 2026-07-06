@@ -1,7 +1,7 @@
 ---
 id: CHG-033
 type: change
-status: draft
+status: implemented
 modifies:
   - AUTH.RBAC
   - USERS.ROLES.ADMIN
@@ -21,7 +21,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Fase 5 del plan maestro: eliminar password hardcodeado change-me al crear usuarios, permitir asignar password inicial en admin, y endpoint para cambio de password por admin u operador."
 

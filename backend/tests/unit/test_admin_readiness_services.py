@@ -1,4 +1,4 @@
-from app.api.schemas import ContentItemRequest, KioskConfigurationRequest, UserRequest
+from app.api.schemas import ContentItemRequest, CreateUserRequest, KioskConfigurationRequest, UserRequest
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.media import MediaFileReference
 from app.repositories.base import new_id
@@ -135,7 +135,13 @@ def test_admin_service_updates_configuration_and_users(db_session):
     user, roles = service.create_user(
         result.organization.id,
         result.administrator.id,
-        UserRequest(email="viewer@example.com", displayName="Viewer", roles=["display_viewer"], isActive=True)
+        CreateUserRequest(
+            email="viewer@example.com",
+            displayName="Viewer",
+            roles=["display_viewer"],
+            isActive=True,
+            password="viewer-pass",
+        ),
     )
 
     assert config.name == "Updated"

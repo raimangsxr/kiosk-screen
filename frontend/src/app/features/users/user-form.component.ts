@@ -26,7 +26,7 @@ import { UserRecord } from '../../core/api/admin.api';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { FormPageComponent } from '../../shared/ui/form-page.component';
-import { nonBlankString } from '../../shared/forms/admin-validators';
+import { MIN_PASSWORD_LENGTH, minPasswordLength, nonBlankString } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
 
 interface UserFormValue {
@@ -34,6 +34,8 @@ interface UserFormValue {
   displayName: string;
   isActive: boolean;
   roles: AvailableRole[];
+  password: string;
+  resetPassword: string;
 }
 
 @Component({
@@ -103,6 +105,38 @@ interface UserFormValue {
               }
             </mat-form-field>
           </div>
+
+          @if (!userId()) {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Initial password</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="password"
+                required
+                autocomplete="new-password"
+              />
+              @if (form.controls.password.hasError('required')) {
+                <mat-error>Initial password is required.</mat-error>
+              }
+              @if (form.controls.password.hasError('minPasswordLength')) {
+                <mat-error>Password must be at least {{ minPasswordLength }} characters.</mat-error>
+              }
+            </mat-form-field>
+          } @else {
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>New password (optional reset)</mat-label>
+              <input
+                matInput
+                type="password"
+                formControlName="resetPassword"
+                autocomplete="new-password"
+              />
+              @if (form.controls.resetPassword.hasError('minPasswordLength')) {
+                <mat-error>Password must be at least {{ minPasswordLength }} characters.</mat-error>
+              }
+            </mat-form-field>
+          }
 
           <mat-divider />
 
@@ -202,6 +236,7 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
 
   protected readonly facade = inject(UsersFacade);
   protected readonly availableRoles = AVAILABLE_ROLES;
+  protected readonly minPasswordLength = MIN_PASSWORD_LENGTH;
   private readonly destroy$ = new Subject<void>();
 
   protected readonly userId = signal<string>('');
@@ -214,6 +249,8 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     displayName: FormControl<string>;
     isActive: FormControl<boolean>;
     roles: FormArray<FormControl<boolean>>;
+    password: FormControl<string>;
+    resetPassword: FormControl<string>;
   }> | null = null;
 
   private initialSnapshot = '';
@@ -298,7 +335,13 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     };
     this.saveError.set(null);
     const id = this.userId() || undefined;
-    this.facade.save(payload, id).pipe(takeUntil(this.destroy$)).subscribe({
+    this.facade
+      .save(payload, id, {
+        password: this.userId() ? undefined : raw.password,
+        resetPassword: this.userId() && raw.resetPassword.trim() ? raw.resetPassword : undefined
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
       next: () => {
         this.snackBar.open(`Saved ${payload.email}.`, 'Dismiss', { duration: 3000 });
         this.markPristine();
@@ -322,8 +365,19 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       roles: this.fb.nonNullable.array(
         this.availableRoles.map(() => this.fb.nonNullable.control(false)),
         [Validators.required, this.atLeastOneRole()]
-      )
+      ),
+      password: this.fb.nonNullable.control('', {
+        validators: [Validators.required, minPasswordLength()]
+      }),
+      resetPassword: this.fb.nonNullable.control('', {
+        validators: [minPasswordLength()]
+      })
     });
+    if (this.userId()) {
+      this.form.controls.password.disable();
+    } else {
+      this.form.controls.resetPassword.disable();
+    }
   }
 
   private atLeastOneRole() {

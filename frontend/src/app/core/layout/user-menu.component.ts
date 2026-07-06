@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { Router } from '@angular/router';
 
 import { AuthService } from '../auth/auth.service';
+import { ChangePasswordDialogComponent } from '../../auth/change-password-dialog.component';
 import { ThemeMode, ThemeService } from '../theme/theme.service';
 
 @Component({
@@ -48,6 +50,11 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
       <button mat-menu-item type="button" (click)="selectTheme('dark')" [disabled]="theme.isDark()">
         <mat-icon aria-hidden="true">dark_mode</mat-icon>
         <span>Dark theme</span>
+      </button>
+      <mat-divider />
+      <button mat-menu-item type="button" (click)="openChangePassword()">
+        <mat-icon aria-hidden="true">password</mat-icon>
+        <span>Change password</span>
       </button>
       <mat-divider />
       <button mat-menu-item type="button" (click)="signOut()">
@@ -107,6 +114,7 @@ export class UserMenuComponent {
   protected readonly auth: AuthService = inject(AuthService);
   protected readonly theme: ThemeService = inject(ThemeService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly themeIcon = computed(() =>
     this.theme.isDark() ? 'light_mode' : 'dark_mode'
@@ -114,6 +122,10 @@ export class UserMenuComponent {
   protected readonly themeLabel = computed(() =>
     this.theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'
   );
+
+  protected openChangePassword(): void {
+    this.dialog.open(ChangePasswordDialogComponent, { autoFocus: 'first-tabbable' });
+  }
 
   protected signOut(): void {
     this.auth.logout().subscribe({
