@@ -59,6 +59,20 @@ def eligible_ads(session: Session, organization_id: str, now: datetime | None = 
     ]
 
 
+def _end_active_sessions(session: Session, organization_id: str, now: datetime) -> None:
+    active_sessions = list(
+        session.scalars(
+            select(OperatorSession).where(
+                OperatorSession.organization_id == organization_id,
+                OperatorSession.ended_at.is_(None),
+                OperatorSession.valid_until >= now,
+            )
+        )
+    )
+    for operator_session in active_sessions:
+        operator_session.ended_at = now
+
+
 def get_display_state(session: Session, organization_id: str, now: datetime | None = None) -> DisplayState:
     configuration = session.scalar(
         select(KioskDisplayConfiguration).where(KioskDisplayConfiguration.organization_id == organization_id)
@@ -67,26 +81,9 @@ def get_display_state(session: Session, organization_id: str, now: datetime | No
         raise ValueError("Display configuration is required.")
     top_content = eligible_top_content(session, organization_id, now)
     ads = eligible_ads(session, organization_id, now)[:configuration.inline_ad_count]
-    remote_control = None
-    selected_iframe = None
     control_service = DisplayControlService(session)
-    try:
-        remote_control = control_service.get_state_for_active_session(organization_id)
-        selected_iframe = control_service.selected_iframe(remote_control)
-        if remote_control.content_mode == "iframe" and remote_control.selected_iframe_id and selected_iframe is None:
-            remote_control.content_mode = "loop"
-            remote_control.selected_iframe_id = None
-            DisplayEventRepository(session).record(
-                create_display_event(
-                    organization_id=organization_id,
-                    event_type="remote_control_iframe_deleted",
-                    severity="info",
-                    message="Selected iframe was unavailable; display returned to rotation.",
-                )
-            )
-            session.commit()
-    except LookupError:
-        pass
+    remote_control = control_service.read_state_for_active_session(organization_id)
+    selected_iframe = control_service.selected_iframe(remote_control) if remote_control is not None else None
     return DisplayState(
         configuration,
         top_content,
@@ -116,6 +113,8 @@ def open_display(
         raise ValueError("Display configuration is not ready.")
     if state.fallback_active:
         raise ValueError("Display requires at least one eligible top content item and one eligible ad.")
+
+    _end_active_sessions(session, organization_id, current_time)
 
     token = OperatorSession(
         organization_id=organization_id,

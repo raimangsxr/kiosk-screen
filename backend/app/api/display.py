@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
@@ -30,6 +30,12 @@ from app.domain.rotation import resolve_effective_rotation
 from app.application.display_control.service import DisplayControlService
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.iframe import Iframe
+from app.shared.errors.application_errors import (
+    ConflictApplicationError,
+    NotFoundApplicationError,
+    PermissionApplicationError,
+    ValidationApplicationError,
+)
 
 router = APIRouter(prefix="/display", tags=["Display"])
 
@@ -46,7 +52,7 @@ def ensure_remote_control_admin(user: CurrentUser, session: Session) -> None:
             )
         )
         session.commit()
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Remote control role required.")
+        raise PermissionApplicationError("remote_control_role_required", "Remote control role required.")
 
 
 def to_remote_control_schema(state: DisplayControlState | None) -> RemoteControlStateSchema | None:
@@ -161,9 +167,9 @@ def open_display_route(user: CurrentUser = Depends(get_current_user), session: S
     try:
         state = open_display(session, user.organization_id, user.id, user.roles)
     except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        raise PermissionApplicationError("display_open_forbidden", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise ConflictApplicationError("display_not_ready", str(exc)) from exc
     return to_display_state_schema(state)
 
 
@@ -172,17 +178,7 @@ def display_state_route(user: CurrentUser = Depends(get_current_user), session: 
     try:
         return to_display_state_schema(get_display_state(session, user.organization_id))
     except ValueError as exc:
-        DisplayEventRepository(session).record(
-            create_display_event(
-                organization_id=user.organization_id,
-                event_type="display_state_calculation_failed",
-                severity="warning",
-                message="Display state could not be calculated for hot configuration polling.",
-                created_by_user_id=user.id,
-            )
-        )
-        session.commit()
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise ConflictApplicationError("display_state_unavailable", str(exc)) from exc
 
 
 @router.get("/remote-control/state", response_model=RemoteControlAdminStateSchema)
@@ -193,10 +189,12 @@ def remote_control_state_route(
     ensure_remote_control_admin(user, session)
     try:
         service = DisplayControlService(session)
-        state = service.get_state_for_active_session(user.organization_id)
+        state = service.read_state_for_active_session(user.organization_id)
+        if state is None:
+            raise LookupError("No active display session.")
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise ConflictApplicationError("no_active_display_session", str(exc)) from exc
 
 
 @router.put("/remote-control/state", response_model=RemoteControlAdminStateSchema)
@@ -221,9 +219,9 @@ def update_remote_control_state_route(
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise ConflictApplicationError("no_active_display_session", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise ValidationApplicationError("remote_control_invalid", str(exc)) from exc
 
 
 @router.post("/remote-control/navigation", response_model=RemoteControlAdminStateSchema)
@@ -243,9 +241,9 @@ def remote_control_navigation_route(
         )
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise ConflictApplicationError("no_active_display_session", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise ValidationApplicationError("remote_control_invalid", str(exc)) from exc
 
 
 @router.get("/remote-control/iframe-options", response_model=RemoteControlIframeOptionsSchema)
@@ -282,7 +280,7 @@ def rotation_event_route(
             user_id=user.id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise ValidationApplicationError("rotation_event_invalid", str(exc)) from exc
     return {"status": "accepted"}
 
 
@@ -301,9 +299,6 @@ def consume_novelty_route(
     try:
         service.consume_novelty(user.organization_id, str(content_id))
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise NotFoundApplicationError("content_not_found", str(exc)) from exc
     except NoveltyAlreadyConsumedError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Novelty already consumed.",
-        ) from exc
+        raise ConflictApplicationError("novelty_already_consumed", "Novelty already consumed.") from exc

@@ -1,9 +1,8 @@
 from collections.abc import Callable
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from typing import Optional
 
 from app.domain.roles import Role
 from app.auth.session_service import resolve_authenticated_user_id
@@ -15,9 +14,12 @@ from app.repositories.models.user import User
 from app.repositories.session import get_session
 from app.services.api_key_service import ApiKeyService
 from app.shared.errors.application_errors import (
+    AuthenticationApplicationError,
     InvalidApiKeyError,
     InvalidAuthorizationSchemeError,
+    InvalidRoleError,
     MissingApiKeyError,
+    PermissionApplicationError,
 )
 
 
@@ -59,22 +61,32 @@ def get_current_user(
         settings,
     )
     if session_user_id is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise AuthenticationApplicationError("not_authenticated", "Authentication is required.")
 
     db_user = session.get(User, session_user_id)
     if db_user is None or not db_user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise AuthenticationApplicationError("not_authenticated", "Authentication is required.")
 
     roles = list(session.query(RoleAssignment.role).filter(RoleAssignment.user_id == db_user.id).all())
     flattened_roles = [role for (role,) in roles]
     return CurrentUser(db_user, flattened_roles)
 
 
+def _normalize_roles(role_values: list[str]) -> set[Role]:
+    normalized: set[Role] = set()
+    for role in role_values:
+        try:
+            normalized.add(Role(role))
+        except ValueError:
+            raise InvalidRoleError() from None
+    return normalized
+
+
 def require_roles(allowed_roles: set[Role]) -> Callable[[object], object]:
     def dependency(user: object = Depends(get_current_user)) -> object:
-        user_roles = {Role(role) for role in getattr(user, "roles", [])}
+        user_roles = _normalize_roles(getattr(user, "roles", []))
         if not user_roles.intersection(allowed_roles):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
+            raise PermissionApplicationError("insufficient_role", "You do not have permission to complete this action.")
         return user
 
     return dependency

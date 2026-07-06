@@ -3,13 +3,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 from app.api.errors import APIError, api_error_handler
 from app.api.middleware import RequestIdMiddleware
 from app.api.router import api_router
-from app.api.v1.error_handlers import application_error_handler
+from app.api.v1.error_handlers import (
+    application_error_handler,
+    integrity_error_handler,
+    unhandled_exception_handler,
+)
 from app.api.v1.public_content.routes import router as public_content_router
 from app.config import get_settings, validate_production_settings
+from app.observability.logging import configure_logging
 from app.repositories.session import create_session_factory
 from app.services.bootstrap_service import ensure_mvp_bootstrap_data
 from app.shared.errors.application_errors import ApplicationError
@@ -26,9 +32,17 @@ def bootstrap_default_data(app: FastAPI) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    configure_logging()
     validate_production_settings(get_settings())
     bootstrap_default_data(app)
     yield
+
+
+def _register_exception_handlers(target: FastAPI) -> None:
+    target.add_exception_handler(APIError, api_error_handler)
+    target.add_exception_handler(ApplicationError, application_error_handler)
+    target.add_exception_handler(IntegrityError, integrity_error_handler)
+    target.add_exception_handler(Exception, unhandled_exception_handler)
 
 
 settings = get_settings()
@@ -40,8 +54,7 @@ settings = get_settings()
 public_app = FastAPI(title="Kiosk Screen Public API", version="0.1.0", lifespan=lifespan)
 public_app.state.skip_bootstrap = True
 public_app.add_middleware(RequestIdMiddleware)
-public_app.add_exception_handler(APIError, api_error_handler)
-public_app.add_exception_handler(ApplicationError, application_error_handler)
+_register_exception_handlers(public_app)
 if settings.public_api_cors_origins:
     public_app.add_middleware(
         CORSMiddleware,
@@ -69,8 +82,7 @@ class _MainAppBuilder:
         main = FastAPI(title="Kiosk Screen API", version="0.1.0", lifespan=lifespan)
         main.state.skip_bootstrap = False
         main.add_middleware(RequestIdMiddleware)
-        main.add_exception_handler(APIError, api_error_handler)
-        main.add_exception_handler(ApplicationError, application_error_handler)
+        _register_exception_handlers(main)
         main.mount("/api/public", public_app)
         # Share the SAME dict instance between sub-app and main app so test fixtures
         # mutating it (e.g. ``app.dependency_overrides[get_session] = ...``) are

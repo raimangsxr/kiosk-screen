@@ -1,7 +1,7 @@
 ---
 id: CHG-032
 type: change
-status: draft
+status: implemented
 modifies:
   - DISPLAY.CONFIG_SESSION
   - DISPLAY.CONTROL
@@ -22,7 +22,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Fase 3 del plan maestro: ciclo de vida de sesiones de display, GET sin side effects en display state, errores estandarizados, manejo de IntegrityError, health/readiness probes reales, y documentación single-tenant para event branding público."
 

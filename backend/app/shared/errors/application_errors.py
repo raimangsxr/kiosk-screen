@@ -47,6 +47,32 @@ class PermissionApplicationError(ApplicationError):
         super().__init__(403, code, user_message, "permission")
 
 
+class NotFoundApplicationError(ApplicationError):
+    def __init__(self, code: str, user_message: str, details: dict[str, Any] | None = None) -> None:
+        super().__init__(404, code, user_message, "not_found", details=details or {})
+
+
+class DuplicateEmailError(ConflictApplicationError):
+    def __init__(self) -> None:
+        super().__init__("duplicate_email", "A user with this email already exists.")
+
+
+class InvalidRoleError(PermissionApplicationError):
+    def __init__(self) -> None:
+        super().__init__("invalid_role", "You do not have permission to complete this action.")
+
+
+class InternalServerApplicationError(ApplicationError):
+    def __init__(self, correlation_id: str | None = None) -> None:
+        super().__init__(
+            500,
+            "internal_error",
+            "The action could not be completed. Try again or contact support.",
+            "unexpected",
+            details={"correlationId": correlation_id} if correlation_id else {},
+        )
+
+
 class AuthenticationApplicationError(ApplicationError):
     def __init__(self, code: str, user_message: str = "Authentication is required."):
         super().__init__(401, code, user_message, "permission")
