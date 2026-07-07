@@ -87,7 +87,6 @@ describe('AdminShellComponent', () => {
     expect(text).toContain('Control remoto');
     expect(text).toContain('Volver al hall');
     expect(text).toContain('Entrar en quiosco');
-    expect(fixture.nativeElement.querySelector('[data-testid="admin-nav-search"]')).not.toBeNull();
   });
 
   it('renders the brand in the admin toolbar on desktop', () => {

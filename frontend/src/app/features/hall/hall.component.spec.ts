@@ -34,5 +34,6 @@ describe('HallComponent', () => {
     expect(links).toContain('/display');
     expect(links).toContain('/admin');
     expect(links).not.toContain('/remote-control');
+    expect(text).toContain('Versión dev');
   });
 });

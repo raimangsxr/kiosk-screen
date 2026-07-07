@@ -6,8 +6,6 @@ export const ADMIN_COPY = {
   openNav: 'Abrir navegación',
   closeNav: 'Cerrar navegación',
   navLabel: 'Secciones de administración',
-  navSearch: 'Buscar sección',
-  navSearchClear: 'Borrar búsqueda',
   backToHall: 'Volver al hall',
   enterKiosk: 'Entrar en quiosco',
   refresh: 'Actualizar',
