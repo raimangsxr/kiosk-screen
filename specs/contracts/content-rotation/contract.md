@@ -18,6 +18,7 @@ related_changes:
   - CHG-014
   - CHG-027
   - CHG-036
+  - CHG-039
 related_adrs:
   []
 ---
@@ -35,7 +36,18 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Ad rotation has an independent timer; top-content advances in loop/rotation mode must not clear or restart the ad timer.
 - `DisplayState.ads` includes every eligible active ad in display order. `inlineAdCount` controls how many ads the kiosk shows concurrently in the sponsor strip; it does not cap the polled ad list.
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
-- Recurring content with recurringEveryXIterations appears according to the controller cadence contract.
+- Recurring content with recurringEveryXIterations appears according to per-item
+  cadence counters in the kiosk loop controller (CHG-039).
+- Each active recurring item maintains an in-memory counter keyed by `contentId`.
+  Counters increment on every on-screen content transition in loop mode (including
+  due recurring and filler slides), except during pause or novelty bursts.
+- After increment, an item is due when `counter >= recurringEveryXIterations`.
+  Multiple due items resolve one per transition in ascending `displayOrder`; showing
+  a due item resets only that counter and does not advance the regular queue cursor.
+- When no regular content exists and no item is due, recurring items rotate as
+  filler by `displayOrder`. `jump_to` a recurring item resets only its counter;
+  polled cadence changes reset only the affected item; removing the last recurring
+  clears all counters. Mode transitions preserve counter values until page reload.
 - Empty content queues are debounced and reported through the display rotation event endpoint.
 - Public API uploads mark content with `isNovelty`; loop mode intercepts pending novelties on each content transition (timer, video ended, remote next/previous), shows them in `displayOrder`, uses kiosk default top timing, and atomically consumes via `POST /api/display/content/{contentId}/consume-novelty`.
 - Items with `isNovelty = true` are excluded from the regular queue; after the burst, rotation resumes at the item after the pre-burst regular cursor. Recurring cadence does not advance during a novelty burst.
@@ -73,3 +85,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-014
 - CHG-027
 - CHG-036
+- CHG-039

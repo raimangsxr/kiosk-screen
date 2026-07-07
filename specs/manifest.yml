@@ -121,6 +121,7 @@ contracts:
       - CHG-007
       - CHG-014
       - CHG-027
+      - CHG-039
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -599,6 +600,15 @@ changes:
     status: implemented
     modifies:
       - OPS.PLATFORM
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-039
+    path: specs/changes/039-independent-recurring-counters/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ROTATION
     depends_on: []
     consolidated_into: []
     read_by_default: true

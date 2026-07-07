@@ -2,98 +2,118 @@ import { Injectable } from '@angular/core';
 
 import { DisplayContentItem } from '../core/api/display.api';
 
+export type RecurringCounterMap = ReadonlyMap<string, number>;
+
 /**
- * Pure helpers for the recurring-content cadence rules (spec 007
- * US2 / FR-008a). The service is stateless: it takes the queue and
- * the current counter, returns the values the controller should
- * persist. The kiosk rotation controller owns the actual
- * `cadenceCounter` signal so it stays the single source of truth
- * for reactive state; this service exists to make the cadence math
- * testable in isolation and to give it a clear name.
- *
- * Rules implemented here:
- *  - Recurring items live outside the regular rotation queue.
- *  - The cadence counter increments on every *regular* advance.
- *  - When the counter exceeds the smallest configured cadence, the
- *    recurring item is shown and the counter resets to 0.
- *  - Tie-breaking: smallest cadence wins; on a tie, smallest
- *    `displayOrder` wins.
- *
- * @see specs/changes/021-kiosk-runtime-refactor/spec.md FR-2
+ * Pure helpers for independent per-item recurring cadence (CHG-039).
+ * The kiosk rotation controller owns the counter map; this service
+ * implements increment, due detection, filler queue, and poll sync.
  */
 @Injectable()
 export class RecurringCadenceService {
   /**
-   * Returns the regular (non-recurring) items in display order.
-   * Recurring items live outside this queue — they are surfaced
-   * separately via the cadence counter.
+   * Returns the regular (non-recurring, non-novelty) items in display order.
    */
   regularQueue(items: readonly DisplayContentItem[]): DisplayContentItem[] {
     return [...items]
-      .filter((item) => !item.recurringEveryXIterations && item.isNovelty !== true)
+      .filter((item) => !this._hasRecurringCadence(item) && item.isNovelty !== true)
       .sort((a, b) => a.displayOrder - b.displayOrder);
   }
 
   /**
-   * Smallest positive `recurringEveryXIterations` across the active
-   * recurring items, or `null` if none are configured.
+   * Active recurring items in display order (filler rotation and counter keys).
    */
-  smallestRecurringCadence(items: readonly DisplayContentItem[]): number | null {
-    let smallest: number | null = null;
-    for (const item of items) {
-      const n = item.recurringEveryXIterations;
-      if (typeof n === 'number' && n >= 1) {
-        if (smallest === null || n < smallest) {
-          smallest = n;
-        }
+  fillerQueue(items: readonly DisplayContentItem[]): DisplayContentItem[] {
+    return [...items]
+      .filter((item) => this._isActiveRecurring(item))
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+  }
+
+  hasRecurringItems(items: readonly DisplayContentItem[]): boolean {
+    return items.some((item) => this._isActiveRecurring(item));
+  }
+
+  /**
+   * Snapshot of `recurringEveryXIterations` per active recurring id for poll diffing.
+   */
+  buildCadenceSnapshot(items: readonly DisplayContentItem[]): Map<string, number> {
+    const snapshot = new Map<string, number>();
+    for (const item of this.fillerQueue(items)) {
+      snapshot.set(item.id, item.recurringEveryXIterations!);
+    }
+    return snapshot;
+  }
+
+  /**
+   * Ids whose cadence changed or that newly became recurring since `previous`.
+   */
+  cadenceChanges(
+    previous: ReadonlyMap<string, number>,
+    items: readonly DisplayContentItem[],
+  ): string[] {
+    const current = this.buildCadenceSnapshot(items);
+    const changed: string[] = [];
+    for (const [id, n] of current) {
+      const prev = previous.get(id);
+      if (prev === undefined || prev !== n) {
+        changed.push(id);
       }
     }
-    return smallest;
+    return changed;
   }
 
-  /**
-   * Returns the recurring item to surface at the current cadence tick.
-   * `null` means the rotation should pick a regular item instead.
-   *
-   * Selection rules:
-   *  - candidates are items whose `recurringEveryXIterations` equals the
-   *    smallest cadence (so the picker is deterministic);
-   *  - ties on cadence resolve by smallest `displayOrder`.
-   */
-  pickRecurringItem(items: readonly DisplayContentItem[]): DisplayContentItem | null {
-    const smallest = this.smallestRecurringCadence(items);
-    if (smallest === null) {
-      return null;
+  incrementCounters(
+    counters: RecurringCounterMap,
+    recurringItems: readonly DisplayContentItem[],
+  ): Map<string, number> {
+    const next = new Map(counters);
+    for (const item of recurringItems) {
+      next.set(item.id, (next.get(item.id) ?? 0) + 1);
     }
-    const candidates = items
-      .filter((item) => item.recurringEveryXIterations === smallest)
-      .sort((a, b) => a.displayOrder - b.displayOrder);
-    return candidates[0] ?? null;
+    return next;
   }
 
   /**
-   * True when the counter has crossed the smallest cadence and we
-   * should fire a recurring item on the next regular advance.
+   * Items due after increment (`counter >= N`), sorted by `displayOrder`.
    */
-  shouldFireRecurring(items: readonly DisplayContentItem[], counter: number): boolean {
-    const cadence = this.smallestRecurringCadence(items);
-    return cadence !== null && counter > cadence;
+  dueItems(
+    items: readonly DisplayContentItem[],
+    counters: RecurringCounterMap,
+  ): DisplayContentItem[] {
+    return this.fillerQueue(items).filter((item) => {
+      const n = item.recurringEveryXIterations!;
+      const counter = counters.get(item.id) ?? 0;
+      return counter >= n;
+    });
   }
 
-  /**
-   * Next counter value after a regular advance. Pure: takes the
-   * current counter, returns `counter + 1`.
-   */
-  nextCounter(currentCounter: number): number {
-    return currentCounter + 1;
+  resetCounter(counters: RecurringCounterMap, contentId: string): Map<string, number> {
+    const next = new Map(counters);
+    next.set(contentId, 0);
+    return next;
   }
 
-  /**
-   * Whether the counter should be reset because the queue no longer
-   * has any recurring items. Stops the counter from growing
-   * unbounded after the operator clears the last recurring item.
-   */
-  shouldResetOnEmptyRecurring(items: readonly DisplayContentItem[], currentCounter: number): boolean {
-    return this.smallestRecurringCadence(items) === null && currentCounter !== 0;
+  clearCounters(): Map<string, number> {
+    return new Map();
+  }
+
+  pruneCounters(counters: RecurringCounterMap, activeRecurringIds: readonly string[]): Map<string, number> {
+    const allowed = new Set(activeRecurringIds);
+    const next = new Map<string, number>();
+    for (const [id, value] of counters) {
+      if (allowed.has(id)) {
+        next.set(id, value);
+      }
+    }
+    return next;
+  }
+
+  private _hasRecurringCadence(item: DisplayContentItem): boolean {
+    const n = item.recurringEveryXIterations;
+    return typeof n === 'number' && n >= 1;
+  }
+
+  private _isActiveRecurring(item: DisplayContentItem): boolean {
+    return item.isActive !== false && this._hasRecurringCadence(item);
   }
 }

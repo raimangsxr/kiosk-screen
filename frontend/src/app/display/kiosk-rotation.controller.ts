@@ -1,4 +1,4 @@
-import { Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
+import { EffectRef, Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
@@ -6,7 +6,7 @@ import { DisplayApiService, DisplayContentItem } from '../core/api/display.api';
 import { topContentItemMaterialFingerprint } from './display-fingerprint';
 import { CursorService } from './cursor.service';
 import { DisplayRotationService } from './display-rotation.service';
-import { RecurringCadenceService } from './recurring-cadence.service';
+import { RecurringCadenceService, type RecurringCounterMap } from './recurring-cadence.service';
 import { RotationSchedulerService } from './rotation-scheduler.service';
 
 export type KioskContentMode = 'loop' | 'iframe' | 'fixed';
@@ -52,8 +52,8 @@ export interface KioskControllerInputs {
  *
  *  - {@link CursorService} — cursor transition rules (regular /
  *    fixed / recurring). Pure functions.
- *  - {@link RecurringCadenceService} — recurring-content cadence math
- *    (smallest cadence, recurring pick, queue filter). Pure functions.
+ *  - {@link RecurringCadenceService} — per-item recurring cadence math
+ *    (increment, due detection, filler queue). Pure functions.
  *  - {@link RotationSchedulerService} — owns the `setTimeout` handles
  *    for the content + ad rotation. The only stateful service; the
  *    others are stateless helpers so the controller remains the
@@ -85,7 +85,7 @@ export class KioskRotationController {
   readonly adIndex = signal<number>(0);
   /** Bumps on each ad advance so the component can swap CSS animation class. */
   readonly adAnimationRun = signal<number>(0);
-  readonly cadenceCounter = signal<number>(0);
+  readonly recurringCounters = signal<ReadonlyMap<string, number>>(new Map());
   readonly isPaused = signal<boolean>(false);
   readonly fixedContentId = signal<string | null>(null);
   /** True while draining server-backed novelty items (CHG-027). */
@@ -132,12 +132,16 @@ export class KioskRotationController {
    * regular cadence is preserved across recurring insertions.
    */
   private _regularCursorId: string | null = null;
+  /** Filler cursor when only recurring items exist (CHG-039). */
+  private _fillerCursorId: string | null = null;
+  private _lastRecurringCadenceById = new Map<string, number>();
   /** Novelty burst: regular cursor frozen until pending items drain (CHG-027). */
   private _noveltyBurstActive = false;
   private _resumeRegularCursorId: string | null = null;
   private _noveltyClaimFailures = new Set<string>();
   private _locallyShownNoveltyIds = new Set<string>();
   private _advanceInProgress = false;
+  private _bindInputsEffectRef: EffectRef | null = null;
 
   private _queueItemFingerprint(item: DisplayContentItem): string {
     return topContentItemMaterialFingerprint(item);
@@ -218,12 +222,14 @@ export class KioskRotationController {
    */
   bindInputs(inputs: KioskControllerInputs, injector: Injector): void {
     this._effectiveDurationSeconds = inputs.effectiveDurationSeconds;
+    this._bindInputsEffectRef?.destroy();
+    this._bindInputsEffectRef = null;
 
     let lastFingerprint = '';
     let lastRotationConfigFp = '';
     let lastQueueById = new Map<string, string>();
     runInInjectionContext(injector, () => {
-      effect(() => {
+      this._bindInputsEffectRef = effect(() => {
         const queue = inputs.contentQueue();
         const mode = inputs.contentMode();
         const ads = inputs.ads();
@@ -259,18 +265,7 @@ export class KioskRotationController {
         this._inlineAdCount.set(Math.max(1, inlineCount));
         this._videoEndDelaySeconds.set(videoEnd);
         this.fixedContentId.set(fixedId);
-
-        // Spec 014 addendum 2: when the admin updates a content's
-        // `recurringEveryXIterations` (or removes a recurring item), the
-        // polled state arrives with the new cadence. The next advance
-        // will read the updated cadence via `RecurringCadenceService`
-        // so no manual refresh is required. We also drop the cadence
-        // counter back to 0 when there are no recurring items, so the
-        // counter never grows unbounded after the operator clears the
-        // last recurring.
-        if (this.cadence.shouldResetOnEmptyRecurring(queue, this.cadenceCounter())) {
-          this.cadenceCounter.set(0);
-        }
+        this._syncRecurringCountersFromQueue(queue);
 
         const queueById = new Map(queue.map((c) => [c.id, this._queueItemFingerprint(c)]));
 
@@ -301,6 +296,8 @@ export class KioskRotationController {
 
   /** Reset on destroy (called from component ngOnDestroy). */
   detach(): void {
+    this._bindInputsEffectRef?.destroy();
+    this._bindInputsEffectRef = null;
     this.scheduler.clearAll();
     if (this._emptyQueueDebounceTimer) {
       clearTimeout(this._emptyQueueDebounceTimer);
@@ -337,10 +334,9 @@ export class KioskRotationController {
       // continues at the same position.
       if (!target.recurringEveryXIterations) {
         this._regularCursorId = target.id;
+      } else {
+        this.recurringCounters.set(this.cadence.resetCounter(this.recurringCounters(), target.id));
       }
-      // Spec 007 US2 acceptance 8: jump_to resets the cadence counter so
-      // the next recurring cycle starts from 0.
-      this.cadenceCounter.set(0);
       this._armAllTimers();
       return;
     }
@@ -521,35 +517,29 @@ export class KioskRotationController {
     if (queue.length === 0) {
       this.currentContentId.set(null);
       this._regularCursorId = null;
+      this._fillerCursorId = null;
       this._clearNoveltyBurst();
       this._scheduleEmptyQueueCheck();
       return;
     }
 
     const regularQueue = this.cadence.regularQueue(queue);
+    const recurringItems = this.cadence.fillerQueue(queue);
 
-    // Spec 007 US2 / FR-008a (recurring content): the cadence counter is
-    // incremented on every *regular* advance; if it reaches the smallest
-    // recurring cadence, the recurring item is shown in place of the next
-    // regular advance and the counter is reset to 0. The recurring items
-    // are excluded from the regular pickNext rotation so the operator can
-    // place them anywhere in display order without polluting the cadence.
-    if (
-      this.contentMode() === 'loop' &&
-      !this.isPaused() &&
-      regularQueue.length > 0
-    ) {
-      this.cadenceCounter.update((c) => this.cadence.nextCounter(c));
-      const recurring = this.cadence.pickRecurringItem(queue);
-      // Spec 007 US2: cadence N means the recurring item appears on
-      // the (N+1)th advance — pattern R, R, R, REC for N=3 — so the
-      // trigger is `counter > cadence`, not `>=`.
-      if (
-        recurring !== null &&
-        this.cadence.shouldFireRecurring(queue, this.cadenceCounter())
-      ) {
-        this.currentContentId.set(recurring.id);
-        this.cadenceCounter.set(0);
+    // CHG-039: per-item counters increment on every transition; due items
+    // interrupt regular rotation without advancing the regular cursor.
+    if (this.contentMode() === 'loop' && !this.isPaused()) {
+      if (recurringItems.length > 0) {
+        this.recurringCounters.set(
+          this.cadence.incrementCounters(this.recurringCounters(), recurringItems),
+        );
+      }
+
+      const due = this.cadence.dueItems(queue, this.recurringCounters());
+      if (due.length > 0) {
+        const nextDue = due[0]!;
+        this.currentContentId.set(nextDue.id);
+        this.recurringCounters.set(this.cadence.resetCounter(this.recurringCounters(), nextDue.id));
         this.onContentAdvanceListeners.forEach((fn) => fn());
         this._armContentTimerOnly();
         return;
@@ -558,17 +548,64 @@ export class KioskRotationController {
 
     let nextRegular: DisplayContentItem | null;
     if (regularQueue.length === 0) {
-      // Only recurring items in the queue — fall through to pickNext over
-      // the full queue so the kiosk still advances.
-      nextRegular = this.rotation.pickNext(queue, this.currentContentId());
+      if (recurringItems.length === 0) {
+        this.currentContentId.set(null);
+        this._regularCursorId = null;
+        this._fillerCursorId = null;
+        this.onContentAdvanceListeners.forEach((fn) => fn());
+        this._armContentTimerOnly();
+        return;
+      }
+      nextRegular = this.rotation.pickNext(
+        recurringItems,
+        this._fillerCursorId ?? this.currentContentId(),
+      );
+      this._fillerCursorId = nextRegular?.id ?? null;
     } else {
       nextRegular = this.rotation.pickNext(regularQueue, this._regularCursorId);
+      this._regularCursorId = nextRegular?.id ?? null;
     }
-    this._regularCursorId = nextRegular?.id ?? null;
     this.currentContentId.set(nextRegular?.id ?? null);
 
     this.onContentAdvanceListeners.forEach((fn) => fn());
     this._armContentTimerOnly();
+  }
+
+  private _syncRecurringCountersFromQueue(queue: readonly DisplayContentItem[]): void {
+    const changedIds = this.cadence.cadenceChanges(this._lastRecurringCadenceById, queue);
+    this._lastRecurringCadenceById = this.cadence.buildCadenceSnapshot(queue);
+
+    if (!this.cadence.hasRecurringItems(queue)) {
+      const cleared = this.cadence.clearCounters();
+      if (!this._sameRecurringCounters(this.recurringCounters(), cleared)) {
+        this.recurringCounters.set(cleared);
+      }
+      return;
+    }
+
+    const activeIds = this.cadence.fillerQueue(queue).map((item) => item.id);
+    let counters = this.cadence.pruneCounters(this.recurringCounters(), activeIds);
+    for (const id of changedIds) {
+      counters = this.cadence.resetCounter(counters, id);
+    }
+    if (!this._sameRecurringCounters(this.recurringCounters(), counters)) {
+      this.recurringCounters.set(counters);
+    }
+  }
+
+  private _sameRecurringCounters(
+    left: RecurringCounterMap,
+    right: ReadonlyMap<string, number>,
+  ): boolean {
+    if (left.size !== right.size) {
+      return false;
+    }
+    for (const [id, value] of left) {
+      if (right.get(id) !== value) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private async _tryAdvanceNovelty(

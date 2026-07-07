@@ -202,8 +202,8 @@ interface ContentFormValue {
                   min="1"
                 />
                 <mat-hint>
-                  Si está definido, este contenido se mostrará cada N cambios del resto de la cola.
-                  Déjalo vacío para que sólo rote en orden normal.
+                  Transiciones de pantalla entre apariciones de este contenido (contador
+                  independiente por ítem). Tiempo aproximado ≈ N × duración media del slide.
                 </mat-hint>
               </mat-form-field>
             }
