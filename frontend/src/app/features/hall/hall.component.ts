@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { UserMenuComponent } from '../../core/layout/user-menu.component';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminToolbarComponent } from '../../core/layout/admin-toolbar.component';
+import { APP_VERSION } from '../../core/app-version';
 
 @Component({
   selector: 'app-hall',
@@ -77,15 +78,21 @@ import { AdminToolbarComponent } from '../../core/layout/admin-toolbar.component
 
       </section>
     </main>
+
+    <footer class="hall__footer">
+      <p class="hall__version">Versión {{ appVersion }}</p>
+    </footer>
   `,
   styles: [
     `
       :host {
-        display: block;
+        display: flex;
+        flex-direction: column;
         min-height: 100vh;
         background: var(--mat-sys-surface-container-lowest);
       }
       .hall {
+        flex: 1;
         width: min(100% - 32px, 1120px);
         margin: 0 auto;
         padding: clamp(48px, 8vh, 84px) 0 64px;
@@ -174,9 +181,19 @@ import { AdminToolbarComponent } from '../../core/layout/admin-toolbar.component
           letter-spacing: var(--mat-sys-headline-large-tracking);
         }
       }
+      .hall__footer {
+        padding: 0 16px calc(16px + var(--admin-safe-bottom, 0px));
+        text-align: center;
+      }
+      .hall__version {
+        margin: 0;
+        font: var(--mat-sys-label-medium);
+        color: var(--mat-sys-on-surface-variant);
+      }
     `
   ]
 })
 export class HallComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly appVersion = APP_VERSION;
 }

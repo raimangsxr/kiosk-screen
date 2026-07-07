@@ -87,20 +87,4 @@ export class AdminNavigationService {
   iconFor(route: string): string {
     return ICONS[route] ?? 'arrow_forward';
   }
-
-  filterGroups(query: string): AdminNavGroup[] {
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      return [...this.groups];
-    }
-    return this.groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter(
-          (item) =>
-            item.label.toLowerCase().includes(q) || item.summary.toLowerCase().includes(q)
-        )
-      }))
-      .filter((group) => group.items.length > 0);
-  }
 }

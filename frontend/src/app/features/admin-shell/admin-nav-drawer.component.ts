@@ -1,10 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 
 import { ADMIN_COPY } from '../../shared/ui/admin/admin-copy';
@@ -20,37 +18,12 @@ import { AdminNavigationService } from './admin-navigation.service';
     MatListModule,
     MatIconModule,
     MatButtonModule,
-    MatDividerModule,
-    MatFormFieldModule,
-    MatInputModule
+    MatDividerModule
   ],
   template: `
     <div class="admin-nav-drawer">
-      <mat-form-field appearance="outline" class="admin-nav-drawer__search" subscriptSizing="dynamic">
-        <mat-label>{{ ADMIN_COPY.navSearch }}</mat-label>
-        <input
-          matInput
-          type="search"
-          [value]="searchQuery()"
-          (input)="onSearch($event)"
-          [attr.aria-label]="ADMIN_COPY.navSearch"
-          data-testid="admin-nav-search"
-        />
-        @if (searchQuery()) {
-          <button
-            mat-icon-button
-            matSuffix
-            type="button"
-            (click)="clearSearch()"
-            [attr.aria-label]="ADMIN_COPY.navSearchClear"
-          >
-            <mat-icon aria-hidden="true">close</mat-icon>
-          </button>
-        }
-      </mat-form-field>
-
       <div class="admin-nav-drawer__groups">
-        @for (group of filteredGroups(); track group.id) {
+        @for (group of navigation.groups; track group.id) {
           <mat-nav-list [attr.aria-label]="group.label">
             <div mat-subheader class="admin-nav-drawer__group-label">{{ group.label }}</div>
             @for (item of group.items; track item.route) {
@@ -99,14 +72,10 @@ import { AdminNavigationService } from './admin-navigation.service';
         height: 100%;
         min-height: 0;
       }
-      .admin-nav-drawer__search {
-        width: calc(100% - 24px);
-        margin: 12px 12px 4px;
-      }
       .admin-nav-drawer__groups {
         flex: 1;
         overflow-y: auto;
-        padding: 0 8px;
+        padding: 12px 8px 0;
       }
       .admin-nav-drawer__group-label {
         font: var(--mat-sys-label-medium);
@@ -146,25 +115,10 @@ import { AdminNavigationService } from './admin-navigation.service';
 })
 export class AdminNavDrawerComponent {
   protected readonly ADMIN_COPY = ADMIN_COPY;
-  private readonly navigation = inject(AdminNavigationService);
+  protected readonly navigation = inject(AdminNavigationService);
 
   readonly currentUrl = input.required<string>();
   readonly navigate = output<void>();
-
-  protected readonly searchQuery = signal('');
-
-  protected readonly filteredGroups = computed(() =>
-    this.navigation.filterGroups(this.searchQuery())
-  );
-
-  protected onSearch(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.searchQuery.set(value);
-  }
-
-  protected clearSearch(): void {
-    this.searchQuery.set('');
-  }
 
   protected isRouteActive(route: string, exact = false): boolean {
     const url = this.currentUrl();
