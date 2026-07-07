@@ -23,7 +23,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: In Progress
+**Status**: Implemented
 
 **Input**: User description: "Fase 0 del plan maestro de mejoras: eliminar router duplicado de contenido público, extender fingerprint de display para cambios de media e iframe, conectar auditoría de cola vacía, fixes menores de kiosk y admin shell, y alinear versión Node en toolchain."
 

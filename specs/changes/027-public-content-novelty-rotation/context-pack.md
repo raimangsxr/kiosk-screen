@@ -1,5 +1,7 @@
 # Context pack: CHG-027 public-content novelty rotation
 
+- Current status: implemented
+
 ## Active contracts
 
 - `specs/contracts/content-rotation/contract.md`

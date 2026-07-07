@@ -1,7 +1,7 @@
 ---
 id: CHG-024
 type: change
-status: in-progress
+status: implemented
 modifies:
   - EVENT.BRANDING
   - DISPLAY.RUNTIME
@@ -18,7 +18,7 @@ read_by_default: true
 
 **Feature Branch**: `024-event-config-realtime-sync`
 **Created**: 2026-06-29
-**Status**: In Progress
+**Status**: Implemented
 
 **Input**: User description: "En el módulo de Event del panel de administración, todos los cambios se deben reflejar en el display sin necesidad de refrescar, y los inputs de tamaño y posición deben ser sliders para poder iterar visualmente mientras el display se actualiza en tiempo real."
 

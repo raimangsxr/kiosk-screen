@@ -17,6 +17,7 @@ related_changes:
   - CHG-007
   - CHG-014
   - CHG-027
+  - CHG-036
 related_adrs:
   []
 ---
@@ -71,3 +72,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-007
 - CHG-014
 - CHG-027
+- CHG-036

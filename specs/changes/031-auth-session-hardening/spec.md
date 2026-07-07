@@ -19,7 +19,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Fase 1 del plan maestro: sesiones válidas tras restart y multi-réplica, cookies seguras en producción, uso real de SESSION_SECRET, validación de secrets en startup, y rate limiting básico en login."
 

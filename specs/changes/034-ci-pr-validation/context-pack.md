@@ -5,7 +5,7 @@
 - Type: ops / CI (Fase 6)
 - Affected contracts: `OPS.PLATFORM`
 - Requires contract update: yes
-- Current status: draft
+- Current status: implemented
 
 ## Mandatory context
 

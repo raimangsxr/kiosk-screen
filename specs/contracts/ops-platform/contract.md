@@ -36,6 +36,14 @@ tooling for the FastAPI + Angular stack.
   and Docker image builds without registry push.
 - PR CI complements `release-images.yml` and `bump-app.yml` (CHG-025/026);
   it does not replace release publishing.
+- Frontend production Docker builds accept `APP_VERSION` (default `dev`). The build
+  runs `scripts/write-app-version.mjs` to generate `src/app/core/app-version.ts`
+  before `ng build`. Release workflow passes `github.event.release.tag_name` as
+  `APP_VERSION` (CHG-037).
+- The Angular frontend is a production PWA (CHG-038): `ngsw-config.json`,
+  `manifest.webmanifest`, icon set, service worker enabled outside dev mode,
+  dynamic branding icon/title from event config, and an update banner when a new
+  service worker version is available.
 
 ## Owned Files
 
@@ -45,6 +53,11 @@ tooling for the FastAPI + Angular stack.
 - `backend/.dockerignore`
 - `frontend/Dockerfile`
 - `frontend/.dockerignore`
+- `frontend/scripts/write-app-version.mjs`
+- `frontend/ngsw-config.json`
+- `frontend/public/manifest.webmanifest`
+- `frontend/public/icons/**`
+- `frontend/src/app/core/pwa/**`
 - `.github/workflows/release-images.yml`
 - `.github/workflows/bump-app.yml`
 - `.github/workflows/ci.yml`

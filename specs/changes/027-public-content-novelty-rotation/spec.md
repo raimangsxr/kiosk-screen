@@ -1,7 +1,7 @@
 ---
 id: CHG-027
 type: change
-status: in-progress
+status: implemented
 modifies:
   - CONTENT.ROTATION
   - PUBLIC_CONTENT.API_KEYS
@@ -15,6 +15,8 @@ read_by_default: true
 ---
 
 # Feature Specification: Public-content novelty rotation queue
+
+**Status**: Implemented
 
 ## Goal
 

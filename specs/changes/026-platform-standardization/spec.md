@@ -4,7 +4,6 @@ type: change
 status: in-progress
 modifies:
   - OPS.PLATFORM
-  - OPS.CI
 depends_on:
   - CHG-025
 extends: []

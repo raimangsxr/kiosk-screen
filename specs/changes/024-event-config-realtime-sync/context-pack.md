@@ -5,7 +5,7 @@
 - Type: change to existing contracts (admin form + display sync)
 - Affected contracts: `EVENT.BRANDING`, `DISPLAY.RUNTIME`
 - Requires contract update: yes
-- Current status: in-progress
+- Current status: implemented
 
 ## Mandatory context
 

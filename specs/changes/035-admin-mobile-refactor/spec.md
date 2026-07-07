@@ -1,7 +1,7 @@
 ---
 id: CHG-035
 type: change
-status: in-progress
+status: implemented
 modifies:
   - ADMIN.SHELL.NAVIGATION
 depends_on: []
@@ -16,22 +16,21 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: In Progress
+**Status**: Implemented
 
-**Input**: Complete admin frontend refactor with unified mobile-first layout, grouped drawer navigation with search, new UI primitives, Spanish copy, and full mobile parity for all list screens.
+**Input**: Complete admin frontend refactor with unified mobile-first layout, grouped drawer navigation, new UI primitives, Spanish copy, and full mobile parity for all list screens. Nav search filter was removed in CHG-037.
 
 ## User Scenarios
 
 ### User Story 1 — Compact viewport navigation (Priority: P1)
 
-An operator on a phone or narrow window opens `/admin`. The shell shows a hamburger menu, grouped sidenav with search, and toolbar title plus subtitle on deep routes.
+An operator on a phone or narrow window opens `/admin`. The shell shows a hamburger menu, grouped sidenav, and toolbar title plus subtitle on deep routes.
 
 **Acceptance**:
 
 1. Viewport ≤599px: sidenav `over`, menu button visible, backdrop on open.
 2. Narrow desktop window (~500px) without handset flag: menu button still visible (uses `isCompact()`).
 3. Navigation groups: Operación, Configuración, Acceso.
-4. Search filters nav items by label or summary.
 
 ### User Story 2 — Unified admin UI primitives (Priority: P1)
 

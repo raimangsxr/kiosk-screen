@@ -16,6 +16,7 @@ tests:
 related_changes:
   - CHG-013
   - CHG-035
+  - CHG-037
 related_adrs:
   []
 ---
@@ -28,7 +29,7 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 
 ## Current behavior
 
-- Authenticated users see a Material admin shell with grouped sidenav navigation (Operación, Configuración, Acceso), search filter, and footer links to hall and kiosk mode.
+- Authenticated users see a Material admin shell with grouped sidenav navigation (Operación, Configuración, Acceso) and footer links to hall and kiosk mode.
 - `BreakpointService.isCompact()` drives overlay sidenav: hamburger menu, backdrop, auto-close on navigation. This applies to handsets and narrow desktop windows.
 - `BreakpointService.prefersCards()` (`isCompact() || isHandsetOrTablet()`) selects card vs table layout in `AdminListComponent`.
 - `AdminRouteContextService` supplies toolbar and page title, subtitle (e.g. Editar on `/admin/content/:id/edit`), and breadcrumbs on expanded viewports.
@@ -72,3 +73,4 @@ This active contract is the current source of truth for `ADMIN.SHELL.NAVIGATION`
 - CHG-013
 - Bug fix — hide redundant module name on handset viewports and prevent horizontal page scroll.
 - CHG-035 — mobile-first refactor: grouped drawer, unified primitives, Spanish copy, list mobile parity.
+- CHG-037 — remove drawer search filter; short nav list is scannable without search.

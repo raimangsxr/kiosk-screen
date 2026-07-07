@@ -19,6 +19,9 @@ tests:
 related_changes:
   - CHG-002
   - CHG-011
+  - CHG-020
+  - CHG-032
+  - CHG-036
 related_adrs:
   []
 ---
@@ -74,3 +77,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-011
 - CHG-020
 - CHG-032
+- CHG-036

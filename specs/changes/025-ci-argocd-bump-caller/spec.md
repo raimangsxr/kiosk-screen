@@ -3,7 +3,7 @@ id: CHG-025
 type: change
 status: in-progress
 modifies:
-  - OPS.CI
+  - OPS.PLATFORM
 depends_on: []
 extends: []
 supersedes: []

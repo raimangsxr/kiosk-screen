@@ -23,6 +23,7 @@ related_changes:
   - CHG-028
   - CHG-029
   - CHG-030
+  - CHG-036
   - CHG-005
   - CHG-007
   - CHG-008
@@ -113,3 +114,6 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-008
 - CHG-020
 - CHG-028
+- CHG-030
+- CHG-036
+- CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)

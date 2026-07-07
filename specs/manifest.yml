@@ -184,6 +184,7 @@ contracts:
       - frontend/src/app/features/hall/**
     related_changes:
       - CHG-011
+      - CHG-037
 
   - id: DISPLAY.EVENTS.AUDIT
     path: specs/contracts/display-events-audit/contract.md
@@ -215,6 +216,7 @@ contracts:
     related_changes:
       - CHG-013
       - CHG-035
+      - CHG-037
 
   - id: DISPLAY.RUNTIME
     path: specs/contracts/display-runtime/contract.md
@@ -234,6 +236,9 @@ contracts:
       - CHG-019
       - CHG-024
       - CHG-028
+      - CHG-029
+      - CHG-030
+      - CHG-036
       - CHG-005
       - CHG-007
       - CHG-008
@@ -248,11 +253,20 @@ contracts:
       - backend/.dockerignore
       - frontend/Dockerfile
       - frontend/.dockerignore
+      - frontend/scripts/write-app-version.mjs
+      - frontend/ngsw-config.json
+      - frontend/public/manifest.webmanifest
+      - frontend/public/icons/**
+      - frontend/src/app/core/pwa/**
       - .github/workflows/release-images.yml
       - .github/workflows/bump-app.yml
+      - .github/workflows/ci.yml
     related_changes:
       - CHG-025
       - CHG-026
+      - CHG-034
+      - CHG-037
+      - CHG-038
 
 changes:
   - id: CHG-001
@@ -436,7 +450,7 @@ changes:
 
   - id: CHG-024
     path: specs/changes/024-event-config-realtime-sync/spec.md
-    status: in-progress
+    status: implemented
     modifies:
       - EVENT.BRANDING
       - DISPLAY.RUNTIME
@@ -448,7 +462,7 @@ changes:
     path: specs/changes/025-ci-argocd-bump-caller/spec.md
     status: in-progress
     modifies:
-      - OPS.CI
+      - OPS.PLATFORM
     depends_on: []
     consolidated_into: []
     read_by_default: true
@@ -458,7 +472,6 @@ changes:
     status: in-progress
     modifies:
       - OPS.PLATFORM
-      - OPS.CI
     depends_on:
       - CHG-025
     consolidated_into: []
@@ -466,7 +479,7 @@ changes:
 
   - id: CHG-027
     path: specs/changes/027-public-content-novelty-rotation/spec.md
-    status: in-progress
+    status: implemented
     modifies:
       - CONTENT.ROTATION
       - PUBLIC_CONTENT.API_KEYS
@@ -476,7 +489,7 @@ changes:
 
   - id: CHG-028
     path: specs/changes/028-top-content-media-fit/spec.md
-    status: in-progress
+    status: implemented
     modifies:
       - DISPLAY.RUNTIME
     depends_on:
@@ -550,9 +563,42 @@ changes:
 
   - id: CHG-035
     path: specs/changes/035-admin-mobile-refactor/spec.md
-    status: in-progress
+    status: implemented
     modifies:
       - ADMIN.SHELL.NAVIGATION
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-036
+    path: specs/changes/036-sponsor-strip-rotation/spec.md
+    status: implemented
+    modifies:
+      - DISPLAY.RUNTIME
+      - CONTENT.ROTATION
+      - DISPLAY.CONFIG_SESSION
+    depends_on:
+      - CHG-007
+      - CHG-014
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-037
+    path: specs/changes/037-app-version-hall-footer/spec.md
+    status: implemented
+    modifies:
+      - READINESS.SETUP
+      - OPS.PLATFORM
+      - ADMIN.SHELL.NAVIGATION
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-038
+    path: specs/changes/038-frontend-pwa/spec.md
+    status: implemented
+    modifies:
+      - OPS.PLATFORM
     depends_on: []
     consolidated_into: []
     read_by_default: true

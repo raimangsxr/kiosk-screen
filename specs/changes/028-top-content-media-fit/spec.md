@@ -1,7 +1,7 @@
 ---
 id: CHG-028
 type: change
-status: in-progress
+status: implemented
 modifies:
   - DISPLAY.RUNTIME
 depends_on:
@@ -19,7 +19,7 @@ oversize: false
 **Feature Branch**: `028-top-content-media-fit`
 **Created**: 2026-07-05
 
-**Status**: In progress
+**Status**: Implemented
 
 **Input**: Top Content photos and videos must show the full frame without cropping or distortion when region ratios and media aspect ratios differ. Use a blurred backdrop fill (blur-fill) for letterbox/pillarbox bands.
 

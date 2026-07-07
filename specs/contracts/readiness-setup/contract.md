@@ -16,6 +16,7 @@ tests:
   - frontend/src/app/**/*.spec.ts
 related_changes:
   - CHG-011
+  - CHG-037
 related_adrs:
   []
 ---
@@ -32,6 +33,7 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 - Open kiosk is blocked when readiness is red and allowed when blockers are resolved.
 - Checks cover enabled configuration, available content, available ads, timing values, and event setup as applicable.
 - The admin dashboard and readiness page surface actionable status without exposing internal errors.
+- The hall page shows the deployed application version in a footer (`Versión {version}`). Production images receive the value from the release tag at Docker build time; local dev uses `dev`.
 - Readiness logic is testable independently from the UI.
 - `GET /health` is a lightweight liveness probe (`{"status": "ok"}`) and does not check dependencies.
 - `GET /ready` is the traffic-routing probe: it returns `{"status": "ready"}` when the database answers `SELECT 1` and the configured media storage path is writable; otherwise HTTP 503 with per-check status in `checks`.
@@ -69,3 +71,4 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 
 - CHG-011
 - CHG-032
+- CHG-037

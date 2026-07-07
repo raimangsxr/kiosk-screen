@@ -5,7 +5,7 @@
 - Type: change to existing runtime contract
 - Affected contract: `DISPLAY.RUNTIME`
 - Requires contract update: yes
-- Current status: in-progress
+- Current status: implemented
 
 ## Mandatory context
 

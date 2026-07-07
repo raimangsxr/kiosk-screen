@@ -5,7 +5,7 @@
 - Type: change to existing contract
 - Affected contract: `ADMIN.SHELL.NAVIGATION`
 - Requires contract update: yes
-- Current status: in-progress
+- Current status: implemented
 
 ## Mandatory context
 

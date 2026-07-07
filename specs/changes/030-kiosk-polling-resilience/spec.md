@@ -21,7 +21,7 @@ read_by_default: true
 
 **Created**: 2026-07-06
 
-**Status**: Draft
+**Status**: Implemented
 
 **Input**: User description: "Fase 2 del plan maestro: integrar DisplayPollingService en el kiosk, sobrevivir a fallos de red con backoff exponencial, manejar openDisplay fallido con reintento, y mostrar estado de reconexión al operador durante un evento."
 
