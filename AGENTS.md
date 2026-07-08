@@ -17,9 +17,9 @@ Kiosk Screen is a FastAPI + Angular web application for live event kiosk display
 
 ## Active SDD work
 
-- Active change: none (CHG-037 implemented; pick up `019`, `024`, or `027` for next feature work)
-- Active contracts: `specs/contracts/readiness-setup/contract.md`, `specs/contracts/ops-platform/contract.md`, `specs/contracts/admin-shell-navigation/contract.md`
-- Context pack: `specs/changes/037-app-version-hall-footer/context-pack.md`
+- Active change: CHG-039 (independent recurring content counters) — `specs/changes/039-independent-recurring-counters/plan.md` (in-progress)
+- Active contracts: `specs/contracts/content-rotation/contract.md`
+- Context pack: `specs/changes/039-independent-recurring-counters/context-pack.md`
 - Recently implemented: CHG-024 (event config sync), CHG-027 (novelty rotation), CHG-028 (blur-fill), CHG-035 (admin mobile), CHG-036 (sponsor strip), CHG-037 (hall version), CHG-038 (PWA)
 - Other in-progress changes (not active): `019-display-responsive-runtime`, `021-kiosk-runtime-refactor`, `025-ci-argocd-bump-caller`, `026-platform-standardization`
 - Recently consolidated: `023-event-branding-layout` → `EVENT.BRANDING` + `DISPLAY.RUNTIME`

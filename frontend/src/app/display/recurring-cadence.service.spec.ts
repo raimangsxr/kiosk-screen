@@ -6,101 +6,122 @@ import { RecurringCadenceService } from './recurring-cadence.service';
 function makeContent(
   id: string,
   displayOrder: number,
-  recurringEveryXIterations?: number
+  options: {
+    recurringEveryXIterations?: number;
+    isActive?: boolean;
+  } = {},
 ): DisplayContentItem {
   return {
     id,
     title: id,
     contentType: 'photo',
     sourceReference: `https://example.com/${id}.jpg`,
-    isActive: true,
+    isActive: options.isActive ?? true,
     displayOrder,
     durationSeconds: 10,
-    recurringEveryXIterations
+    recurringEveryXIterations: options.recurringEveryXIterations,
   };
 }
 
-describe('RecurringCadenceService (pure helpers)', () => {
+describe('RecurringCadenceService (CHG-039 per-item counters)', () => {
   let service: RecurringCadenceService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [RecurringCadenceService]
+      providers: [RecurringCadenceService],
     });
     service = TestBed.inject(RecurringCadenceService);
   });
 
   describe('regularQueue', () => {
-    it('excludes recurring items and sorts by displayOrder', () => {
-      const items = [makeContent('B', 2), makeContent('A', 1), makeContent('R', 3, 5)];
+    it('excludes recurring and novelty items and sorts by displayOrder', () => {
+      const items = [
+        makeContent('B', 2),
+        makeContent('A', 1),
+        makeContent('R', 3, { recurringEveryXIterations: 5 }),
+        { ...makeContent('N', 4), isNovelty: true },
+      ];
       expect(service.regularQueue(items).map((i) => i.id)).toEqual(['A', 'B']);
     });
-
-    it('returns an empty array when every item is recurring', () => {
-      const items = [makeContent('R1', 1, 3), makeContent('R2', 2, 5)];
-      expect(service.regularQueue(items)).toEqual([]);
-    });
   });
 
-  describe('smallestRecurringCadence', () => {
-    it('returns null when no recurring items exist', () => {
-      expect(service.smallestRecurringCadence([makeContent('A', 1)])).toBeNull();
-    });
-
-    it('picks the smallest configured cadence', () => {
+  describe('fillerQueue', () => {
+    it('includes only active recurring items sorted by displayOrder', () => {
       const items = [
-        makeContent('R1', 1, 5),
-        makeContent('R2', 2, 2),
-        makeContent('R3', 3, 7)
+        makeContent('B', 2, { recurringEveryXIterations: 5 }),
+        makeContent('A', 1, { recurringEveryXIterations: 3 }),
+        makeContent('I', 3, { recurringEveryXIterations: 6, isActive: false }),
+        makeContent('R', 4),
       ];
-      expect(service.smallestRecurringCadence(items)).toBe(2);
-    });
-
-    it('ignores items with cadence < 1', () => {
-      const items = [makeContent('R1', 1, 0), makeContent('R2', 2, -1), makeContent('R3', 3, 5)];
-      expect(service.smallestRecurringCadence(items)).toBe(5);
+      expect(service.fillerQueue(items).map((i) => i.id)).toEqual(['A', 'B']);
     });
   });
 
-  describe('pickRecurringItem', () => {
-    it('returns the smallest-cadence candidate (tie-break: smallest displayOrder)', () => {
+  describe('incrementCounters', () => {
+    it('increments each recurring id by 1', () => {
       const items = [
-        makeContent('R-late-3', 3, 2),
-        makeContent('R-tie-2', 2, 2),
-        makeContent('R-tie-1', 1, 2),
-        makeContent('R-low-cadence', 4, 5)
+        makeContent('A', 1, { recurringEveryXIterations: 3 }),
+        makeContent('B', 2, { recurringEveryXIterations: 5 }),
       ];
-      expect(service.pickRecurringItem(items)?.id).toBe('R-tie-1');
+      const next = service.incrementCounters(new Map([['A', 2]]), items);
+      expect(next.get('A')).toBe(3);
+      expect(next.get('B')).toBe(1);
     });
 
-    it('returns null when no recurring items exist', () => {
-      expect(service.pickRecurringItem([makeContent('A', 1)])).toBeNull();
-    });
-  });
-
-  describe('shouldFireRecurring', () => {
-    it('is true only after the counter exceeds the smallest cadence', () => {
-      const items = [makeContent('R', 1, 3)];
-      expect(service.shouldFireRecurring(items, 1)).toBeFalse();
-      expect(service.shouldFireRecurring(items, 2)).toBeFalse();
-      expect(service.shouldFireRecurring(items, 3)).toBeFalse();
-      expect(service.shouldFireRecurring(items, 4)).toBeTrue();
-    });
-  });
-
-  describe('nextCounter', () => {
-    it('returns counter + 1', () => {
-      expect(service.nextCounter(0)).toBe(1);
-      expect(service.nextCounter(7)).toBe(8);
+    it('tracks ten independent counters (SC-001)', () => {
+      const items = Array.from({ length: 10 }, (_, i) =>
+        makeContent(`R${i}`, i + 1, { recurringEveryXIterations: 30 }),
+      );
+      let counters = new Map<string, number>();
+      for (let tick = 0; tick < 30; tick++) {
+        counters = service.incrementCounters(counters, items);
+      }
+      for (const item of items) {
+        expect(counters.get(item.id)).toBe(30);
+      }
     });
   });
 
-  describe('shouldResetOnEmptyRecurring', () => {
-    it('is true only when the counter is non-zero and no recurring items remain', () => {
-      const items = [makeContent('R', 1, 3)];
-      expect(service.shouldResetOnEmptyRecurring([], 0)).toBeFalse();
-      expect(service.shouldResetOnEmptyRecurring([], 5)).toBeTrue();
-      expect(service.shouldResetOnEmptyRecurring(items, 5)).toBeFalse();
+  describe('dueItems', () => {
+    it('returns items with counter >= N sorted by displayOrder', () => {
+      const items = [
+        makeContent('C', 30, { recurringEveryXIterations: 6 }),
+        makeContent('A', 10, { recurringEveryXIterations: 6 }),
+        makeContent('B', 20, { recurringEveryXIterations: 30 }),
+      ];
+      const counters = new Map<string, number>([
+        ['A', 6],
+        ['B', 30],
+        ['C', 5],
+      ]);
+      expect(service.dueItems(items, counters).map((i) => i.id)).toEqual(['A', 'B']);
+    });
+  });
+
+  describe('cadenceChanges', () => {
+    it('detects cadence edits and newly recurring items', () => {
+      const previous = new Map([['A', 30]]);
+      const items = [
+        makeContent('A', 1, { recurringEveryXIterations: 10 }),
+        makeContent('B', 2, { recurringEveryXIterations: 5 }),
+      ];
+      expect(service.cadenceChanges(previous, items).sort()).toEqual(['A', 'B']);
+    });
+  });
+
+  describe('pruneCounters', () => {
+    it('drops counters for removed recurring ids', () => {
+      const pruned = service.pruneCounters(new Map([['A', 3], ['B', 2]]), ['A']);
+      expect(pruned.get('A')).toBe(3);
+      expect(pruned.has('B')).toBeFalse();
+    });
+  });
+
+  describe('resetCounter', () => {
+    it('sets one id to 0 without affecting others', () => {
+      const reset = service.resetCounter(new Map([['A', 5], ['B', 8]]), 'A');
+      expect(reset.get('A')).toBe(0);
+      expect(reset.get('B')).toBe(8);
     });
   });
 });

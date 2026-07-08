@@ -31,6 +31,28 @@ function makeNovelty(id: string, displayOrder: number): DisplayContentItem {
   return { ...makeContent(id, displayOrder), isNovelty: true };
 }
 
+function makeRecurring(
+  id: string,
+  displayOrder: number,
+  recurringEveryXIterations: number,
+  durationSeconds: number = 0.1,
+): DisplayContentItem {
+  return {
+    ...makeContent(id, displayOrder, durationSeconds),
+    recurringEveryXIterations,
+  };
+}
+
+function recurringCounter(controller: KioskRotationController, id: string): number {
+  return controller.recurringCounters().get(id) ?? 0;
+}
+
+function advanceTicks(tickMs: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    tick(tickMs);
+  }
+}
+
 function makeAd(
   id: string,
   displayOrder: number,
@@ -76,6 +98,10 @@ describe('KioskRotationController', () => {
     });
     controller = TestBed.inject(KioskRotationController);
     testInjector = TestBed.inject(Injector);
+  });
+
+  afterEach(() => {
+    controller.detach();
   });
 
   it('starts in loop mode with no content, no ads, and adIndex=0', () => {
@@ -445,17 +471,12 @@ describe('KioskRotationController', () => {
     controller.detach();
   }));
 
-  it('shows the recurring content every N advances (spec 007 US2 / FR-008a)', fakeAsync(() => {
-    const recurring: DisplayContentItem = {
-      ...makeContent('REC', 99, 0.05),
-      recurringEveryXIterations: 3,
-    };
+  it('fires recurring content every N transitions per item (CHG-039 / >= N)', fakeAsync(() => {
     const queue = signal<DisplayContentItem[]>([
-      makeContent('A', 1),
-      makeContent('B', 2),
-      makeContent('C', 3),
-      makeContent('D', 4),
-      recurring,
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeContent('C', 3, 0.1),
+      makeRecurring('REC', 99, 6),
     ]);
     controller.bindInputs({
       contentMode: () => 'loop',
@@ -471,21 +492,299 @@ describe('KioskRotationController', () => {
     controller.setCursor('A');
     TestBed.tick();
 
-    // Advance 12 times: the recurring item must appear at advances 4, 8,
-    // and 12 (per spec 007 US2 acceptance 1). The initial 'A' is at
-    // position 1 of the visited sequence, so REC lands at positions 5,
-    // 9, and 13.
-    const sequence: Array<string | null> = [controller.currentContentId()];
-    for (let i = 0; i < 12; i++) {
+    const recurringAt: number[] = [];
+    for (let i = 1; i <= 12; i++) {
       tick(100);
-      sequence.push(controller.currentContentId());
+      if (controller.currentContentId() === 'REC') {
+        recurringAt.push(i);
+      }
+    }
+    expect(recurringAt).toEqual([6, 12]);
+
+    controller.detach();
+  }));
+
+  it('keeps independent cadences for two recurring items (CHG-039 US1)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('R1', 1, 0.1),
+      makeContent('R2', 2, 0.1),
+      makeContent('R3', 3, 0.1),
+      makeRecurring('A', 10, 6),
+      makeRecurring('B', 20, 30),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('R1');
+    TestBed.tick();
+
+    const seen: Array<string | null> = [];
+    for (let i = 0; i < 31; i++) {
+      tick(100);
+      seen.push(controller.currentContentId());
     }
 
-    const visited = sequence.filter((id): id is string => Boolean(id));
-    const recurringPositions = visited
-      .map((id, idx) => (id === 'REC' ? idx + 1 : 0))
-      .filter((idx) => idx > 0);
-    expect(recurringPositions).toEqual([5, 9, 13]);
+    const aPositions = seen.map((id, idx) => (id === 'A' ? idx + 1 : 0)).filter((n) => n > 0);
+    const bPositions = seen.map((id, idx) => (id === 'B' ? idx + 1 : 0)).filter((n) => n > 0);
+    expect(aPositions).toContain(30);
+    expect(bPositions).toEqual([31]);
+    expect(seen[29]).toBe('A');
+    expect(seen[30]).toBe('B');
+
+    controller.detach();
+  }));
+
+  it('resolves three simultaneous due items by displayOrder (CHG-039 US1)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('R1', 1, 0.1),
+      makeContent('R2', 2, 0.1),
+      makeRecurring('C', 30, 3),
+      makeRecurring('A', 10, 3),
+      makeRecurring('B', 20, 3),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('R1');
+    TestBed.tick();
+
+    tick(100);
+    expect(controller.currentContentId()).toBe('R2');
+    tick(100);
+    expect(controller.currentContentId()).toBe('R1');
+    tick(100);
+    expect(controller.currentContentId()).toBe('A');
+    tick(100);
+    expect(controller.currentContentId()).toBe('B');
+    tick(100);
+    expect(controller.currentContentId()).toBe('C');
+
+    controller.detach();
+  }));
+
+  it('delays regular rotation when recurring is due (CHG-039 US2)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeContent('C', 3, 0.1),
+      makeRecurring('X', 99, 3),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+
+    const seen: Array<string | null> = [];
+    for (let i = 0; i < 7; i++) {
+      tick(100);
+      seen.push(controller.currentContentId());
+    }
+    expect(seen).toEqual(['B', 'C', 'X', 'A', 'B', 'X', 'C']);
+
+    controller.detach();
+  }));
+
+  it('rotates recurring-only filler and increments counters (CHG-039 US3)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeRecurring('A', 10, 6),
+      makeRecurring('B', 20, 30),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+
+    expect(controller.currentContentId()).toBe('A');
+    tick(100);
+    expect(controller.currentContentId()).toBe('B');
+    expect(recurringCounter(controller, 'A')).toBe(1);
+    expect(recurringCounter(controller, 'B')).toBe(1);
+
+    advanceTicks(100, 3);
+    expect(controller.currentContentId()).toBe('A');
+
+    controller.detach();
+  }));
+
+  it('excludes inactive recurring items from filler and counters (CHG-039 US4)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeRecurring('A', 10, 3),
+      { ...makeRecurring('B', 20, 3), isActive: false },
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(100);
+    expect(controller.currentContentId()).toBe('A');
+    expect(recurringCounter(controller, 'B')).toBe(0);
+    expect(controller.recurringCounters().has('B')).toBeFalse();
+
+    controller.detach();
+  }));
+
+  it('preserves recurring counters across pause and resume (CHG-039 US4)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1, 0.1),
+      makeRecurring('REC', 99, 10),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+
+    tick(100);
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+    controller.pause();
+    tick(5_000);
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+    controller.resume();
+    tick(100);
+    expect(recurringCounter(controller, 'REC')).toBe(2);
+
+    controller.detach();
+  }));
+
+  it('preserves recurring counters across mode transitions (CHG-039 US4)', fakeAsync(() => {
+    const mode = signal<'loop' | 'iframe' | 'fixed'>('loop');
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1, 0.1),
+      makeRecurring('REC', 99, 10),
+    ]);
+    controller.bindInputs({
+      contentMode: () => mode(),
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+    tick(100);
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    mode.set('iframe');
+    TestBed.tick();
+    mode.set('loop');
+    TestBed.tick();
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    controller.detach();
+  }));
+
+  it('consumes jump_to for a regular target without resetting recurring counters (CHG-039 US4)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1),
+      makeContent('D', 4),
+      makeRecurring('REC', 99, 10),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+    tick(100);
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    controller.applyNavigationCommand('jump_to', 'D');
+    expect(controller.currentContentId()).toBe('D');
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    controller.detach();
+  }));
+
+  it('resets only the recurring jump_to target counter (CHG-039 US4)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1),
+      makeRecurring('REC-A', 10, 10),
+      makeRecurring('REC-B', 20, 10),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+    tick(100);
+    expect(recurringCounter(controller, 'REC-A')).toBe(1);
+    expect(recurringCounter(controller, 'REC-B')).toBe(1);
+
+    controller.applyNavigationCommand('jump_to', 'REC-B');
+    expect(controller.currentContentId()).toBe('REC-B');
+    expect(recurringCounter(controller, 'REC-B')).toBe(0);
+    expect(recurringCounter(controller, 'REC-A')).toBe(1);
 
     controller.detach();
   }));
@@ -510,13 +809,11 @@ describe('KioskRotationController', () => {
     }, testInjector);
     TestBed.tick();
     controller.setCursor('A');
-    controller.cadenceCounter.set(2);
     TestBed.tick();
 
     controller.applyNavigationCommand('jump_to', 'D');
 
     expect(controller.currentContentId()).toBe('D');
-    expect(controller.cadenceCounter()).toBe(0);
 
     controller.detach();
   }));
@@ -543,19 +840,11 @@ describe('KioskRotationController', () => {
   }));
 
   it('honors a cadence change pushed by the polled state without a page reload', fakeAsync(() => {
-    // The kiosk polls and the operator updates the recurring cadence
-    // from 3 to 10 mid-rotation. The controller's effect re-runs on
-    // every queue change, picks up the new cadence via
-    // `_smallestRecurringCadence`, and the next advance must reflect
-    // the new cadence without the operator refreshing the browser.
-    // The trigger is `cadenceCounter > cadence`, so the recurring
-    // appears on the (N+1)th advance where N is the cadence.
     const initialQueue: DisplayContentItem[] = [
-      makeContent('A', 1),
-      makeContent('B', 2),
-      makeContent('C', 3),
-      makeContent('D', 4),
-      { ...makeContent('REC', 99, 0.1), recurringEveryXIterations: 3 },
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeContent('C', 3, 0.1),
+      makeRecurring('REC', 99, 3),
     ];
     const queue = signal<DisplayContentItem[]>(initialQueue);
     controller.bindInputs({
@@ -572,43 +861,32 @@ describe('KioskRotationController', () => {
     controller.setCursor('A');
     TestBed.tick();
 
-    // Walk the cursor up to a counter of 2 (two advances since setCursor).
     tick(100);
-    expect(controller.cadenceCounter()).toBe(1);
-    tick(100);
-    expect(controller.cadenceCounter()).toBe(2);
+    expect(recurringCounter(controller, 'REC')).toBe(1);
 
-    // Operator pushes a cadence change to 10 via the polled state.
-    // The fingerprint (see display.api.spec) is responsible for
-    // letting this state through; here we simulate the same update
-    // landing on the input signal.
     queue.set([
-      ...initialQueue.slice(0, 4),
-      { ...makeContent('REC', 99, 0.1), recurringEveryXIterations: 10 },
+      ...initialQueue.slice(0, 3),
+      makeRecurring('REC', 99, 10),
     ]);
     TestBed.tick();
+    expect(recurringCounter(controller, 'REC')).toBe(0);
 
-    // Advance through 9 more regular advances (cadence=10, so the
-    // 11th advance is the recurring). Counter goes 3 → 11, recurring
-    // appears on the 11th advance and resets the counter.
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       tick(100);
       if (controller.currentContentId() === 'REC') {
-        expect(controller.cadenceCounter()).toBe(0);
+        expect(recurringCounter(controller, 'REC')).toBe(0);
         controller.detach();
         return;
       }
     }
-    // If we reach here, the recurring never appeared in the new cadence
-    // window — fail with a diagnostic.
-    fail(`Recurring did not appear under the new cadence=10 within 10 advances; counter=${controller.cadenceCounter()}, cursor=${controller.currentContentId()}`);
+    fail(`Recurring did not appear under cadence=10; counter=${recurringCounter(controller, 'REC')}, cursor=${controller.currentContentId()}`);
   }));
 
-  it('resets the cadence counter to 0 when the last recurring is removed (spec 014 addendum 2)', fakeAsync(() => {
+  it('resets recurring counters when the last recurring is removed (CHG-039 FR-011)', fakeAsync(() => {
     const queue = signal<DisplayContentItem[]>([
-      makeContent('A', 1),
-      makeContent('B', 2),
-      { ...makeContent('REC', 99, 0.1), recurringEveryXIterations: 2 },
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeRecurring('REC', 99, 10),
     ]);
     controller.bindInputs({
       contentMode: () => 'loop',
@@ -626,14 +904,12 @@ describe('KioskRotationController', () => {
 
     tick(100);
     tick(100);
-    expect(controller.cadenceCounter()).toBe(2);
+    expect(recurringCounter(controller, 'REC')).toBe(2);
 
-    // Operator drops the recurring — the new state has no
-    // `recurringEveryXIterations` items.
-    queue.set([makeContent('A', 1), makeContent('B', 2)]);
+    queue.set([makeContent('A', 1, 0.1), makeContent('B', 2, 0.1)]);
     TestBed.tick();
 
-    expect(controller.cadenceCounter()).toBe(0);
+    expect(controller.recurringCounters().size).toBe(0);
 
     controller.detach();
   }));
@@ -660,6 +936,10 @@ describe('KioskRotationController novelty burst (CHG-027)', () => {
     });
     controller = TestBed.inject(KioskRotationController);
     testInjector = TestBed.inject(Injector);
+  });
+
+  afterEach(() => {
+    controller.detach();
   });
 
   function bindLoop(queue: () => DisplayContentItem[], durationSeconds = 0.1): void {
@@ -777,6 +1057,51 @@ describe('KioskRotationController novelty burst (CHG-027)', () => {
     tick(1);
     tick(0);
     expect(controller.currentContentId()).toBe('N');
+    controller.detach();
+  }));
+
+  it('does not advance recurring counters during a novelty burst (CHG-039 US4)', fakeAsync(() => {
+    const queue = signal<DisplayContentItem[]>([
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeContent('C', 3, 0.1),
+      makeRecurring('REC', 99, 10),
+    ]);
+    controller.bindInputs({
+      contentMode: () => 'loop',
+      contentQueue: () => queue(),
+      ads: () => [],
+      fixedContentId: () => null,
+      effectiveDurationSeconds: () => 0.1,
+      adDurationSeconds: () => 10,
+      inlineAdCount: () => 1,
+      videoEndDelaySeconds: () => 0,
+    }, testInjector);
+    TestBed.tick();
+    controller.setCursor('A');
+    TestBed.tick();
+    tick(100);
+    expect(controller.currentContentId()).toBe('B');
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    queue.set([
+      makeContent('A', 1, 0.1),
+      makeContent('B', 2, 0.1),
+      makeContent('C', 3, 0.1),
+      makeRecurring('REC', 99, 10),
+      makeNovelty('N', 3),
+    ]);
+    TestBed.tick();
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('N');
+    expect(recurringCounter(controller, 'REC')).toBe(1);
+
+    tick(100);
+    tick(0);
+    expect(controller.currentContentId()).toBe('C');
+    expect(recurringCounter(controller, 'REC')).toBe(1);
     controller.detach();
   }));
 
