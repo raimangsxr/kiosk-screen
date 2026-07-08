@@ -9,6 +9,7 @@ import { BehaviorSubject } from 'rxjs';
 import { ReadinessApiService, ReadinessReport } from '../../core/api/readiness.api';
 import { ReadinessFacade } from './readiness.facade';
 import { ReadinessComponent } from './readiness.component';
+import { resolveReadinessRoute } from './readiness-routes';
 
 class BreakpointObserverStub {
   readonly events = new BehaviorSubject<BreakpointState>({
@@ -94,13 +95,12 @@ describe('ReadinessComponent (Material)', () => {
   });
 
   it('resolves blocker messages to the right admin section', () => {
-    const component = fixture.componentInstance;
-    expect(component.resolveRoute('No content available')).toBe('/admin/content');
-    expect(component.resolveRoute('Missing ad image')).toBe('/admin/ads');
-    expect(component.resolveRoute('Missing iframe')).toBe('/admin/iframes');
-    expect(component.resolveRoute('Display configuration incomplete')).toBe('/admin/configuration');
-    expect(component.resolveRoute('No user with role')).toBe('/admin/users');
-    expect(component.resolveRoute('Unknown blocker')).toBe('/admin');
+    expect(resolveReadinessRoute('No content available')).toBe('/admin/content');
+    expect(resolveReadinessRoute('Missing ad image')).toBe('/admin/ads');
+    expect(resolveReadinessRoute('Missing iframe')).toBe('/admin/iframes');
+    expect(resolveReadinessRoute('Display configuration incomplete')).toBe('/admin/configuration');
+    expect(resolveReadinessRoute('No user with role')).toBe('/admin/users');
+    expect(resolveReadinessRoute('Unknown blocker')).toBe('/admin');
   });
 
   it('renders blocked state with blockers and resolve links', () => {

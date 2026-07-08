@@ -17,6 +17,7 @@ tests:
 related_changes:
   - CHG-011
   - CHG-037
+  - CHG-040
 related_adrs:
   []
 ---
@@ -37,6 +38,12 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 - Readiness logic is testable independently from the UI.
 - `GET /health` is a lightweight liveness probe (`{"status": "ok"}`) and does not check dependencies.
 - `GET /ready` is the traffic-routing probe: it returns `{"status": "ready"}` when the database answers `SELECT 1` and the configured media storage path is writable; otherwise HTTP 503 with per-check status in `checks`.
+
+### Dashboard readiness surfacing
+
+- The dashboard MUST surface the same blocker and warning messages returned by readiness evaluation.
+- Each blocker and warning on the dashboard MUST include a navigation control to the appropriate admin resolution route (equivalent intent to the readiness page "Resolver" / "Revisar" actions).
+- Dashboard readiness failure (endpoint unavailable) MUST show a recoverable error in the readiness section without preventing other dashboard sections from rendering when their sources succeed.
 
 ## Public interfaces
 
@@ -72,3 +79,4 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 - CHG-011
 - CHG-032
 - CHG-037
+- CHG-040 — dashboard readiness alerts with resolve navigation and partial degradation.

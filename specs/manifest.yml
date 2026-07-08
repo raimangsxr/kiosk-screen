@@ -186,6 +186,7 @@ contracts:
     related_changes:
       - CHG-011
       - CHG-037
+      - CHG-040
 
   - id: DISPLAY.EVENTS.AUDIT
     path: specs/contracts/display-events-audit/contract.md
@@ -218,6 +219,7 @@ contracts:
       - CHG-013
       - CHG-035
       - CHG-037
+      - CHG-040
 
   - id: DISPLAY.RUNTIME
     path: specs/contracts/display-runtime/contract.md
@@ -609,6 +611,16 @@ changes:
     status: implemented
     modifies:
       - CONTENT.ROTATION
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-040
+    path: specs/changes/040-admin-operations-dashboard/spec.md
+    status: implemented
+    modifies:
+      - ADMIN.SHELL.NAVIGATION
+      - READINESS.SETUP
     depends_on: []
     consolidated_into: []
     read_by_default: true

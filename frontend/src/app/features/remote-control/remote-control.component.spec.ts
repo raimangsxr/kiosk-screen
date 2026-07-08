@@ -146,10 +146,10 @@ describe('RemoteControlComponent', () => {
     const pill = fixture.nativeElement.querySelector('.remote-control__status');
     expect(pill).not.toBeNull();
     const text = pill.textContent;
-    expect(text).toContain('Rotation');
+    expect(text).toContain('Rotación');
     expect(text).toContain('Visible');
     expect(text).toContain('Fullscreen Off');
-    expect(text).toContain('Display online');
+    expect(text).toContain('Display en línea');
     expect(text).toMatch(/Updated/);
   });
 
@@ -304,7 +304,7 @@ describe('RemoteControlComponent', () => {
     ) as HTMLButtonElement;
     expect(slideToggle.disabled).toBeTrue();
     const pill = customFixture.nativeElement.querySelector('.remote-control__status');
-    expect(pill.textContent).toContain('Saving');
+    expect(pill.textContent).toContain('Guardando');
   });
 
   it('emits a snackbar with "Switched to rotation mode." after a successful setLoopMode', fakeAsync(() => {
@@ -314,7 +314,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.setLoopMode).toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith(
       'Switched to rotation mode.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
@@ -326,7 +326,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.setIframeMode).toHaveBeenCalledWith('content-1');
     expect(snackBar.open).toHaveBeenCalledWith(
       'Now showing: https://example.org/agenda.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
@@ -338,7 +338,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.setAdsVisible).toHaveBeenCalledWith(true);
     expect(snackBar.open).toHaveBeenCalledWith(
       'Ads are now visible.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
@@ -350,7 +350,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.setAdsVisible).toHaveBeenCalledWith(false);
     expect(snackBar.open).toHaveBeenCalledWith(
       'Ads are now hidden.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
@@ -362,7 +362,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.setFullscreenRequested).toHaveBeenCalledWith(true);
     expect(snackBar.open).toHaveBeenCalledWith(
       'Fullscreen requested.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
@@ -394,7 +394,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.navigate).toHaveBeenCalledWith('next');
     expect(snackBar.open).toHaveBeenCalledWith(
       'Skipped to next content.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
 
@@ -403,7 +403,7 @@ describe('RemoteControlComponent', () => {
     expect(facade.navigate).toHaveBeenCalledWith('previous');
     expect(snackBar.open).toHaveBeenCalledWith(
       'Returned to previous content.',
-      'Dismiss',
+      'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));

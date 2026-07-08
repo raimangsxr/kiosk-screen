@@ -9,6 +9,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatDividerModule } from '@angular/material/divider';
 
 import { ReadinessFacade } from './readiness.facade';
+import { resolveReadinessRoute } from './readiness-routes';
 import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
 
@@ -66,7 +67,7 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
             @for (blocker of facade.blockers(); track blocker) {
               <li class="admin-stack">
                 <span class="readiness__message">{{ blocker }}</span>
-                <a mat-stroked-button color="primary" [routerLink]="resolveRoute(blocker)">
+                <a mat-stroked-button color="primary" [routerLink]="resolveReadinessRoute(blocker)">
                   <mat-icon aria-hidden="true">arrow_forward</mat-icon>
                   Resolver
                 </a>
@@ -82,7 +83,7 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
             @for (warning of facade.warnings(); track warning) {
               <li class="admin-stack">
                 <span class="readiness__message">{{ warning }}</span>
-                <a mat-stroked-button [routerLink]="resolveRoute(warning)">
+                <a mat-stroked-button [routerLink]="resolveReadinessRoute(warning)">
                   <mat-icon aria-hidden="true">arrow_forward</mat-icon>
                   Revisar
                 </a>
@@ -164,26 +165,5 @@ export class ReadinessComponent implements OnInit {
     this.facade.refresh().subscribe();
   }
 
-  resolveRoute(message: string): string {
-    const lower = message.toLowerCase();
-    if (lower.includes('user') || lower.includes('rol') || lower.includes('usuario')) {
-      return '/admin/users';
-    }
-    if (lower.includes('content') || lower.includes('contenido')) {
-      return '/admin/content';
-    }
-    if (lower.includes('anuncio') || /\bad(s)?\b/.test(lower)) {
-      return '/admin/ads';
-    }
-    if (lower.includes('iframe') || lower.includes('embedded')) {
-      return '/admin/iframes';
-    }
-    if (lower.includes('configuration') || lower.includes('display') || lower.includes('pantalla')) {
-      return '/admin/configuration';
-    }
-    if (lower.includes('event') || lower.includes('evento')) {
-      return '/admin/event';
-    }
-    return '/admin';
-  }
+  protected readonly resolveReadinessRoute = resolveReadinessRoute;
 }
