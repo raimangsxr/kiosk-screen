@@ -21,6 +21,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AdminStateComponent } from '../../shared/admin-state.component';
 import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
+import {
+  adsLabel as adsLabelFor,
+  displayLabel as displayLabelFor,
+  modeLabel as modeLabelFor,
+  relativeTime
+} from '../../shared/util/remote-control-labels';
 import { RemoteControlFacade } from './remote-control.facade';
 import { RemoteControlContentMode } from './remote-control.models';
 
@@ -632,31 +638,20 @@ export class RemoteControlComponent implements OnInit {
     return active === undefined ? null : active;
   });
 
-  protected readonly modeLabel = computed(() => {
-    const m = this.mode();
-    if (m === 'iframe') return 'Iframe';
-    if (m === 'fixed') return 'Fixed';
-    return 'Rotation';
-  });
+  protected readonly modeLabel = computed(() => modeLabelFor(this.mode()));
   protected readonly modeIcon = computed(() => {
     const m = this.mode();
     if (m === 'iframe') return 'cast_connected';
     if (m === 'fixed') return 'push_pin';
     return 'loop';
   });
-  protected readonly adsLabel = computed(() => (this.adsVisible() ? 'Visible' : 'Hidden'));
+  protected readonly adsLabel = computed(() => adsLabelFor(this.adsVisible()));
   protected readonly adsIcon = computed(() => (this.adsVisible() ? 'campaign' : 'visibility_off'));
   protected readonly fullscreenLabel = computed(() => (this.fullscreenRequested() ? 'On' : 'Off'));
   protected readonly fullscreenIcon = computed(() => (this.fullscreenRequested() ? 'fullscreen' : 'fullscreen_exit'));
-  protected readonly displayLabel = computed(() => {
-    const online = this.displayOnline();
-    if (online === null) {
-      return 'Display status unknown';
-    }
-    return online ? 'Display online' : 'Display offline';
-  });
+  protected readonly displayLabel = computed(() => displayLabelFor(this.displayOnline()));
   protected readonly updatedLabel = computed(() => relativeTime(this.facade.state()?.updatedAt));
-  protected readonly savingSuffix = computed(() => (this.facade.saving() ? ' · Saving…' : ''));
+  protected readonly savingSuffix = computed(() => (this.facade.saving() ? ' · Guardando…' : ''));
 
   constructor() {
     effect(() => {
@@ -774,41 +769,6 @@ export class RemoteControlComponent implements OnInit {
   }
 
   private notify(message: string): void {
-    this.snackBar.open(message, 'Dismiss', { duration: 3000 });
+    this.snackBar.open(message, 'Cerrar', { duration: 3000 });
   }
-}
-
-function relativeTime(iso: string | null | undefined): string {
-  if (!iso) {
-    return 'never';
-  }
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return 'never';
-  }
-  const now = new Date();
-  const deltaMs = now.getTime() - date.getTime();
-  if (deltaMs < 0) {
-    return date.toISOString().slice(0, 16).replace('T', ' ');
-  }
-  const deltaSec = Math.floor(deltaMs / 1000);
-  if (deltaSec < 30) {
-    return 'just now';
-  }
-  if (deltaSec < 60) {
-    return `${deltaSec} seconds ago`;
-  }
-  const deltaMin = Math.floor(deltaSec / 60);
-  if (deltaMin < 60) {
-    return `${deltaMin} minute${deltaMin === 1 ? '' : 's'} ago`;
-  }
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  }
-  return date.toISOString().slice(0, 16).replace('T', ' ');
 }

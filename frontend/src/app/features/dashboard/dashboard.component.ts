@@ -1,315 +1,149 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
-import { AdminDashboardService } from './dashboard.service';
-import { AdminDashboardState, AdminNavigationItem, AdminQuickAction, AdminSectionSummary } from '../../shared/admin-ui.models';
 import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
-import { StatusChipComponent, StatusKind } from '../../shared/ui/status-chip.component';
-import { BreakpointService } from '../../core/layout/breakpoint.service';
-import { adaptApiError } from '../../core/errors/api-error-adapter';
+import { DashboardFacade } from './dashboard.facade';
+import { OperationsDashboardState } from './dashboard.models';
+import { OperationsHeroComponent } from './sections/operations-hero.component';
+import { ReadinessAlertsComponent } from './sections/readiness-alerts.component';
+import { ContextualActionsComponent } from './sections/contextual-actions.component';
+import { ActivityFeedComponent } from './sections/activity-feed.component';
+import { ContentQueueComponent } from './sections/content-queue.component';
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    RouterLink,
-    MatCardModule,
     MatButtonModule,
     MatIconModule,
+    MatProgressBarModule,
     AdminPageComponent,
     AdminStateComponent,
-    StatusChipComponent
+    OperationsHeroComponent,
+    ReadinessAlertsComponent,
+    ContextualActionsComponent,
+    ActivityFeedComponent,
+    ContentQueueComponent
   ],
   template: `
     <app-admin-page
       title="Panel"
-      description="Estado del quiosco, resumen de secciones y accesos rápidos."
+      description="Centro de operaciones del quiosco: preparación, estado en vivo, cola y actividad reciente."
     />
 
-    @if (error(); as err) {
+    <div class="dashboard__toolbar">
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading()">
+        <mat-icon aria-hidden="true">refresh</mat-icon>
+        Actualizar
+      </button>
+    </div>
+
+    @if (loading() && !state()) {
+      <mat-progress-bar mode="indeterminate" aria-label="Cargando panel" />
+    }
+
+    @if (allSectionsFailed()) {
       <app-admin-state
         kind="error"
         title="Panel no disponible"
-        [message]="err"
+        message="No se pudo cargar ninguna sección del panel. Comprueba la conexión e inténtalo de nuevo."
       />
     }
 
     @if (state(); as s) {
-      <div class="dashboard__status">
-        <app-status-chip
-          [label]="setupLabel(s.setupStatus)"
-          [kind]="setupKind(s.setupStatus)"
-          [icon]="setupIcon(s.setupStatus)"
-        />
-        <a mat-button color="primary" routerLink="/admin/readiness">
-          <mat-icon aria-hidden="true">fact_check</mat-icon>
-          Ejecutar comprobación
-        </a>
-      </div>
+      <app-operations-hero
+        [readiness]="s.readiness"
+        [live]="s.live"
+        [liveDegraded]="isLiveDegraded()"
+        (retryLive)="retryLive()"
+      />
 
-      <section
-        class="dashboard__grid"
-        [class.dashboard__grid--two]="isTwoColumns()"
-        [class.dashboard__grid--three]="isThreeColumns()"
-        [class.dashboard__grid--compact]="isCompact()"
-        aria-label="Resumen de secciones"
-      >
-        @for (summary of s.sectionSummaries; track summary.route) {
-          <mat-card appearance="outlined" class="dashboard__tile">
-            <mat-card-header>
-              <span mat-card-avatar class="dashboard__tile-avatar">
-                <mat-icon aria-hidden="true">{{ iconFor(summary.route) }}</mat-icon>
-              </span>
-              <mat-card-title>{{ summary.label }}</mat-card-title>
-              <mat-card-subtitle>{{ summary.value }}</mat-card-subtitle>
-            </mat-card-header>
-            <mat-card-actions align="end">
-              <app-status-chip
-                [label]="summary.status | titlecase"
-                [kind]="statusKind(summary.status)"
-                [icon]="statusIcon(summary.status)"
-              />
-              <a mat-button color="primary" [routerLink]="summary.route">
-                <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                Abrir
-              </a>
-            </mat-card-actions>
-          </mat-card>
-        }
-      </section>
+      <app-readiness-alerts [readiness]="s.readiness" [degraded]="isReadinessDegraded()" />
 
-      @if (s.blockers.length || s.warnings.length) {
-        <section class="dashboard__alerts">
-          <h3 class="dashboard__alerts-title">Comprobación</h3>
-          <ul class="dashboard__alerts-list">
-            @for (blocker of s.blockers; track blocker) {
-              <li class="dashboard__alert dashboard__alert--blocked">
-                <mat-icon aria-hidden="true">error</mat-icon>
-                <span>{{ blocker }}</span>
-              </li>
-            }
-            @for (warning of s.warnings; track warning) {
-              <li class="dashboard__alert dashboard__alert--warning">
-                <mat-icon aria-hidden="true">warning</mat-icon>
-                <span>{{ warning }}</span>
-              </li>
-            }
-          </ul>
-        </section>
-      }
+      <app-contextual-actions [contextualActions]="s.contextualActions" />
 
-      @if (s.quickActions.length) {
-        <section class="dashboard__actions" aria-label="Accesos rápidos">
-          <h3 class="dashboard__actions-title">Accesos rápidos</h3>
-          <div
-            class="dashboard__actions-grid"
-            [class.dashboard__actions-grid--two]="isTwoColumns()"
-            [class.dashboard__actions-grid--three]="isThreeColumns()"
-          >
-            @for (action of s.quickActions; track action.route) {
-              <mat-card appearance="outlined" class="dashboard__action">
-                <mat-card-content>
-                  <strong>{{ action.label }}</strong>
-                  <p>{{ action.description }}</p>
-                </mat-card-content>
-                <mat-card-actions align="end">
-                  <a mat-button color="primary" [routerLink]="action.route">
-                    <mat-icon aria-hidden="true">arrow_forward</mat-icon>
-                    Abrir
-                  </a>
-                </mat-card-actions>
-              </mat-card>
-            }
-          </div>
-        </section>
-      }
+      <app-content-queue [queue]="s.queue" [degraded]="isQueueDegraded()" />
+
+      <app-activity-feed [activity]="s.activity" [degraded]="isActivityDegraded()" />
     }
   `,
   styles: [
     `
       :host {
         display: block;
+        min-width: 0;
+        overflow-x: clip;
       }
-      .dashboard__status {
+      .dashboard__toolbar {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 10px;
-      }
-      .dashboard__grid,
-      .dashboard__actions-grid {
-        display: grid;
-        gap: 8px;
-        grid-template-columns: 1fr;
-        margin-bottom: 10px;
-      }
-      .dashboard__grid--two,
-      .dashboard__actions-grid--two {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-      .dashboard__grid--three,
-      .dashboard__actions-grid--three {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-      .dashboard__grid--compact .mat-mdc-card-actions .mat-mdc-button-base {
-        width: 100%;
-      }
-      .dashboard__tile,
-      .dashboard__action {
-        display: grid;
-        background: var(--mat-sys-surface);
-      }
-      .dashboard__tile-avatar {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-primary);
-      }
-      .dashboard__tile .mat-mdc-card-content,
-      .dashboard__action .mat-mdc-card-content {
-        padding: 10px 14px;
-      }
-      .dashboard__tile .mat-mdc-card-actions,
-      .dashboard__action .mat-mdc-card-actions {
-        padding: 4px 12px 10px;
-        gap: 8px;
-      }
-      .dashboard__action p {
-        margin: 4px 0 0;
-        color: var(--mat-sys-on-surface-variant);
-        font: var(--mat-sys-body-small);
-        letter-spacing: var(--mat-sys-body-small-tracking);
-      }
-      .dashboard__alerts {
-        margin: 10px 0;
-        padding: 12px;
-        background: var(--mat-sys-surface-container-low);
-        border-radius: var(--mat-sys-corner-medium);
-      }
-      .dashboard__alerts-title,
-      .dashboard__actions-title {
-        margin: 0 0 8px;
-        font: var(--mat-sys-title-small);
-        letter-spacing: var(--mat-sys-title-small-tracking);
-        color: var(--mat-sys-on-surface);
-      }
-      .dashboard__alerts-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 8px;
-      }
-      .dashboard__alert {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: var(--mat-sys-corner-small);
-        font: var(--mat-sys-body-medium);
-        letter-spacing: var(--mat-sys-body-medium-tracking);
-      }
-      .dashboard__alert--blocked {
-        background: var(--mat-sys-error-container);
-        color: var(--mat-sys-on-error-container);
-      }
-      .dashboard__alert--warning {
-        background: var(--mat-sys-secondary-container);
-        color: var(--mat-sys-on-secondary-container);
+        justify-content: flex-end;
+        margin-bottom: 8px;
       }
     `
   ]
 })
 export class AdminDashboardComponent implements OnInit {
-  private readonly dashboard = inject(AdminDashboardService);
-  private readonly breakpoint = inject(BreakpointService);
+  private readonly facade = inject(DashboardFacade);
 
-  protected readonly state = signal<AdminDashboardState | null>(null);
-  protected readonly error = signal<string | null>(null);
+  protected readonly state = signal<OperationsDashboardState | null>(null);
+  protected readonly loading = signal(false);
 
-  protected readonly isTwoColumns = computed(() => this.breakpoint.isMedium() || this.breakpoint.isExpanded());
-  protected readonly isThreeColumns = computed(() => this.breakpoint.isExpanded());
-  protected readonly isCompact = this.breakpoint.isCompact;
+  protected readonly allSectionsFailed = computed(() => {
+    const s = this.state();
+    if (!s) {
+      return false;
+    }
+    return !s.readiness && !s.live && !s.queue && !s.activity;
+  });
 
   ngOnInit(): void {
-    this.dashboard.load().subscribe({
-      next: (state) => {
-        this.state.set(state);
-        this.error.set(null);
+    this.refresh();
+  }
+
+  protected refresh(): void {
+    this.loading.set(true);
+    this.facade.load().subscribe({
+      next: (next) => {
+        this.state.set(next);
+        this.loading.set(false);
       },
-      error: (error: unknown) => {
-        const result = adaptApiError(error);
-        this.error.set(result.message);
+      error: () => {
+        this.loading.set(false);
       }
     });
   }
 
-  protected setupLabel(status: AdminDashboardState['setupStatus']): string {
-    if (status === 'ready') {
-      return 'Listo';
+  protected retryLive(): void {
+    const current = this.state();
+    if (!current) {
+      return;
     }
-    if (status === 'blocked') {
-      return 'Bloqueado';
-    }
-    return 'Acción requerida';
+    this.facade.reloadLive(current).subscribe({
+      next: (next) => this.state.set(next)
+    });
   }
 
-  protected setupKind(status: AdminDashboardState['setupStatus']): StatusKind {
-    if (status === 'ready') {
-      return 'success';
-    }
-    if (status === 'blocked') {
-      return 'danger';
-    }
-    return 'warning';
+  protected isReadinessDegraded(): boolean {
+    const s = this.state();
+    return Boolean(s && !s.readiness && s.degradedSections.includes('Comprobación'));
   }
 
-  protected setupIcon(status: AdminDashboardState['setupStatus']): string {
-    if (status === 'ready') {
-      return 'check_circle';
-    }
-    if (status === 'blocked') {
-      return 'error';
-    }
-    return 'warning';
+  protected isLiveDegraded(): boolean {
+    const s = this.state();
+    return Boolean(s && !s.live && s.degradedSections.includes('Estado en vivo'));
   }
 
-  protected statusKind(status: AdminSectionSummary['status']): StatusKind {
-    if (status === 'ready') {
-      return 'success';
-    }
-    if (status === 'blocked') {
-      return 'danger';
-    }
-    return 'warning';
+  protected isQueueDegraded(): boolean {
+    const s = this.state();
+    return Boolean(s && !s.queue && s.degradedSections.includes('Contenido'));
   }
 
-  protected statusIcon(status: AdminSectionSummary['status']): string {
-    if (status === 'ready') {
-      return 'check_circle';
-    }
-    if (status === 'blocked') {
-      return 'error';
-    }
-    return 'warning';
-  }
-
-  protected iconFor(route: string): string {
-    if (route.startsWith('/admin/content')) return 'photo_library';
-    if (route.startsWith('/admin/ads')) return 'campaign';
-    if (route.startsWith('/admin/event')) return 'event';
-    if (route.startsWith('/admin/iframes')) return 'web_asset';
-    if (route.startsWith('/admin/configuration')) return 'tune';
-    if (route.startsWith('/admin/users')) return 'group';
-    return 'dashboard';
+  protected isActivityDegraded(): boolean {
+    const s = this.state();
+    return Boolean(s && !s.activity && s.degradedSections.includes('Actividad'));
   }
 }
