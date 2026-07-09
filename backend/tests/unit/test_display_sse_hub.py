@@ -116,3 +116,38 @@ def test_publish_branding_updated_fans_out_to_two_subscribers() -> None:
 
     reset_display_sse_hub()
     redis_state.reset_redis_client(None)
+
+
+def test_publish_does_not_duplicate_events_via_local_pubsub_listener() -> None:
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    redis_state.reset_redis_client(fake)
+    reset_display_sse_hub()
+    hub = DisplaySseHub()
+    hub.start()
+
+    org_id = str(uuid4())
+    session_id = str(uuid4())
+    registration = hub.register_kiosk(
+        organization_id=org_id,
+        operator_session_id=session_id,
+        client_instance_id="a",
+        label=None,
+    )
+    subscriber = hub.subscribe(registration)
+    while not subscriber.events.empty():
+        subscriber.events.get_nowait()
+
+    hub.publish(
+        organization_id=org_id,
+        operator_session_id=session_id,
+        event_type="show_content",
+        payload={"commandId": "cmd-1", "content": {"id": "content-1"}},
+    )
+
+    event = subscriber.events.get(timeout=1)
+    assert event["type"] == "show_content"
+    assert subscriber.events.empty()
+
+    hub.stop()
+    reset_display_sse_hub()
+    redis_state.reset_redis_client(None)

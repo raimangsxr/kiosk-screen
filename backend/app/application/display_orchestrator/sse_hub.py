@@ -285,7 +285,10 @@ class DisplaySseHub:
         try:
             redis_state.get_redis_client().publish(
                 redis_state.pubsub_channel(organization_id),
-                json.dumps(envelope, separators=(",", ":")),
+                json.dumps(
+                    {"sourceReplicaId": self._replica_id, "envelope": envelope},
+                    separators=(",", ":"),
+                ),
             )
         except redis.RedisError:
             logger.exception("Failed to publish display SSE event to Redis")
@@ -431,9 +434,15 @@ class DisplaySseHub:
             if not isinstance(data, str):
                 continue
             try:
-                envelope = json.loads(data)
+                parsed = json.loads(data)
             except json.JSONDecodeError:
                 continue
+            if isinstance(parsed, dict) and "envelope" in parsed:
+                if parsed.get("sourceReplicaId") == self._replica_id:
+                    continue
+                envelope = parsed["envelope"]
+            else:
+                envelope = parsed
             self._fanout_local(envelope["organizationId"], envelope["operatorSessionId"], envelope)
         try:
             pubsub.close()

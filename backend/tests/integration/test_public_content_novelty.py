@@ -1,6 +1,7 @@
 """Integration tests for public-content novelty flag and consume endpoint (CHG-027)."""
 import io
 import queue
+import time
 
 import fakeredis
 import pytest
@@ -157,9 +158,19 @@ def test_orchestrator_novelty_fan_out_same_command_id(
     command_ids: list[str] = []
     content_ids: list[str] = []
     for subscriber in subscribers:
-        event = subscriber.events.get(timeout=1)
-        while event["type"] != "show_content":
-            event = subscriber.events.get(timeout=1)
+        event = None
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline:
+            try:
+                candidate = subscriber.events.get(timeout=0.2)
+            except queue.Empty:
+                continue
+            if candidate["type"] != "show_content":
+                continue
+            if candidate["payload"]["content"]["id"] == content_id:
+                event = candidate
+                break
+        assert event is not None
         command_ids.append(event["payload"]["commandId"])
         content_ids.append(event["payload"]["content"]["id"])
 
