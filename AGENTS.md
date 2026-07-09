@@ -17,8 +17,8 @@ Kiosk Screen is a FastAPI + Angular web application for live event kiosk display
 
 ## Active SDD work
 
-- Recently implemented: CHG-040 (admin operations dashboard), CHG-024 (event config sync), CHG-027 (novelty rotation), CHG-028 (blur-fill), CHG-035 (admin mobile), CHG-036 (sponsor strip), CHG-037 (hall version), CHG-038 (PWA), CHG-039 (independent recurring counters)
-- Other in-progress changes (not active): `019-display-responsive-runtime`, `021-kiosk-runtime-refactor`, `025-ci-argocd-bump-caller`, `026-platform-standardization`
+- Recently implemented: CHG-041 (display orchestration SSE), CHG-040 (admin operations dashboard), CHG-024 (event config sync), CHG-027 (novelty rotation), CHG-028 (blur-fill), CHG-035 (admin mobile), CHG-036 (sponsor strip), CHG-037 (hall version), CHG-038 (PWA), CHG-039 (independent recurring counters)
+- Other in-progress changes (not active): `019-display-responsive-runtime`, `021-kiosk-runtime-refactor`, `025-ci-argocd-bump-caller`, `026-platform-standardization`, `041-display-orchestration-sse` (plan complete — server orchestration over SSE)
 - Recently consolidated: `023-event-branding-layout` → `EVENT.BRANDING` + `DISPLAY.RUNTIME`
 - Cancelled: `022-i18n-locale-switching` (multi-language UI dropped; frontend ships Spanish only)
 
@@ -41,3 +41,7 @@ docker build -f frontend/Dockerfile frontend
 ```
 
 For local setup and troubleshooting, read `docs/dev/local-lab.md` instead of loading this file into every task.
+
+<!-- SPECKIT START -->
+**Active plan**: `specs/changes/041-display-orchestration-sse/plan.md` (CHG-041 — server display orchestration over SSE)
+<!-- SPECKIT END -->

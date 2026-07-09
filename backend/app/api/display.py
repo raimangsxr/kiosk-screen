@@ -28,6 +28,12 @@ from app.services.display_service import DisplayState, get_display_state, open_d
 from app.services.content_service import ContentService, NoveltyAlreadyConsumedError
 from app.domain.rotation import resolve_effective_rotation
 from app.application.display_control.service import DisplayControlService
+from app.application.display_orchestrator.hooks import (
+    bootstrap_display_orchestrator,
+    notify_operator_sessions_superseded,
+    notify_remote_navigation,
+    notify_remote_state_changed,
+)
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.iframe import Iframe
 from app.shared.errors.application_errors import (
@@ -165,15 +171,21 @@ def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
 @router.post("/open", response_model=DisplayStateSchema)
 def open_display_route(user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> DisplayStateSchema:
     try:
-        state = open_display(session, user.organization_id, user.id, user.roles)
+        result = open_display(session, user.organization_id, user.id, user.roles)
     except PermissionError as exc:
         raise PermissionApplicationError("display_open_forbidden", str(exc)) from exc
     except ValueError as exc:
         raise ConflictApplicationError("display_not_ready", str(exc)) from exc
-    return to_display_state_schema(state)
+    notify_operator_sessions_superseded(
+        session,
+        user.organization_id,
+        result.superseded_session_ids,
+    )
+    bootstrap_display_orchestrator(session, user.organization_id)
+    return to_display_state_schema(result.state)
 
 
-@router.get("/state", response_model=DisplayStateSchema)
+@router.get("/state", response_model=DisplayStateSchema, deprecated=True)
 def display_state_route(user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> DisplayStateSchema:
     try:
         return to_display_state_schema(get_display_state(session, user.organization_id))
@@ -217,6 +229,7 @@ def update_remote_control_state_route(
             if payload.selected_fixed_content_id
             else None,
         )
+        notify_remote_state_changed(session, user.organization_id)
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
         raise ConflictApplicationError("no_active_display_session", str(exc)) from exc
@@ -239,6 +252,7 @@ def remote_control_navigation_route(
             command=payload.command,
             target_content_id=str(payload.target_content_id) if payload.target_content_id else None,
         )
+        notify_remote_navigation(session, user.organization_id, state)
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
         raise ConflictApplicationError("no_active_display_session", str(exc)) from exc

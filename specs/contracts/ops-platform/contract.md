@@ -7,7 +7,7 @@ tooling for the FastAPI + Angular stack.
 
 - The repository root `.nvmrc` pins Node.js **24**. Local setup docs and the release CI workflow (`release-images.yml`) use the same major version. Contributors run `nvm use` from the repository root before frontend commands.
 - Local development runs with the root `docker-compose.yml`.
-- Compose starts `postgres`, `migrate`, `backend`, and `frontend`.
+- Compose starts `postgres`, `redis`, `migrate`, `backend`, and `frontend`.
 - PostgreSQL is the only service with a Docker Compose healthcheck.
 - The backend image and backend compose service MUST NOT define a
   Docker `HEALTHCHECK`. Runtime readiness is owned by the orchestrator
@@ -30,8 +30,9 @@ tooling for the FastAPI + Angular stack.
   backend/frontend image, and keep uploading the `release-tag` artifact
   consumed by the argocd bump workflow.
 - Pull requests and pushes to `main` run `.github/workflows/ci.yml`:
-  backend tests on SQLite (`pytest -m "not postgres"`), PostgreSQL-marked
-  integration tests against a GitHub Actions `postgres:16-alpine` service
+  the default backend suite (`pytest -m "not postgres"`, in-memory SQLite
+  and fakeredis — no Postgres service), Postgres-specific integration tests
+  (`pytest -m postgres`) against a GitHub Actions `postgres:16-alpine` service
   container with migrations applied, frontend unit tests, production build,
   and Docker image builds without registry push.
 - PR CI complements `release-images.yml` and `bump-app.yml` (CHG-025/026);
@@ -44,6 +45,8 @@ tooling for the FastAPI + Angular stack.
   `manifest.webmanifest`, icon set, service worker enabled outside dev mode,
   dynamic branding icon/title from event config, and an update banner when a new
   service worker version is available.
+- **Redis (CHG-041)**: `redis:7-alpine` in compose for orchestrator hot state and SSE pub/sub fan-out across backend replicas. Production deployments require Redis for multi-replica SSE. Reverse proxies must disable buffering for `text/event-stream` and use extended `proxy_read_timeout` for long-lived SSE connections.
+- CI may run orchestrator integration tests with a Redis service container (`@pytest.mark.redis`).
 
 ## Owned Files
 

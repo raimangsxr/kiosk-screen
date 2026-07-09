@@ -24,6 +24,10 @@ import { Router } from '@angular/router';
  *
  * @see specs/changes/030-kiosk-polling-resilience/spec.md
  */
+/**
+ * @deprecated Retained for SSE-down fallback polling (open display + GET /display/state after 60s).
+ * Primary kiosk runtime uses SSE orchestration via DisplayStreamService.
+ */
 @Injectable()
 export class DisplayPollingService {
   private readonly api = inject(DisplayApiService);

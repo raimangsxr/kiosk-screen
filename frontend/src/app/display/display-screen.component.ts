@@ -1,23 +1,30 @@
 import { CommonModule } from '@angular/common';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectorRef, Component, DestroyRef, ElementRef, Injector, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 
-import { DisplayAdItem, DisplayApiService, DisplayContentItem, DisplayState } from '../core/api/display.api';
+import { DisplayAdItem, DisplayContentItem, DisplayState, DisplayApiService } from '../core/api/display.api';
 import { ApplicationErrorContract } from '../shared/contracts/admin-contracts';
-import { DisplayControlSyncService } from '../core/display-control-sync.service';
 import { EventBrandingService } from '../core/event-branding.service';
-import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { CursorService } from './cursor.service';
 import { DisplayPollingService } from './display-polling.service';
+import { DisplayMediaCacheService } from './display-media-cache.service';
+import { DisplayStreamService } from './display-stream.service';
+import type { ShowAdsPayload, ShowContentPayload, SnapshotPayload } from './display-stream.models';
+import { DisplayViewerController } from './display-viewer.controller';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
 import { KioskFullscreenPromptComponent } from './kiosk-fullscreen-prompt.component';
-import { KioskRotationController } from './kiosk-rotation.controller';
-import { RecurringCadenceService } from './recurring-cadence.service';
-import { RotationSchedulerService } from './rotation-scheduler.service';
+
+const IMMEDIATE_CONFIG_FIELDS = new Set([
+  'topRegionRatio',
+  'bottomRegionRatio',
+  'inlineAdItemBorderRadiusPx',
+  'inlineAdItemBorderWidthPx',
+  'inlineAdItemBorderColor',
+]);
 
 type DisplayRenderableItem = Pick<
   DisplayContentItem | DisplayAdItem,
@@ -38,11 +45,10 @@ type DisplayRenderableItem = Pick<
     KioskFullscreenPromptComponent
   ],
   providers: [
-    KioskRotationController,
     CursorService,
-    RecurringCadenceService,
-    RotationSchedulerService,
-    DisplayPollingService
+    DisplayPollingService,
+    DisplayViewerController,
+    DisplayMediaCacheService,
   ],
   template: `
     <main
@@ -184,6 +190,17 @@ type DisplayRenderableItem = Pick<
         </div>
       }
 
+      @if (sseFallbackActive()) {
+        <div
+          class="display-sse-fallback"
+          role="status"
+          aria-live="polite"
+          data-testid="display-sse-fallback"
+        >
+          Modo de respaldo: actualización por polling
+        </div>
+      }
+
       @if (reconnecting()) {
         <div
           class="display-reconnecting"
@@ -221,63 +238,108 @@ type DisplayRenderableItem = Pick<
   ],
 })
 export class DisplayScreenComponent implements OnInit, OnDestroy {
-  private readonly api = inject(DisplayApiService);
   private readonly polling = inject(DisplayPollingService);
+  private readonly displayStream = inject(DisplayStreamService);
   private readonly eventBranding = inject(EventBrandingService);
-  private readonly eventConfigSync = inject(EventConfigSyncService);
-  private readonly displaySync = inject(DisplayControlSyncService);
-  protected readonly kioskRotation = inject(KioskRotationController);
+  private readonly displayViewer = inject(DisplayViewerController);
+  private readonly mediaCache = inject(DisplayMediaCacheService);
+  private readonly displayApi = inject(DisplayApiService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly injector = inject(Injector);
 
-  /**
-   * Subscribe to the controller's content-advance ticks via the public
-   * `registerContentAdvanceListener` API so we get back an unsubscribe
-   * handle and can release the listener in `ngOnDestroy`. The listener
-   * mirrors the controller cursor into the template's render array
-   * regardless of which path advanced it (timer, remote-control
-   * next/previous, fixed-mode).
-   */
-  private unsubscribeAdvanceListener: (() => void) | undefined;
-  private pollingActive = false;
+  private displayActive = false;
+  private fallbackPollingActive = false;
 
-  protected readonly reconnecting = this.polling.reconnecting;
+  protected readonly reconnecting = computed(
+    () => this.displayStream.reconnecting() || (this.fallbackPollingActive && this.polling.reconnecting()),
+  );
+  protected readonly sseFallbackActive = this.displayStream.sseFallbackActive;
   protected readonly openError = this.polling.openError;
   protected readonly openInProgress = this.polling.openInProgress;
 
   constructor() {
-    this.unsubscribeAdvanceListener = this.kioskRotation.registerContentAdvanceListener(() => {
-      this.syncContentRenderItems();
+    effect(() => {
+      const payload = this.displayStream.showContent();
+      if (payload) {
+        this.displayViewer.applyShowContent(payload);
+        this.syncContentRenderItems();
+      }
+    });
+    effect(() => {
+      const event = this.displayStream.lastEvent();
+      if (event?.type !== 'snapshot') {
+        return;
+      }
+      const snapshot = event.payload as SnapshotPayload;
+      this.displayViewer.applyModeChanged({
+        contentMode: snapshot.contentMode,
+        isPaused: snapshot.isPaused,
+        adsVisible: snapshot.adsVisible,
+        selectedFixedContentId: null,
+        reason: 'snapshot',
+      });
+      if (snapshot.currentTop) {
+        this.displayViewer.applyShowContent(snapshot.currentTop as ShowContentPayload);
+        this.syncContentRenderItems();
+      }
+      if (snapshot.currentAds) {
+        this.displayViewer.applyShowAds(snapshot.currentAds as ShowAdsPayload);
+      }
+    });
+    effect(() => {
+      const payload = this.displayStream.showAds();
+      if (payload) {
+        this.displayViewer.applyShowAds(payload);
+      }
+    });
+    effect(() => {
+      const payload = this.displayStream.modeChanged();
+      if (payload) {
+        this.displayViewer.applyModeChanged(payload);
+      }
+    });
+    effect(() => {
+      const payload = this.displayStream.showIframe();
+      if (payload) {
+        this.displayViewer.applyShowIframe(payload);
+      }
+    });
+    effect(() => {
+      const payload = this.displayStream.preload();
+      if (payload) {
+        this.displayViewer.applyPreload(payload);
+        this.mediaCache.warm(payload.items.map((item) => item.mediaUrl));
+      }
     });
 
-    // Wire the polled inputs into the controller. The controller creates
-    // a reactive `effect()` to re-arm timers when inputs change, but we
-    // pass the COMPONENT'S Injector so the effect is destroyed with the
-    // component (CHG-019 fix). Previously the controller was
-    // `providedIn: 'root'` and the effect leaked one per visit to
-    // /display.
-    //
-    // The inputs read `stateFingerprint` (a computed signal) so the
-    // controller effect only re-runs when the polled fingerprint ACTUALLY
-    // changes — not on every 5 s poll that returns the same state. This
-    // prevents the content timer from being reset on every poll.
-    this.kioskRotation.bindInputs({
-      contentMode: () => this.stateFingerprint()?.mode ?? 'loop',
-      contentQueue: () => this.state?.topContent ?? [],
-      ads: () => this.stateFingerprint()?.ads ?? [],
-      fixedContentId: () => this.stateFingerprint()?.fixedId ?? null,
-      effectiveDurationSeconds: (item) => this.computeContentDurationSeconds(item),
-      adDurationSeconds: () => this.stateFingerprint()?.adDuration ?? 10,
-      inlineAdCount: () => this.stateFingerprint()?.inlineAdCount ?? 1,
-      videoEndDelaySeconds: () => this.stateFingerprint()?.videoEndDelay ?? 2,
-    }, this.injector);
+    effect(() => {
+      if (!this.displayStream.sessionEnded()) {
+        return;
+      }
+      this.displayStream.stop();
+      void this.bootstrapDisplay();
+    });
 
-    this.kioskRotation.rotationEventSink = (eventType, payload) => {
-      this.api.postRotationEvent(eventType, payload).subscribe({ error: () => undefined });
-    };
+    effect(() => {
+      this.mediaCache.revision();
+      this.cdr.markForCheck();
+    });
+
+    effect(() => {
+      const content = this.displayViewer.currentContent();
+      if (content) {
+        this.mediaCache.warm([this.rawMediaUrl(content)]);
+      }
+    });
+
+    effect(() => {
+      const ads = this.displayViewer.visibleAds();
+      if (ads.length) {
+        this.mediaCache.warm(ads.map((ad) => this.rawMediaUrl(ad)));
+      }
+    });
 
     effect(() => {
       this.brandingViewModel().organizerLogoUrl;
@@ -285,26 +347,69 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     });
 
     effect(() => {
-      if (!this.pollingActive) {
+      if (!this.displayActive) {
+        return;
+      }
+      if (this.displayStream.sseFallbackActive()) {
+        if (!this.fallbackPollingActive) {
+          this.fallbackPollingActive = true;
+          this.polling.start(this.fallbackPollIntervalMs());
+        }
+        return;
+      }
+      if (this.fallbackPollingActive) {
+        this.fallbackPollingActive = false;
+        this.polling.stop();
+      }
+    });
+
+    effect(() => {
+      if (!this.fallbackPollingActive) {
         return;
       }
       const polled = this.polling.state();
       if (polled) {
-        this.applyState(polled, { resetRotation: false });
+        this.applyConfigurationState(polled);
       }
+    });
+
+    effect(() => {
+      const update = this.displayStream.configUpdated();
+      if (!update?.applyImmediately || !this.state) {
+        return;
+      }
+      const patch: Record<string, unknown> = {};
+      for (const field of update.changedFields) {
+        if (IMMEDIATE_CONFIG_FIELDS.has(field)) {
+          patch[field] = (update.configuration as Record<string, unknown>)[field];
+        }
+      }
+      if (Object.keys(patch).length === 0) {
+        return;
+      }
+      this.state = {
+        ...this.state,
+        configuration: {
+          ...this.state.configuration,
+          ...patch,
+        },
+      };
+      this.stateVersion.update((value) => value + 1);
+      this.cdr.markForCheck();
+    });
+
+    effect(() => {
+      if (!this.displayStream.brandingUpdated() || !this.displayActive) {
+        return;
+      }
+      this.eventBranding.refresh()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe();
     });
   }
 
-  /**
-   * Mirror the controller's current content into the template's array.
-   * Read directly from the controller's internal contentQueue + cursor
-   * so the value is correct even if the component's effect hasn't
-   * observed the latest controller-side effect yet.
-   */
   private syncContentRenderItems(): void {
-    const queue = this.state?.topContent ?? [];
-    const id = this.kioskRotation.currentContentId();
-    const item = id ? queue.find((c) => c.id === id) ?? null : null;
+    const item = this.displayViewer.currentContent();
     this.contentRenderItems = item ? [item] : [];
     this.cdr.detectChanges();
   }
@@ -312,14 +417,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   @ViewChild('fixedVideo') private fixedVideoRef?: ElementRef<HTMLVideoElement>;
 
-  private preTransitionPollTimer: ReturnType<typeof setTimeout> | null = null;
-  private syncSub: Subscription | null = null;
-  private lastNavigationCommandId: string | null = null;
-  private cachedIframeUrl: string | null = null;
-  private cachedSafeIframeUrl: SafeResourceUrl | null = null;
   private lastFullscreenRequested: boolean | null = null;
   protected hiddenLogoUrl: string | null = null;
-  private lastFixedContentId: string | null = null;
 
   private readonly escapeHandler = (event: KeyboardEvent): void => {
     if (event.key === 'Escape') {
@@ -343,61 +442,29 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
    */
   state: DisplayState | null = null;
   private readonly stateVersion = signal(0);
-  /**
-   * Stable, parsed view of the polled state. Each field is its own
-   * computed so the controller effect only re-runs when the relevant
-   * field changes — not on every 5 s poll that returns the same state.
-   * The `stateVersion` signal is read by every accessor so they all
-   * invalidate together when `applyState` bumps it.
-   */
-  private readonly stateFingerprint = computed<{
-    mode: 'loop' | 'iframe' | 'fixed';
-    fixedId: string | null;
-    ads: ReadonlyArray<{ id: string; displayOrder: number }>;
-    adDuration: number;
-    inlineAdCount: number;
-    videoEndDelay: number;
-  } | null>(() => {
-    this.stateVersion();
-    const s = this.state;
-    if (!s) {
-      return null;
-    }
-    return {
-      mode: s.remoteControl?.contentMode ?? 'loop',
-      fixedId: s.remoteControl?.selectedFixedContentId ?? null,
-      ads: (s.ads ?? []) as ReadonlyArray<{ id: string; displayOrder: number }>,
-      adDuration: s.configuration.defaultAdDurationSeconds ?? 10,
-      inlineAdCount: s.configuration.inlineAdCount ?? 1,
-      videoEndDelay: s.configuration.videoEndDelaySeconds ?? 2,
-    };
-  });
+  private cachedIframeUrl: string | null = null;
+  private cachedSafeIframeUrl: SafeResourceUrl | null = null;
 
   /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
   protected readonly sponsorStripAds = computed(() => {
     this.stateVersion();
-    this.kioskRotation.adIndex();
-    if (!this.sponsorStripVisible()) {
+    this.displayViewer.adAnimationRun();
+    const adsVisible = this.displayViewer.adsVisible();
+    if (!this.sponsorStripVisible() || !adsVisible) {
       return [] as DisplayAdItem[];
     }
-    return this.kioskRotation.visibleAds() as unknown as DisplayAdItem[];
+    return this.displayViewer.visibleAds();
   });
 
   protected readonly sponsorItemBorderStyle = computed(() => {
     this.stateVersion();
-    const cfg = this.state?.configuration;
-    const width = cfg?.inlineAdItemBorderWidthPx ?? 0;
-    return {
-      borderRadius: `${cfg?.inlineAdItemBorderRadiusPx ?? 5}px`,
-      borderWidth: `${width}px`,
-      borderStyle: width > 0 ? 'solid' : 'none',
-      borderColor: cfg?.inlineAdItemBorderColor ?? '#ffffff',
-    };
+    this.displayViewer.adAnimationRun();
+    return this.displayViewer.adBorderStyle();
   });
 
   private sponsorStripVisible(): boolean {
     return this.state?.configuration.isEnabled !== false
-      && this.state?.remoteControl?.adsVisible !== false;
+      && this.displayViewer.adsVisible();
   }
   contentRenderItems: DisplayContentItem[] = [];
   fullscreenPromptVisible = false;
@@ -444,7 +511,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   get currentContent(): DisplayContentItem | null {
-    return this.kioskRotation.currentContent();
+    return this.displayViewer.currentContent();
   }
 
   get visibleAds(): DisplayAdItem[] {
@@ -452,18 +519,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   get currentAd(): DisplayAdItem | null {
-    if (!this.adsVisible) {
-      return null;
-    }
-    return this.kioskRotation.currentAd() as unknown as DisplayAdItem | null;
+    return this.sponsorStripAds()[0] ?? null;
   }
 
   get isFixedMode(): boolean {
-    return this.kioskRotation.contentMode() === 'fixed';
+    return this.displayViewer.isFixedMode();
   }
 
   get adsVisible(): boolean {
-    return this.displayAvailable && this.state?.remoteControl?.adsVisible !== false;
+    return this.displayAvailable && this.displayViewer.adsVisible();
   }
 
   get displayAvailable(): boolean {
@@ -479,23 +543,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     // All RxJS subscriptions are tied to the component's DestroyRef so
     // they cannot leak when the operator navigates away from /display.
-    // The previous design called .subscribe() without storing the
-    // subscription, which leaked one observable per poll.
-    this.polling.open((state) => {
-      if (state) {
-        this.applyState(state, { resetRotation: true });
-        this.pollingActive = true;
-        this.polling.start(this.pollIntervalMs());
-      }
-    });
-    this.syncSub = this.displaySync.changes$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.pollNow());
-    this.eventConfigSync.changes$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.eventBranding.refresh()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe());
+    void this.bootstrapDisplay();
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
@@ -507,11 +555,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.portraitQuery = null;
     this.clearTimers();
     this.polling.stop();
-    this.syncSub?.unsubscribe();
-    this.syncSub = null;
-    this.unsubscribeAdvanceListener?.();
-    this.unsubscribeAdvanceListener = undefined;
-    this.kioskRotation.detach();
+    this.displayStream.stop();
+    this.mediaCache.releaseAll();
   }
 
   protected openErrorMessage(err: ApplicationErrorContract): string {
@@ -522,7 +567,35 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.polling.retryOpen();
   }
 
+  private async bootstrapDisplay(): Promise<void> {
+    const registration = await this.displayStream.tryRegister();
+    if (registration) {
+      try {
+        const state = await firstValueFrom(this.displayApi.getState());
+        this.applyConfigurationState(state);
+        this.displayActive = true;
+        await this.displayStream.startWithRegistration(registration);
+        return;
+      } catch {
+        this.displayStream.stop();
+      }
+    }
+
+    this.polling.open((state) => {
+      if (state) {
+        this.applyConfigurationState(state);
+        this.displayActive = true;
+        void this.displayStream.start();
+      }
+    });
+  }
+
   mediaSource(item: DisplayRenderableItem): string {
+    this.mediaCache.revision();
+    return this.mediaCache.getDisplayUrl(this.rawMediaUrl(item));
+  }
+
+  private rawMediaUrl(item: DisplayRenderableItem): string {
     return item.mediaFile?.mediaUrl ?? item.sourceReference;
   }
 
@@ -534,7 +607,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   adAnimationClass(item: DisplayRenderableItem): string {
-    return `${this.animationClass(item)} sponsor-animation-run-${this.kioskRotation.adAnimationRun() % 2 === 0 ? 'a' : 'b'}`;
+    return `${this.animationClass(item)} sponsor-animation-run-${this.displayViewer.adAnimationRun() % 2 === 0 ? 'a' : 'b'}`;
   }
 
   contentTransition(item: DisplayContentItem): {
@@ -557,14 +630,12 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   animationDurationMs(item: DisplayRenderableItem): number | null {
     const ms = item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds;
     if (ms && ms > 0) return ms;
-    // FR-013: never derive the CSS animation duration from defaultAdDurationSeconds
-    // (the rotation cadence). Fall back to the kiosk animation default.
     return this.state?.configuration.defaultAdAnimationDurationMilliseconds ?? 300;
   }
 
   iframeUrl(): string | null {
-    if (this.state?.remoteControl?.contentMode === 'iframe') {
-      return this.state.selectedIframe?.url ?? null;
+    if (this.displayViewer.iframeActive()) {
+      return this.displayViewer.currentIframe()?.url ?? null;
     }
     return null;
   }
@@ -597,158 +668,34 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   onVideoEnded(item: DisplayContentItem): void {
-    if (item.id !== this.currentContent?.id || this.state?.remoteControl?.contentMode === 'iframe') {
-      return;
-    }
-    if (this.kioskRotation.contentMode() === 'fixed') {
-      // FR-014: in fixed mode the kiosk restarts the video in place; the
-      // [loop] attribute on the <video> element already restarts it, but we
-      // also explicitly seek to 0 so a fresh `ended` event can re-fire if the
-      // browser ever drops the loop attribute.
-      const video = this.fixedVideoRef?.nativeElement;
-      if (video) {
-        video.currentTime = 0;
-        const play = video.play();
-        if (play && typeof play.catch === 'function') {
-          play.catch(() => undefined);
-        }
-      }
-      return;
-    }
-    this.kioskRotation.onVideoEnded();
+    this.displayViewer.onVideoEnded(item);
   }
 
   readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
 
-  readonly trackAdByRotation = (_index: number, ad: DisplayAdItem): string =>
-    `${ad.id}:${this.kioskRotation.adAnimationRun()}`;
+  readonly trackAdByRotation = (_index: number, ad: DisplayAdItem): string => ad.id;
 
-  private applyState(state: DisplayState, options: { resetRotation: boolean }): void {
-    const previousContentMode = this.state?.remoteControl?.contentMode;
-    const previousDisplayAvailable = this.displayAvailable;
+  private applyConfigurationState(state: DisplayState): void {
     this.state = state;
     this.stateVersion.update((v) => v + 1);
     this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
-
-    const newContentMode = state.remoteControl?.contentMode ?? 'loop';
-    const newFixedContentId = state.remoteControl?.selectedFixedContentId ?? null;
-
-    if (options.resetRotation) {
-      this.kioskRotation.adIndex.set(0);
-      this.lastNavigationCommandId = state.remoteControl?.navigationCommandId ?? null;
-      if (newContentMode === 'fixed' && newFixedContentId) {
-        const fixedItem = state.topContent.find((c) => c.id === newFixedContentId) ?? null;
-        this.kioskRotation.enterFixedMode(newFixedContentId);
-        this.setCurrentContent(fixedItem);
-      } else if (newContentMode === 'loop') {
-        const first = state.topContent[0] ?? null;
-        this.kioskRotation.setCursor(first?.id ?? null);
-        this.setCurrentContent(first);
-      } else {
-        this.setCurrentContent(null);
-      }
-      this.lastFixedContentId = newFixedContentId;
-    } else {
-      this.handleFixedModeTransition(previousContentMode ?? 'loop', newContentMode, newFixedContentId);
-      this.applyNavigationCommand();
-      this.syncCurrentContentForModeChange(previousContentMode ?? 'loop', newContentMode, newFixedContentId, state);
-    }
-
-    const contentModeChanged = previousContentMode !== newContentMode;
-    const displayAvailabilityChanged = previousDisplayAvailable !== this.displayAvailable;
-    if (contentModeChanged || displayAvailabilityChanged) {
-      this.schedulePreTransitionPoll();
-    }
-    this.reconfigurePollingIfNeeded();
+    this.seedViewerFromState(state);
     this.syncContentRenderItems();
     this.cdr.markForCheck();
   }
 
-  private handleFixedModeTransition(
-    previousMode: 'loop' | 'iframe' | 'fixed',
-    newMode: 'loop' | 'iframe' | 'fixed',
-    newFixedContentId: string | null,
-  ): void {
-    if (newMode === 'fixed' && newFixedContentId) {
-      if (previousMode !== 'fixed' || this.lastFixedContentId !== newFixedContentId) {
-        this.kioskRotation.enterFixedMode(newFixedContentId);
-      }
-      this.lastFixedContentId = newFixedContentId;
-      return;
+  private seedViewerFromState(state: DisplayState): void {
+    if (!this.displayViewer.currentContent() && state.topContent[0]) {
+      this.displayViewer.currentContent.set(state.topContent[0]);
     }
-    if (newMode === 'loop' && previousMode === 'fixed') {
-      this.kioskRotation.exitFixedMode();
-      this.lastFixedContentId = null;
-      return;
+    if (!this.displayViewer.visibleAds().length && state.ads.length) {
+      const count = Math.max(1, state.configuration.inlineAdCount ?? 1);
+      this.displayViewer.visibleAds.set(state.ads.slice(0, count));
     }
-    if (newMode !== 'fixed') {
-      this.lastFixedContentId = null;
-    }
-  }
-
-  private syncCurrentContentForModeChange(
-    previousMode: 'loop' | 'iframe' | 'fixed',
-    newMode: 'loop' | 'iframe' | 'fixed',
-    newFixedContentId: string | null,
-    state: DisplayState,
-  ): void {
-    if (newMode === 'fixed' && newFixedContentId) {
-      const item = state.topContent.find((c) => c.id === newFixedContentId) ?? null;
-      this.setCurrentContent(item);
-      return;
-    }
-    if (previousMode === 'fixed' && newMode === 'loop') {
-      const restored = this.kioskRotation.currentContentId();
-      const item = restored ? state.topContent.find((c) => c.id === restored) ?? null : null;
-      this.setCurrentContent(item);
-    }
-  }
-
-  private applyNavigationCommand(): boolean {
-    const commandId = this.state?.remoteControl?.navigationCommandId ?? null;
-    const command = this.state?.remoteControl?.navigationCommand ?? null;
-    if (!commandId || commandId === this.lastNavigationCommandId) {
-      return false;
-    }
-    if (command === 'pause' || command === 'resume') {
-      // FR-011: forward pause/resume only when in loop.
-      this.lastNavigationCommandId = commandId;
-      this.kioskRotation.applyNavigationCommand(command);
-      return true;
-    }
-    if (command === 'jump_to') {
-      // Spec 014 addendum 2 (US7): forward jump_to with the polled
-      // `jumpToContentId`. The controller ignores commands that target an
-      // id no longer in the polled topContent.
-      this.lastNavigationCommandId = commandId;
-      const targetId = this.state?.remoteControl?.jumpToContentId ?? null;
-      this.kioskRotation.applyNavigationCommand('jump_to', targetId);
-      return true;
-    }
-    if (this.state?.remoteControl?.contentMode !== 'loop') {
-      return false;
-    }
-    this.lastNavigationCommandId = commandId;
-    if (command === 'next' || command === 'previous') {
-      this.kioskRotation.applyNavigationCommand(command);
-    }
-    return true;
-  }
-
-  private computeContentDurationSeconds(item: DisplayContentItem | null): number {
-    const defaultSeconds = this.state?.configuration.defaultTopDurationSeconds ?? 10;
-    if (!item) {
-      return defaultSeconds;
-    }
-    if (this.usesNoveltyDefaults(item)) {
-      return defaultSeconds;
-    }
-    const effective = item.effectiveDurationSeconds ?? item.durationSeconds;
-    return effective ?? defaultSeconds;
   }
 
   private usesNoveltyDefaults(item: DisplayContentItem): boolean {
-    return this.kioskRotation.noveltyBurstActive() && item.isNovelty === true;
+    return this.displayViewer.currentShowReason() === 'novelty' || item.isNovelty === true;
   }
 
   private contentRotationAnimation(item: DisplayContentItem): string {
@@ -813,79 +760,18 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       });
   }
 
-  private schedulePreTransitionPoll(): void {
-    this.clearPreTransitionPoll();
-    if (!this.displayAvailable) return;
-    const mode = this.state?.remoteControl?.contentMode ?? 'loop';
-    if (mode !== 'loop') return;
-    if (!this.currentContent || this.currentContent.contentType === 'video') return;
-    const durationMs = this.computeContentDurationSeconds(this.currentContent) * 1000;
-    if (durationMs <= 1000) return;
-    this.preTransitionPollTimer = setTimeout(() => {
-      this.eventBranding.refresh()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe();
-      this.api.getState()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((pollState) => {
-          if (this.state !== null) {
-            this.applyState(pollState, { resetRotation: false });
-          }
-        });
-    }, durationMs - 1000);
-  }
-
-  private clearPreTransitionPoll(): void {
-    if (this.preTransitionPollTimer) {
-      clearTimeout(this.preTransitionPollTimer);
-      this.preTransitionPollTimer = null;
-    }
-  }
-
   private clearTimers(): void {
-    this.clearPreTransitionPoll();
+    // Reserved for future timer cleanup; SSE fallback uses DisplayPollingService lifecycle.
   }
 
-  private pollIntervalMs(): number {
+  private fallbackPollIntervalMs(): number {
     return (this.state?.configuration.remoteControlPollingSeconds ?? 5) * 1000;
-  }
-
-  private pollNow(): void {
-    if (!this.pollingActive) {
-      return;
-    }
-    this.eventBranding.refresh()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe();
-    this.polling.pollNow()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((state) => {
-        if (state) {
-          this.applyState(state, { resetRotation: false });
-        }
-      });
-  }
-
-  private reconfigurePollingIfNeeded(): void {
-    if (!this.pollingActive) {
-      return;
-    }
-    this.polling.reconfigureInterval(this.pollIntervalMs());
-  }
-
-  private setCurrentContent(item: DisplayContentItem | null): void {
-    // Use setCursor() so the controller also syncs its internal regular
-    // cursor; otherwise the next advance would lose the position and
-    // restart from the first item (per spec 014 addendum 2).
-    this.kioskRotation.setCursor(item?.id ?? null);
-    this.contentRenderItems = item ? [item] : [];
-    this.cdr.markForCheck();
   }
 
   private contentRenderKey(item: DisplayContentItem): string {
     return [
       item.id,
-      this.mediaSource(item),
+      this.rawMediaUrl(item),
       item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
       item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? 'default',
       item.contentType,

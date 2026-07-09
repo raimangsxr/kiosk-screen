@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.api.mappers import to_event_configuration_schema
+from app.api.mappers import to_event_configuration_schema, to_event_branding_schema
 from app.api.schemas import EventConfigurationSchema
+from app.application.display_control.service import DisplayControlService
+from app.application.display_orchestrator.sse_hub import get_display_sse_hub
 from app.auth.dependencies import CurrentUser, require_roles
 from app.domain.roles import CONFIGURATION_MANAGEMENT_ROLES
 from app.repositories.session import get_session
@@ -54,4 +56,13 @@ async def update_event_configuration(
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return to_event_configuration_schema(row, service.logo_media(row))
+    media = service.logo_media(row)
+    branding = to_event_branding_schema(row, media.public_reference if media else None)
+    active_session = DisplayControlService(session).latest_active_session(user.organization_id)
+    if active_session is not None:
+        get_display_sse_hub().publish_branding_updated(
+            organization_id=user.organization_id,
+            operator_session_id=active_session.id,
+            branding=branding,
+        )
+    return to_event_configuration_schema(row, media)

@@ -8,6 +8,7 @@ from app.api.schemas import ContentItemRequest, ContentItemSchema, ReorderReques
 from app.auth.dependencies import CurrentUser, get_current_user, require_roles
 from app.domain.roles import CONTENT_MANAGEMENT_ROLES
 from app.repositories.session import get_session
+from app.application.display_orchestrator.hooks import notify_content_mutated
 from app.services.content_service import ContentService
 from app.shared.errors.application_errors import ApplicationError
 
@@ -57,7 +58,9 @@ def create_content(
     session: Session = Depends(get_session)
 ) -> ContentItemSchema:
     try:
-        return to_content_schema(ContentService(session).create(user.organization_id, user.id, payload))
+        item = to_content_schema(ContentService(session).create(user.organization_id, user.id, payload))
+        notify_content_mutated(user.organization_id)
+        return item
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -95,6 +98,7 @@ def upload_content(
     try:
         item = ContentService(session).create_uploaded(user.organization_id, user.id, file, payload)
         session.refresh(item, attribute_names=["media_file"])
+        notify_content_mutated(user.organization_id)
         return to_content_schema(item)
     except ApplicationError:
         raise
@@ -138,6 +142,7 @@ def replace_content_upload(
             user.organization_id, user.id, content_id, file, payload
         )
         session.refresh(item, attribute_names=["media_file"])
+        notify_content_mutated(user.organization_id)
         return to_content_schema(item)
     except ApplicationError:
         raise
@@ -163,7 +168,9 @@ def update_content(
     session: Session = Depends(get_session)
 ) -> ContentItemSchema:
     try:
-        return to_content_schema(ContentService(session).update(user.organization_id, user.id, content_id, payload))
+        item = to_content_schema(ContentService(session).update(user.organization_id, user.id, content_id, payload))
+        notify_content_mutated(user.organization_id)
+        return item
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
@@ -178,6 +185,7 @@ def delete_content(
 ) -> None:
     try:
         ContentService(session).delete(user.organization_id, user.id, content_id)
+        notify_content_mutated(user.organization_id)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
@@ -191,6 +199,7 @@ def reorder_content(
     """Reorder the organization's top-content items."""
     try:
         ContentService(session).reorder(user.organization_id, user.id, payload.ordered_ids)
+        notify_content_mutated(user.organization_id)
     except ApplicationError:
         raise
     except ValueError as exc:

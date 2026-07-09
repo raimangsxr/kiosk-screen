@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -30,6 +30,12 @@ class DisplayState:
     fixed_eligible_contents: list[TopContentItem] | None = None
 
 
+@dataclass(frozen=True)
+class OpenDisplayResult:
+    state: DisplayState
+    superseded_session_ids: tuple[str, ...] = field(default_factory=tuple)
+
+
 def eligible_top_content(session: Session, organization_id: str, now: datetime | None = None) -> list[TopContentItem]:
     current_time = now or utc_now()
     items = list(session.scalars(
@@ -59,7 +65,7 @@ def eligible_ads(session: Session, organization_id: str, now: datetime | None = 
     ]
 
 
-def _end_active_sessions(session: Session, organization_id: str, now: datetime) -> None:
+def _end_active_sessions(session: Session, organization_id: str, now: datetime) -> tuple[str, ...]:
     active_sessions = list(
         session.scalars(
             select(OperatorSession).where(
@@ -69,8 +75,11 @@ def _end_active_sessions(session: Session, organization_id: str, now: datetime) 
             )
         )
     )
+    ended_ids: list[str] = []
     for operator_session in active_sessions:
         operator_session.ended_at = now
+        ended_ids.append(operator_session.id)
+    return tuple(ended_ids)
 
 
 def get_display_state(session: Session, organization_id: str, now: datetime | None = None) -> DisplayState:
@@ -101,7 +110,7 @@ def open_display(
     user_id: str,
     user_roles: list[str],
     now: datetime | None = None
-) -> DisplayState:
+) -> OpenDisplayResult:
     roles = {Role(role) for role in user_roles}
     if not can_open_display(roles):
         raise PermissionError("Event operator or administrator role required.")
@@ -114,7 +123,7 @@ def open_display(
     if state.fallback_active:
         raise ValueError("Display requires at least one eligible top content item and one eligible ad.")
 
-    _end_active_sessions(session, organization_id, current_time)
+    superseded_session_ids = _end_active_sessions(session, organization_id, current_time)
 
     token = OperatorSession(
         organization_id=organization_id,
@@ -137,7 +146,7 @@ def open_display(
         )
     )
     session.commit()
-    return state
+    return OpenDisplayResult(state=state, superseded_session_ids=superseded_session_ids)
 
 
 def record_fallback_activation(session: Session, organization_id: str, user_id: str | None = None) -> None:

@@ -4,7 +4,8 @@ type: contract
 status: active
 source_of_truth: true
 owns:
-  - backend/app/application/display_control/**
+  - backend/app/application/display_orchestrator/**
+  - backend/app/api/display_stream.py
   - backend/app/api/display.py
   - backend/app/repositories/models/display_control_state.py
   - frontend/src/app/features/remote-control/**
@@ -21,8 +22,10 @@ related_changes:
   - CHG-006
   - CHG-007
   - CHG-014
+  - CHG-041
 related_adrs:
   - ADR-0003
+  - ADR-0009
 ---
 
 # Display Control Contract
@@ -36,9 +39,10 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 - Remote control supports content modes loop, iframe, and fixed.
 - Navigation commands are next, previous, pause, resume, and jump_to; jump_to is valid only in loop mode and requires an active non-fixed target.
 - The fixed-mode selector lists fixed-eligible content with a visual preview when a thumbnail or media URL is available, falling back to a content-type icon when no preview asset is present.
-- Ads visibility and fullscreen request changes are propagated through display polling and audited.
+- Remote control mutations fan out to all registered displays for the organization via SSE within one second (ADR-0009).
+- Ads visibility and fullscreen request changes are propagated through orchestrator SSE commands and audited.
 - Fixed mode validates fixed-eligible content and auto-falls back to loop if the target disappears or is unmarked. Auto-fallback persists only on write paths (`PUT /display/remote-control/state`, navigation commands, and related mutations); read polling applies the same effective mode in memory without database writes.
-- Cross-tab sync keeps multiple kiosk tabs aligned without direct private-field access to the controller.
+- Cross-tab sync keeps multiple admin/kiosk tabs aligned on the same machine; multi-display sync is owned by server SSE fan-out.
 
 ## Public interfaces
 
@@ -46,7 +50,7 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 - `PUT /display/remote-control/state`
 - `POST /display/remote-control/navigation`
 - `GET /display/remote-control/iframe-options`
-- `POST /display/rotation-event`
+- `POST /display/rotation-event` (deprecated when orchestrator active)
 
 ## Owned code paths
 
@@ -66,7 +70,7 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 
 ## Non-goals
 
-- Multi-machine real-time synchronization beyond the existing polling/cross-tab model.
+- Per-display targeting of remote-control commands (all displays in the org receive the same program).
 
 ## Change history
 
@@ -75,3 +79,4 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 - CHG-007
 - CHG-014
 - CHG-032
+- CHG-041
