@@ -8,6 +8,8 @@ stringData:
   BOOTSTRAP_ADMIN_EMAIL: admin@example.com
   BOOTSTRAP_ADMIN_PASSWORD: admin
   BOOTSTRAP_ADMIN_DISPLAY_NAME: Administrator
+  REDIS_URL: redis://redis:6379/0
+  REDIS_PASSWORD: change-me
 ---
 apiVersion: apps/v1
 kind: Deployment
