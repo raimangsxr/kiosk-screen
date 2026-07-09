@@ -20,7 +20,7 @@ Use three terminals from the repository root.
 ### 1. Database
 
 ```sh
-docker compose up -d postgres
+docker compose up -d postgres redis
 docker compose ps
 ```
 
@@ -60,6 +60,7 @@ The backend listens on `http://localhost:8000`. Development defaults are already
 configured for:
 
 - `DATABASE_URL=postgresql+psycopg://kiosk:kiosk@localhost:15432/kiosk_screen`
+- `REDIS_URL=redis://localhost:6379/0` (required for CHG-041 display SSE orchestration)
 - `SESSION_SECRET=development-only-session-secret`
 - `FRONTEND_ORIGIN=http://localhost:4200`
 - `BOOTSTRAP_ADMIN_EMAIL=admin@example.com`
@@ -83,6 +84,22 @@ Uploaded media is stored on disk. For local development, either use the default
 mkdir -p var/media
 export MEDIA_STORAGE_PATH="$(pwd)/var/media"
 ```
+
+When running the full stack with `docker compose up`, uploaded images and videos
+are stored in the same host directory (`var/media/`) via a bind mount on the
+backend service. Create it once before the first upload:
+
+```sh
+mkdir -p var/media
+```
+
+On Linux, if uploads fail with a permission error inside the container, make the
+directory writable by the backend user (`chmod 777 var/media` is fine for local
+dev only).
+
+Media survives `docker compose restart backend`; use `docker compose down -v`
+only if you also want to wipe PostgreSQL/Redis named volumes (media in
+`var/media/` is kept unless you delete it manually).
 
 ### 3. Frontend
 

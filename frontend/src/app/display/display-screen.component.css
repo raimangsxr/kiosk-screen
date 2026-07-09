@@ -1,4 +1,5 @@
-.display-reconnecting {
+.display-reconnecting,
+.display-sse-fallback {
   position: fixed;
   top: clamp(8px, 1.2vh, 16px);
   right: clamp(8px, 1.2vw, 16px);

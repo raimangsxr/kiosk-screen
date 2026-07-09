@@ -7,9 +7,10 @@ owns:
   - backend/app/application/display_config/**
   - backend/app/services/display_service.py
   - backend/app/api/configuration.py
-  - backend/app/api/display.py
+  - backend/app/api/display_stream.py
   - backend/app/api/v1/display/**
   - backend/app/repositories/models/operator_session.py
+  - backend/app/repositories/models/kiosk_connection.py
   - frontend/src/app/features/display-config/**
   - frontend/src/app/features/hall/**
   - frontend/src/app/core/api/display.api.ts
@@ -22,8 +23,9 @@ related_changes:
   - CHG-020
   - CHG-032
   - CHG-036
+  - CHG-041
 related_adrs:
-  []
+  - ADR-0009
 ---
 
 # Kiosk Configuration and Session Contract
@@ -34,27 +36,32 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 
 ## Current behavior
 
-- Operators can configure kiosk name, durations, animation defaults, inline ad count, sponsor-strip item border (radius, width, color), polling cadence, video-end delay, and enabled state.
+- Operators can configure kiosk name, durations, animation defaults, inline ad count, sponsor-strip item border (radius, width, color), video-end delay, and enabled state. `remoteControlPollingSeconds` is deprecated (CHG-041); SSE reconnect policy replaces polling cadence configuration.
 - Operators can configure the region split: `topRegionRatio` and `bottomRegionRatio` are independent integer fields in `[1, 20]`, with defaults `5` (top) and `1` (bottom). The persisted columns accept any positive integer; the request schema enforces `[1, 20]` for input validation.
 - The admin form at `/admin/configuration` exposes the two ratio inputs with `min=1, max=20` and includes them in the PUT payload.
 - Opening a display creates a new operator session and supersedes any prior active sessions for the organization (sets `ended_at` on older rows). Remote control and state reads always target the latest active session.
 - `GET /display/state` is read-only: it does not insert control-state rows, auto-fallback, audit events, or commits.
 - Readiness blockers prevent opening the kiosk when the setup is not safe for a live event.
-- Polling cadence comes from configuration and is bounded to safe values.
+- Polling cadence configuration is deprecated. `GET /display/state` is retained as a degraded fallback only when SSE is unavailable for more than 60 seconds.
+- Displays register via `POST /api/display/kiosk/register` before opening the SSE stream. Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis).
+- `POST /display/open` bootstraps the server orchestrator and emits an initial `snapshot` to connected displays.
+- Session supersede sends `session_ended` SSE to prior connections.
 
 ## Public interfaces
 
 - `GET /configuration`
 - `PUT /configuration`
 - `POST /display/open`
-- `GET /display/state`
+- `POST /api/display/kiosk/register`
+- `GET /api/display/stream`
+- `GET /display/state` (deprecated SSE-down fallback only)
 
 ## Owned code paths
 
 - `backend/app/application/display_config/**`
 - `backend/app/services/display_service.py`
 - `backend/app/api/configuration.py`
-- `backend/app/api/display.py`
+- `backend/app/api/display_stream.py`
 - `backend/app/api/v1/display/**`
 - `backend/app/repositories/models/operator_session.py`
 - `frontend/src/app/features/display-config/**`
@@ -78,3 +85,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-020
 - CHG-032
 - CHG-036
+- CHG-041

@@ -24,6 +24,16 @@ def db_session() -> Iterator[Session]:
 
 @pytest.fixture
 def api_client() -> Iterator[TestClient]:
+    import fakeredis
+
+    from app.application.display_orchestrator import redis_state
+    from app.application.display_orchestrator.registry import OrchestratorRegistry
+    from app.application.display_orchestrator.sse_hub import reset_display_sse_hub
+
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    redis_state.reset_redis_client(fake)
+    reset_display_sse_hub()
+    OrchestratorRegistry.reset()
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         future=True,
@@ -42,7 +52,12 @@ def api_client() -> Iterator[TestClient]:
 
     app.dependency_overrides[get_session] = override_session
     app.state.skip_bootstrap = True
+    app.state.orchestrator_session_factory = factory
+    OrchestratorRegistry.configure(factory)
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()
     app.state.skip_bootstrap = False
+    OrchestratorRegistry.reset()
+    reset_display_sse_hub()
+    redis_state.reset_redis_client(None)

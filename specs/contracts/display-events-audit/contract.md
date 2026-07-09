@@ -4,7 +4,7 @@ type: contract
 status: active
 source_of_truth: true
 owns:
-  - backend/app/domain/display_events.py
+  - backend/app/application/display_orchestrator/**
   - backend/app/repositories/events.py
   - backend/app/repositories/models/display_event.py
   - backend/app/api/events.py
@@ -19,8 +19,10 @@ related_changes:
   - CHG-005
   - CHG-007
   - CHG-014
+  - CHG-041
 related_adrs:
   - ADR-0003
+  - ADR-0009
 ---
 
 # Display Events Audit Contract
@@ -35,16 +37,19 @@ This active contract is the current source of truth for `DISPLAY.EVENTS.AUDIT`. 
 - The event type catalog is explicit and producers must not emit undocumented event types.
 - Secrets and tokens are sanitized before being stored in event metadata or messages.
 - Administrators can browse relevant display and API-key events.
-- Kiosk-originated empty-queue events are accepted only for supported event types.
-- In loop mode with zero eligible top content, the kiosk client posts `content_rotation_empty` to `POST /api/display/rotation-event` (debounced on the client per existing catalog semantics). The display screen wires the rotation controller sink to this endpoint at runtime.
+- Kiosk-originated empty-queue events are accepted only for supported event types. When the orchestrator is active, empty-queue detection is server-side (`orchestrator_empty_queue`); client `content_rotation_empty` posts are deprecated.
+- SSE lifecycle events: `kiosk_connected` on register + stream open; `kiosk_disconnected` on stream close.
+- Orchestrator audit: `orchestrator_advanced` on each top content advance (optional metadata: `commandId`, `reason`); `orchestrator_empty_queue` debounced warning when no eligible top content; `orchestrator_session_ended` when session is superseded or expires.
 
 ## Public interfaces
 
 - `GET /events`
-- `POST /display/rotation-event`
+- `POST /display/rotation-event` (deprecated when orchestrator active)
+- `POST /api/display/kiosk/events` (playback facts; orchestrator may emit related audit entries)
 
 ## Owned code paths
 
+- `backend/app/application/display_orchestrator/service.py`
 - `backend/app/domain/display_events.py`
 - `backend/app/repositories/events.py`
 - `backend/app/repositories/models/display_event.py`
@@ -70,3 +75,4 @@ This active contract is the current source of truth for `DISPLAY.EVENTS.AUDIT`. 
 - CHG-007
 - CHG-014
 - CHG-029
+- CHG-041

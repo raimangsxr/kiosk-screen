@@ -7,7 +7,7 @@ tooling for the FastAPI + Angular stack.
 
 - The repository root `.nvmrc` pins Node.js **24**. Local setup docs and the release CI workflow (`release-images.yml`) use the same major version. Contributors run `nvm use` from the repository root before frontend commands.
 - Local development runs with the root `docker-compose.yml`.
-- Compose starts `postgres`, `migrate`, `backend`, and `frontend`.
+- Compose starts `postgres`, `redis`, `migrate`, `backend`, and `frontend`.
 - PostgreSQL is the only service with a Docker Compose healthcheck.
 - The backend image and backend compose service MUST NOT define a
   Docker `HEALTHCHECK`. Runtime readiness is owned by the orchestrator
@@ -44,6 +44,8 @@ tooling for the FastAPI + Angular stack.
   `manifest.webmanifest`, icon set, service worker enabled outside dev mode,
   dynamic branding icon/title from event config, and an update banner when a new
   service worker version is available.
+- **Redis (CHG-041)**: `redis:7-alpine` in compose for orchestrator hot state and SSE pub/sub fan-out across backend replicas. Production deployments require Redis for multi-replica SSE. Reverse proxies must disable buffering for `text/event-stream` and use extended `proxy_read_timeout` for long-lived SSE connections.
+- CI may run orchestrator integration tests with a Redis service container (`@pytest.mark.redis`).
 
 ## Owned Files
 

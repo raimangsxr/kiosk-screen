@@ -4,12 +4,13 @@ x-backend-build: &backend-build
 
 x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://kiosk:${KIOSK_DATABASE_PASSWORD:-kiosk}@postgres:5432/kiosk_screen
+  REDIS_URL: redis://redis:6379/0
   SESSION_SECRET: ${SESSION_SECRET:-development-only-session-secret}
   FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:4200}
   BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
   BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin}
   BOOTSTRAP_ADMIN_DISPLAY_NAME: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-Administrator}
-  MEDIA_STORAGE_PATH: /tmp/kiosk/media
+  MEDIA_STORAGE_PATH: /app/var/media
   PUBLIC_API_CORS_ORIGINS: ${PUBLIC_API_CORS_ORIGINS:-}
 
 services:
@@ -30,6 +31,15 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+
   migrate:
     image: kiosk-backend:local
     build: *backend-build
@@ -47,11 +57,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
       migrate:
         condition: service_completed_successfully
     environment: *backend-env
     ports:
       - "8000:8000"
+    volumes:
+      - ./var/media:/app/var/media
 
   frontend:
     build:
@@ -72,4 +86,5 @@ services:
 
 volumes:
   postgres-data:
+  redis-data:
   frontend_node_modules:

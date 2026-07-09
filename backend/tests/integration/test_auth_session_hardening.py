@@ -51,6 +51,7 @@ def test_login_rate_limiter_blocks_after_threshold():
 def test_db_session_survives_without_in_memory_store(db_session: Session):
     settings = Settings(
         database_url="sqlite://",
+        redis_url="redis://localhost:6379/0",
         session_secret="unit-test-secret",
         app_env="development",
         frontend_origin="http://localhost",
@@ -88,6 +89,7 @@ def test_db_session_survives_without_in_memory_store(db_session: Session):
 def test_expired_db_session_is_rejected(db_session: Session):
     settings = Settings(
         database_url="sqlite://",
+        redis_url="redis://localhost:6379/0",
         session_secret="unit-test-secret",
         app_env="development",
         frontend_origin="http://localhost",

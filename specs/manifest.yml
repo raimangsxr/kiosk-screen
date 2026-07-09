@@ -40,8 +40,10 @@ contracts:
       - backend/app/services/display_service.py
       - backend/app/api/configuration.py
       - backend/app/api/display.py
+      - backend/app/api/display_stream.py
       - backend/app/api/v1/display/**
       - backend/app/repositories/models/operator_session.py
+      - backend/app/repositories/models/kiosk_connection.py
       - frontend/src/app/features/display-config/**
       - frontend/src/app/features/hall/**
       - frontend/src/app/core/api/display.api.ts
@@ -49,6 +51,7 @@ contracts:
       - CHG-002
       - CHG-011
       - CHG-020
+      - CHG-041
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -94,6 +97,7 @@ contracts:
       - CHG-006
       - CHG-007
       - CHG-014
+      - CHG-041
 
   - id: IFRAMES.VIDEO_END
     path: specs/contracts/iframes-video-end/contract.md
@@ -122,6 +126,7 @@ contracts:
       - CHG-014
       - CHG-027
       - CHG-039
+      - CHG-041
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -139,6 +144,7 @@ contracts:
       - CHG-008
       - CHG-019
       - CHG-024
+      - CHG-041
 
   - id: CONTENT.ADS.ADMIN
     path: specs/contracts/content-ads-admin/contract.md
@@ -204,6 +210,7 @@ contracts:
       - CHG-005
       - CHG-007
       - CHG-014
+      - CHG-041
 
   - id: ADMIN.SHELL.NAVIGATION
     path: specs/contracts/admin-shell-navigation/contract.md
@@ -246,6 +253,7 @@ contracts:
       - CHG-007
       - CHG-008
       - CHG-020
+      - CHG-041
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -270,6 +278,7 @@ contracts:
       - CHG-034
       - CHG-037
       - CHG-038
+      - CHG-041
 
 changes:
   - id: CHG-001
@@ -624,5 +633,27 @@ changes:
     depends_on: []
     consolidated_into: []
     read_by_default: true
+
+  - id: CHG-041
+    path: specs/changes/041-display-orchestration-sse/spec.md
+    status: consolidated
+    modifies:
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONTROL
+      - DISPLAY.CONFIG_SESSION
+      - CONTENT.ROTATION
+      - DISPLAY.EVENTS.AUDIT
+      - EVENT.BRANDING
+      - OPS.PLATFORM
+    depends_on: []
+    consolidated_into:
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONTROL
+      - DISPLAY.CONFIG_SESSION
+      - CONTENT.ROTATION
+      - DISPLAY.EVENTS.AUDIT
+      - EVENT.BRANDING
+      - OPS.PLATFORM
+    read_by_default: false
 
 archive: []  

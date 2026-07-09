@@ -4,6 +4,7 @@ type: contract
 status: active
 source_of_truth: true
 owns:
+  - backend/app/application/display_orchestrator/**
   - backend/app/domain/rotation.py
   - backend/app/api/mappers.py
   - frontend/src/app/display/display-rotation.service.ts
@@ -19,6 +20,7 @@ related_changes:
   - CHG-027
   - CHG-036
   - CHG-039
+  - CHG-041
 related_adrs:
   []
 ---
@@ -31,37 +33,29 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 
 ## Current behavior
 
-- Loop mode advances eligible top content in display order using effective per-item or default durations.
-- Pause and resume affect loop rotation without stopping backend polling.
-- Ad rotation has an independent timer; top-content advances in loop/rotation mode must not clear or restart the ad timer.
-- `DisplayState.ads` includes every eligible active ad in display order. `inlineAdCount` controls how many ads the kiosk shows concurrently in the sponsor strip; it does not cap the polled ad list.
+- **Server orchestrator (CHG-041)**: `DisplayOrchestrator` owns loop cursor, ad index, recurring counters, novelty queue, and rotation timers per active operator session. State persists in Redis; playlists load from PostgreSQL.
+- Loop mode advances eligible top content in display order using effective per-item or default durations. Advances emit `show_content` SSE to all registered displays.
+- Pause and resume freeze the top timer on the server; sponsor ads continue rotating independently (FR-011/FR-012).
+- Ad rotation has an independent server timer; top-content advances must not clear or restart the ad timer.
+- `show_ads` commands include every eligible active ad slice per `inlineAdCount`.
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
-- Recurring content with recurringEveryXIterations appears according to per-item
-  cadence counters in the kiosk loop controller (CHG-039).
-- Each active recurring item maintains an in-memory counter keyed by `contentId`.
-  Counters increment on every on-screen content transition in loop mode (including
-  due recurring and filler slides), except during pause or novelty bursts.
-- After increment, an item is due when `counter >= recurringEveryXIterations`.
-  Multiple due items resolve one per transition in ascending `displayOrder`; showing
-  a due item resets only that counter and does not advance the regular queue cursor.
-- When no regular content exists and no item is due, recurring items rotate as
-  filler by `displayOrder`. `jump_to` a recurring item resets only its counter;
-  polled cadence changes reset only the affected item; removing the last recurring
-  clears all counters. Mode transitions preserve counter values until page reload.
-- Empty content queues are debounced and reported through the display rotation event endpoint.
-- Public API uploads mark content with `isNovelty`; loop mode intercepts pending novelties on each content transition (timer, video ended, remote next/previous), shows them in `displayOrder`, uses kiosk default top timing, and atomically consumes via `POST /api/display/content/{contentId}/consume-novelty`.
-- Items with `isNovelty = true` are excluded from the regular queue; after the burst, rotation resumes at the item after the pre-burst regular cursor. Recurring cadence does not advance during a novelty burst.
+- Recurring content cadence rules (CHG-039) run in the orchestrator with per-item counters in Redis. Only **regular** (non-recurring) content transitions increment those counters; showing due or filler recurring content does not increment them.
+- Empty content queues are debounced on the server; `orchestrator_empty_queue` audit events replace client `content_rotation_empty` posts.
+- Public API uploads mark content with `isNovelty`; the orchestrator queues and shows novelties on the next loop boundary, consumes on emit (all displays receive the same command). First-kiosk-wins `consume-novelty` is deprecated.
+- Admin content and ad write paths trigger orchestrator `content_mutated` refresh; playlist changes apply at the next content boundary.
 - Fixed, iframe, and paused loop modes do not intercept novelties.
+
+- `KioskRotationController` is deprecated (CHG-041 Phase 8); rotation timers live in the server orchestrator.
 
 ## Public interfaces
 
-- `DisplayState.topContent` (includes `isNovelty`)
-- `DisplayState.ads`
-- `RemoteControl.navigationCommand`
-- `POST /api/display/content/{contentId}/consume-novelty`
+- SSE `show_content`, `show_ads`, `show_iframe`, `mode_changed`
+- `POST /api/display/kiosk/events` (`video_ended`, `media_error`)
+- `POST /api/display/content/{contentId}/consume-novelty` (deprecated; orchestrator consumes internally)
 
 ## Owned code paths
 
+- `backend/app/application/display_orchestrator/service.py`
 - `backend/app/domain/rotation.py`
 - `backend/app/api/mappers.py`
 - `frontend/src/app/display/display-rotation.service.ts`
@@ -86,3 +80,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-027
 - CHG-036
 - CHG-039
+- CHG-041

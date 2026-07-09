@@ -14,6 +14,8 @@ from app.api.v1.error_handlers import (
     unhandled_exception_handler,
 )
 from app.api.v1.public_content.routes import router as public_content_router
+from app.application.display_orchestrator.registry import OrchestratorRegistry
+from app.application.display_orchestrator.sse_hub import get_display_sse_hub
 from app.config import get_settings, validate_production_settings
 from app.observability.logging import configure_logging
 from app.repositories.session import create_session_factory
@@ -35,7 +37,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     validate_production_settings(get_settings())
     bootstrap_default_data(app)
-    yield
+    session_factory = getattr(app.state, "orchestrator_session_factory", None)
+    if session_factory is None:
+        session_factory = create_session_factory()
+    OrchestratorRegistry.configure(session_factory if callable(session_factory) else session_factory)
+    get_display_sse_hub().start()
+    try:
+        yield
+    finally:
+        get_display_sse_hub().stop()
+        OrchestratorRegistry.reset()
 
 
 def _register_exception_handlers(target: FastAPI) -> None:

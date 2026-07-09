@@ -8,6 +8,7 @@ from app.api.schemas import AdItemRequest, AdItemSchema, ReorderRequest
 from app.auth.dependencies import CurrentUser, require_roles
 from app.domain.roles import AD_MANAGEMENT_ROLES
 from app.repositories.session import get_session
+from app.application.display_orchestrator.hooks import notify_content_mutated
 from app.services.ads_service import AdsService
 from app.shared.errors.application_errors import ApplicationError
 
@@ -26,7 +27,9 @@ def create_ad(
     session: Session = Depends(get_session)
 ) -> AdItemSchema:
     try:
-        return to_ad_schema(AdsService(session).create_ad(user.organization_id, user.id, payload))
+        ad = to_ad_schema(AdsService(session).create_ad(user.organization_id, user.id, payload))
+        notify_content_mutated(user.organization_id)
+        return ad
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -57,7 +60,9 @@ def upload_ad(
         advertiser=advertiser
     )
     try:
-        return to_ad_schema(AdsService(session).create_uploaded_ad(user.organization_id, user.id, file, payload))
+        ad = to_ad_schema(AdsService(session).create_uploaded_ad(user.organization_id, user.id, file, payload))
+        notify_content_mutated(user.organization_id)
+        return ad
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -78,7 +83,9 @@ def update_ad(
     session: Session = Depends(get_session)
 ) -> AdItemSchema:
     try:
-        return to_ad_schema(AdsService(session).update_ad(user.organization_id, user.id, ad_id, payload))
+        ad = to_ad_schema(AdsService(session).update_ad(user.organization_id, user.id, ad_id, payload))
+        notify_content_mutated(user.organization_id)
+        return ad
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
@@ -89,6 +96,7 @@ def update_ad(
 def delete_ad(ad_id: str, user: CurrentUser = Depends(require_roles(AD_MANAGEMENT_ROLES)), session: Session = Depends(get_session)) -> None:
     try:
         AdsService(session).delete_ad(user.organization_id, user.id, ad_id)
+        notify_content_mutated(user.organization_id)
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
@@ -108,6 +116,7 @@ def reorder_ads(
     """
     try:
         AdsService(session).reorder(user.organization_id, user.id, payload.ordered_ids)
+        notify_content_mutated(user.organization_id)
     except ApplicationError:
         raise
     except ValueError as exc:

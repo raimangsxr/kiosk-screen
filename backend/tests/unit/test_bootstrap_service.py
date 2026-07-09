@@ -23,6 +23,7 @@ def test_bootstrap_service_creates_mvp_fixture_data(db_session):
 def test_ensure_mvp_bootstrap_data_is_idempotent(db_session):
     settings = Settings(
         database_url="sqlite+pysqlite:///:memory:",
+        redis_url="redis://localhost:6379/0",
         session_secret="test",
         app_env="development",
         frontend_origin="http://localhost:4200",

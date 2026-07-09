@@ -5,6 +5,7 @@ from app.repositories.models.display_event import DisplayEvent
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.event_configuration import EventConfiguration
 from app.repositories.models.iframe import Iframe
+from app.repositories.models.kiosk_connection import KioskConnection
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
 from app.repositories.models.operator_session import OperatorSession
@@ -20,6 +21,7 @@ __all__ = [
     "DisplayControlState",
     "EventConfiguration",
     "Iframe",
+    "KioskConnection",
     "KioskDisplayConfiguration",
     "MediaFileReference",
     "OperatorSession",

@@ -6,5 +6,6 @@
  */
 export const environment = {
   production: true,
-  devMode: false
+  devMode: false,
+  displayOrchestrator: true,
 };

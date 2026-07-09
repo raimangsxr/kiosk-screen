@@ -38,7 +38,7 @@ def test_open_display_records_event_and_operator_session(db_session):
         result.operator.id,
         [Role.EVENT_OPERATOR.value],
         now=now
-    )
+    ).state
 
     events = db_session.query(DisplayEvent).all()
     operator_session = db_session.query(OperatorSession).one()

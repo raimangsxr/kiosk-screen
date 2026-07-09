@@ -1,3 +1,8 @@
+/**
+ * @deprecated CHG-041: client-side rotation timers retired from the kiosk happy path.
+ * Rotation is server-authoritative via SSE orchestrator. Retained for unit-test parity
+ * with legacy CHG-014/027/039 scenarios until fully ported to backend tests.
+ */
 import { EffectRef, Injectable, Injector, computed, effect, inject, runInInjectionContext, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';

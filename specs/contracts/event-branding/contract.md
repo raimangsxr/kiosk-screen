@@ -26,8 +26,10 @@ related_changes:
   - CHG-019
   - CHG-023
   - CHG-024
+  - CHG-041
 related_adrs:
   - ADR-0005
+  - ADR-0009
 ---
 
 # Event Branding Contract
@@ -49,7 +51,7 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - Branding remains visible and non-overlapping across supported landscape viewports. The overlay container is anchored to the top of the kiosk and its two children are positioned with `position: absolute`: the organizer logo is anchored from the overlay's left edge and the event name is anchored from the overlay's right edge so the two children never collide (see `ADR-0005`).
 - When a layout is configured, both elements are positioned inside the overlay with `position: absolute` driven by CSS custom properties (`--logo-x`, `--logo-y`, `--logo-size`, `--logo-transparency`, `--logo-border-radius`, `--event-name-x`, `--event-name-y`, `--event-name-size`, `--event-name-transparency`, `--event-name-border-radius`). When the layout is absent (NULL on the row), the CSS falls back to the documented visual defaults and the overlay renders identically to the pre-layout baseline.
 - The event-name pill is rendered with `white-space: nowrap` and no `max-width` / `overflow` constraints, so the full text is always visible on a single line regardless of length or size; very long names may extend leftward past the logo and must be sized or shortened to avoid overlap.
-- Layout changes saved in the admin form are reflected in the kiosk through two complementary mechanisms (CHG-024): (a) a cross-tab `BroadcastChannel` notification (`kiosk-event-config-sync`, localStorage key `kiosk-event-config-sync-event`) emitted by the admin on every successful save (auto or explicit); (b) the existing `remoteControlPollingSeconds` polling cycle (default 3-5 s, minimum 1 s) which still catches cross-machine changes. The notification path makes same-browser iteration feel instant (~1 s end-to-end) without removing the polling safety net. No manual reload is required in either path.
+- Layout changes saved in the admin form are reflected on kiosks via `branding_updated` SSE. All connected displays call `EventBrandingService.refresh()` without polling. Admin cross-tab `BroadcastChannel` (`EventConfigSyncService`) remains optional for the admin UI only.
 - Branding is not shown over iframe mode.
 - `GET /event-branding` is anonymous and single-tenant: it returns branding for the first (and only supported) organization in the deployment. Request context does not carry an organization id; multi-tenant scoping is not implemented.
 
@@ -58,6 +60,7 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - `GET /event-configuration` — returns the full `EventConfigurationSchema`; includes `logoLayout` and `eventNameLayout` when the columns are non-NULL.
 - `PUT /event-configuration` — accepts `multipart/form-data` with the existing fields plus optional `logoLayout` and `eventNameLayout` JSON-encoded strings. Out-of-range values are rejected with HTTP 400 (range-validated by the `BrandingLayout` Pydantic model).
 - `GET /event-branding` — returns the kiosk-facing `EventBrandingSchema`; includes `logoLayout` and `eventNameLayout` when the columns are non-NULL.
+- SSE `branding_updated` — pushes refreshed branding to all registered displays after `PUT /event-configuration` (or related branding mutations).
 - `BrandingLayout` (Pydantic model) — five optional numeric fields with the following ranges. The admin form only writes integer values, but the API continues to accept fractional floats for backward compatibility:
   - `size: float` ∈ `[1, 50]` (interpreted as vh for the logo, vw for the event name)
   - `x: float` ∈ `[0, 100]`
@@ -120,3 +123,4 @@ This active contract is the current source of truth for `EVENT.BRANDING`. Histor
 - CHG-023
 - CHG-024
 - CHG-032
+- CHG-041

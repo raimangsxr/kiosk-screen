@@ -36,4 +36,7 @@ async def upload_public_content(
         title=validated_title,
     )
     session.refresh(item, attribute_names=["media_file"])
+    from app.application.display_orchestrator.hooks import notify_content_mutated
+
+    notify_content_mutated(principal.organization_id)
     return to_content_schema(item)
