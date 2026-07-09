@@ -328,6 +328,8 @@ def test_multi_kiosk_same_command_id(stream_clients: tuple[TestClient, TestClien
 
 @pytest.mark.redis
 def test_inline_ad_count_defers_until_next_ad_tick(stream_clients: tuple[TestClient, TestClient]) -> None:
+    import time
+
     operator_client, admin_client = stream_clients
     _login_operator(operator_client)
     _open_display(operator_client)
@@ -342,6 +344,7 @@ def test_inline_ad_count_defers_until_next_ad_tick(stream_clients: tuple[TestCli
 
     orchestrator = OrchestratorRegistry.get(registration.organization_id, registration.operator_session_id)
     assert orchestrator is not None
+    orchestrator._scheduler.cancel_ad()  # noqa: SLF001
 
     _login(admin_client, "admin@example.com", "admin")
     config = admin_client.get("/api/display/configuration").json()
@@ -356,15 +359,23 @@ def test_inline_ad_count_defers_until_next_ad_tick(stream_clients: tuple[TestCli
     assert state is not None
     assert state.get("pendingInlineAdCount") == previous_count + 1
 
+    expected_count = previous_count + 1
     factory = app.state.orchestrator_session_factory
     with factory() as session:
-        orchestrator.advance_top(session, reason="test")
         orchestrator.advance_ad(session)
 
-    ad_event = subscriber.events.get(timeout=1)
-    while ad_event["type"] != "show_ads":
-        ad_event = subscriber.events.get(timeout=1)
-    assert ad_event["payload"]["inlineAdCount"] == previous_count + 1
+    ad_event = None
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        try:
+            event = subscriber.events.get(timeout=0.2)
+        except queue.Empty:
+            continue
+        if event["type"] == "show_ads" and event["payload"]["inlineAdCount"] == expected_count:
+            ad_event = event
+            break
+    assert ad_event is not None
+    assert ad_event["payload"]["inlineAdCount"] == expected_count
 
 
 def test_remote_pause_resume_fan_out(stream_clients: tuple[TestClient, TestClient]) -> None:

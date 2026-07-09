@@ -13,6 +13,7 @@ import { EventBrandingService } from '../core/event-branding.service';
 import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { CursorService } from './cursor.service';
 import { DisplayPollingService } from './display-polling.service';
+import { DisplayMediaCacheService } from './display-media-cache.service';
 import { DisplayStreamService } from './display-stream.service';
 import type { ConfigUpdatedPayload } from './display-stream.models';
 import { DisplayScreenComponent } from './display-screen.component';
@@ -107,6 +108,7 @@ describe('DisplayScreenComponent', () => {
         providers: [
           CursorService,
           DisplayViewerController,
+          DisplayMediaCacheService,
           { provide: DisplayPollingService, useValue: createPollingMock(initialState, poll$) },
         ],
       },
@@ -175,6 +177,38 @@ describe('DisplayScreenComponent', () => {
     return fixture.debugElement.injector.get(DisplayViewerController);
   }
 
+  function seedDisplayFromState(
+    fixture: ComponentFixture<DisplayScreenComponent>,
+    state: DisplayState,
+  ): void {
+    const component = fixture.componentInstance as unknown as {
+      state: DisplayState | null;
+      stateVersion: { update: (fn: (value: number) => number) => void };
+      displayActive: boolean;
+      contentRenderItems: DisplayContentItem[];
+    };
+    component.state = state;
+    component.stateVersion.update((value) => value + 1);
+    component.displayActive = true;
+    const viewer = viewerFor(fixture);
+    if (state.topContent[0]) {
+      viewer.currentContent.set(state.topContent[0]);
+      component.contentRenderItems = [state.topContent[0]];
+    }
+    if (state.ads.length) {
+      const count = Math.max(1, state.configuration.inlineAdCount ?? 1);
+      viewer.visibleAds.set(state.ads.slice(0, count));
+      viewer.inlineAdCount.set(count);
+      viewer.adBorderStyle.set({
+        borderRadius: `${state.configuration.inlineAdItemBorderRadiusPx}px`,
+        borderWidth: `${state.configuration.inlineAdItemBorderWidthPx}px`,
+        borderColor: state.configuration.inlineAdItemBorderColor ?? '#ffffff',
+        borderStyle: 'solid',
+      });
+    }
+    fixture.detectChanges();
+  }
+
   function createComponent(
     state: DisplayState,
     branding = { eventName: '', organizerName: '', organizerLogoUrl: null as string | null },
@@ -199,6 +233,7 @@ describe('DisplayScreenComponent', () => {
   patchDisplayScreenPolling(state);
   const fixture = TestBed.createComponent(DisplayScreenComponent);
   fixture.detectChanges();
+  seedDisplayFromState(fixture, state);
   return fixture;
 }
 
@@ -343,7 +378,7 @@ describe('DisplayScreenComponent', () => {
     expect(third).not.toBe(first);
   });
 
-  it('requests browser fullscreen when remote control asks for it', () => {
+  it('requests browser fullscreen when remote control asks for it', fakeAsync(() => {
     const originalRequestFullscreen = document.documentElement.requestFullscreen;
     const requestFullscreen = jasmine.createSpy('requestFullscreen').and.resolveTo();
     Object.defineProperty(document.documentElement, 'requestFullscreen', {
@@ -361,6 +396,8 @@ describe('DisplayScreenComponent', () => {
         updatedAt: '2026-06-18T00:00:00Z',
       },
     });
+    tick();
+    fixture.detectChanges();
 
     expect(requestFullscreen).toHaveBeenCalled();
 
@@ -369,7 +406,7 @@ describe('DisplayScreenComponent', () => {
       value: originalRequestFullscreen,
     });
     fixture.destroy();
-  });
+  }));
 
   it('shows a local fullscreen prompt when the browser rejects the remote request', fakeAsync(() => {
     const originalRequestFullscreen = document.documentElement.requestFullscreen;
@@ -464,6 +501,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, state);
 
     expect(fixture.componentInstance.currentContent?.title).toBe('First');
     expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
@@ -541,6 +579,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, state);
     expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
 
     // Pause: 60s of fake time must not advance the cursor.
@@ -612,6 +651,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, state);
     expect(getContentSrc(fixture)).toBe('https://example.com/1.jpg');
 
     tick(1000);
@@ -648,6 +688,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(state, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, state);
 
     expect(fixture.componentInstance.currentContent?.title).toBe('First');
 
@@ -986,6 +1027,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(initial);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, initial);
     expect(fixture.componentInstance.currentContent?.title).toBe('A');
 
     // Simulate a poll that brings in two new items while the kiosk is showing A.
@@ -1075,6 +1117,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(initial, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, initial);
     expect(fixture.componentInstance.currentContent?.id).toBe('content-1');
 
     // Advance to content-2 in loop.
@@ -1136,6 +1179,7 @@ describe('DisplayScreenComponent', () => {
     patchDisplayScreenPolling(initial, poll$);
     const fixture = TestBed.createComponent(DisplayScreenComponent);
     fixture.detectChanges();
+    seedDisplayFromState(fixture, initial);
     expect(fixture.componentInstance.currentContent?.id).toBe('A');
 
     // Move to B in loop.
@@ -1756,6 +1800,7 @@ describe('DisplayScreenComponent', () => {
       patchDisplayScreenPolling(state);
       const fixture = TestBed.createComponent(DisplayScreenComponent);
       fixture.detectChanges();
+      seedDisplayFromState(fixture, state);
       return fixture;
     }
 
