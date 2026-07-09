@@ -30,8 +30,9 @@ tooling for the FastAPI + Angular stack.
   backend/frontend image, and keep uploading the `release-tag` artifact
   consumed by the argocd bump workflow.
 - Pull requests and pushes to `main` run `.github/workflows/ci.yml`:
-  backend tests on SQLite (`pytest -m "not postgres"`), PostgreSQL-marked
-  integration tests against a GitHub Actions `postgres:16-alpine` service
+  the default backend suite (`pytest -m "not postgres"`, in-memory SQLite
+  and fakeredis — no Postgres service), Postgres-specific integration tests
+  (`pytest -m postgres`) against a GitHub Actions `postgres:16-alpine` service
   container with migrations applied, frontend unit tests, production build,
   and Docker image builds without registry push.
 - PR CI complements `release-images.yml` and `bump-app.yml` (CHG-025/026);
