@@ -5,7 +5,7 @@ x-backend-build: &backend-build
 x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://kiosk:${KIOSK_DATABASE_PASSWORD:-kiosk}@postgres:5432/kiosk_screen
   REDIS_URL: redis://redis:6379/0
-  REDIS_PASSWORD: ${KIOSK_REDIS_PASSWORD:-kiosk}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-kiosk}
   SESSION_SECRET: ${SESSION_SECRET:-development-only-session-secret}
   FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:4200}
   BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
@@ -42,7 +42,7 @@ services:
     command:
       - redis-server
       - --requirepass
-      - ${KIOSK_REDIS_PASSWORD:-kiosk}
+      - ${REDIS_PASSWORD:-kiosk}
       - --save
       - "60"
       - "1"
