@@ -20,19 +20,9 @@ def test_settings_read_expected_environment_values(monkeypatch):
     assert settings.app_env == "development"
 
 
-def test_redis_password_is_injected_into_redis_url(monkeypatch):
-    monkeypatch.setenv("REDIS_URL", "redis://redis.example:6379/0")
-    monkeypatch.setenv("REDIS_PASSWORD", "s3cret!")
+def test_redis_url_is_read_from_environment(monkeypatch):
+    monkeypatch.setenv("REDIS_URL", "redis://:s3cret%21@redis.example:6379/0")
 
     settings = get_settings()
 
     assert settings.redis_url == "redis://:s3cret%21@redis.example:6379/0"
-
-
-def test_redis_url_password_is_not_overridden_by_redis_password(monkeypatch):
-    monkeypatch.setenv("REDIS_URL", "redis://:from-url@redis.example:6379/0")
-    monkeypatch.setenv("REDIS_PASSWORD", "ignored")
-
-    settings = get_settings()
-
-    assert settings.redis_url == "redis://:from-url@redis.example:6379/0"

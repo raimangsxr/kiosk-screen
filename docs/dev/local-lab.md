@@ -60,8 +60,7 @@ The backend listens on `http://localhost:8000`. Development defaults are already
 configured for:
 
 - `DATABASE_URL=postgresql+psycopg://kiosk:kiosk@localhost:15432/kiosk_screen`
-- `REDIS_URL=redis://localhost:6379/0` (required for CHG-041 display SSE orchestration)
-- `REDIS_PASSWORD=kiosk` (required when Redis runs with `requirepass`; compose default via `KIOSK_REDIS_PASSWORD`)
+- `REDIS_URL=redis://:kiosk@localhost:6379/0` (required for CHG-041 display SSE orchestration; compose default password via `KIOSK_REDIS_PASSWORD`)
 - `SESSION_SECRET=development-only-session-secret`
 - `FRONTEND_ORIGIN=http://localhost:4200`
 - `BOOTSTRAP_ADMIN_EMAIL=admin@example.com`

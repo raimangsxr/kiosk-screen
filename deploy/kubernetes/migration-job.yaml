@@ -1,17 +1,47 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: kiosk-backend-migrations
+  name: kiosk-migrate
+  namespace: kiosk-screen
+  labels:
+    app.kubernetes.io/name: kiosk-migrate
 spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kiosk-migrate
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-        - name: migrations
-          image: docker.io/your-org/kiosk-backend:latest
-          command: ["alembic", "-c", "alembic.ini", "upgrade", "head"]
+        - name: migrate
+          image: rromani/kiosk-backend:1.0.0
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: DATABASE_URL
-              value: postgresql+psycopg://kiosk:kiosk@kiosk-postgres:5432/kiosk_screen
-            - name: MEDIA_STORAGE_PATH
-              value: /app/var/media
+              valueFrom:
+                secretKeyRef:
+                  name: kiosk-secrets
+                  key: DATABASE_URL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

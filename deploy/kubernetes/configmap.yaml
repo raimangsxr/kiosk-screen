@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kiosk-config
+  namespace: kiosk-screen
+data:
+  FRONTEND_ORIGIN: "https://kiosk.rromani.eu"
+  PUBLIC_API_CORS_ORIGINS: "https://kiosk.rromani.eu,http://localhost:4200"
+  MEDIA_STORAGE_PATH: "/app/media"
+  IMAGE_UPLOAD_MAX_BYTES: "26214400"
+  VIDEO_UPLOAD_MAX_BYTES: "52428800"
+  ROTATION_ANIMATIONS: "none,fade,slide"
