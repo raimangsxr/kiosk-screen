@@ -1277,7 +1277,7 @@ describe('DisplayScreenComponent', () => {
   }));
 
   describe('CHG-019 responsive runtime', () => {
-    let matchMediaSpy: jasmine.Spy | null = null;
+    let matchMediaSpy: jasmine.Spy<typeof globalThis.matchMedia> | null = null;
 
     function setViewport(width: number, height: number): void {
       Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: width });
@@ -1291,23 +1291,36 @@ describe('DisplayScreenComponent', () => {
 
     function mockPortraitQuery(matches: boolean): { listeners: Array<(event: Partial<MediaQueryListEvent>) => void>; fire: (next: boolean) => void } {
       const listeners: Array<(event: Partial<MediaQueryListEvent>) => void> = [];
+      const add = (cb: (event: Partial<MediaQueryListEvent>) => void): void => {
+        listeners.push(cb);
+      };
+      const remove = (cb: (event: Partial<MediaQueryListEvent>) => void): void => {
+        const idx = listeners.indexOf(cb);
+        if (idx >= 0) listeners.splice(idx, 1);
+      };
       const mql = {
         matches,
         media: '(orientation: portrait)',
         onchange: null,
+        addListener: add,
+        removeListener: remove,
         addEventListener: (_: string, cb: (event: Partial<MediaQueryListEvent>) => void): void => {
-          listeners.push(cb);
+          add(cb);
         },
         removeEventListener: (_: string, cb: (event: Partial<MediaQueryListEvent>) => void): void => {
-          const idx = listeners.indexOf(cb);
-          if (idx >= 0) listeners.splice(idx, 1);
+          remove(cb);
         },
         dispatchEvent: () => true,
       } as unknown as MediaQueryList;
+      const originalMatchMedia = globalThis.matchMedia.bind(globalThis);
       if (matchMediaSpy) {
-        matchMediaSpy.and.returnValue(mql);
+        matchMediaSpy.and.callFake((query: string) =>
+          query === '(orientation: portrait)' ? mql : originalMatchMedia(query),
+        );
       } else {
-        matchMediaSpy = spyOn(globalThis, 'matchMedia').and.returnValue(mql);
+        matchMediaSpy = spyOn(globalThis, 'matchMedia').and.callFake((query: string) =>
+          query === '(orientation: portrait)' ? mql : originalMatchMedia(query),
+        );
       }
       return {
         listeners,
