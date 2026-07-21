@@ -46,6 +46,8 @@ const iframeOption = {
   id: 'content-1',
   organizationId: 'org-1',
   url: 'https://example.org/agenda',
+  scaleX: 1,
+  scaleY: 1,
   createdAt: '2026-06-18T00:00:00Z',
   updatedAt: '2026-06-18T00:00:00Z'
 };
@@ -224,7 +226,7 @@ describe('RemoteControlComponent', () => {
     const customFacade = buildFacade({
       state: signal({ ...baseState, contentMode: 'iframe', selectedIframeId: 'content-2' }),
       iframeOptions: signal([
-        { id: 'content-2', organizationId: 'org-1', url: longUrl, createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }
+        { id: 'content-2', organizationId: 'org-1', url: longUrl, scaleX: 1, scaleY: 1, createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }
       ])
     });
     customFacade.refresh.and.returnValue(of({ state: baseState, options: { items: [iframeOption] } }));

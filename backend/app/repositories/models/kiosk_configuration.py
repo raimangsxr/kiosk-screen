@@ -1,6 +1,5 @@
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
-
 from app.repositories.base import Base, IdMixin, TimestampMixin
 
 

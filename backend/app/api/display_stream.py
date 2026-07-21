@@ -11,16 +11,19 @@ from fastapi.responses import StreamingResponse
 from pydantic import Field
 from sqlalchemy.orm import Session
 
-from app.api.schemas import CamelModel
+from app.api.schemas import CamelModel, LiveKioskSchema
 from app.application.display_control.service import DisplayControlService
 from app.application.display_orchestrator.hooks import ensure_display_orchestrator
 from app.application.display_orchestrator.registry import OrchestratorRegistry
 from app.application.display_orchestrator.snapshot_builder import build_snapshot_payload
 from app.application.display_orchestrator.sse_hub import PING_INTERVAL_SECONDS, get_display_sse_hub
-from app.auth.dependencies import CurrentUser, get_current_user
+from app.application.iframe_runtime import list_live_kiosks
+from app.auth.dependencies import CurrentUser, get_current_user, require_roles
+from app.domain.roles import OPERATIONS_READ_ROLES
 from app.repositories.session import get_session
 
 router = APIRouter(prefix="/display", tags=["Display Stream"])
+admin_router = APIRouter(prefix="/admin/display", tags=["Display Admin"])
 
 
 class KioskRegisterRequest(CamelModel):
@@ -58,6 +61,13 @@ def _require_active_session(session: Session, organization_id: str):
     return operator_session
 
 
+@admin_router.get("/kiosks/live", response_model=list[LiveKioskSchema])
+def list_live_kiosks_endpoint(
+    user: CurrentUser = Depends(require_roles(OPERATIONS_READ_ROLES)),
+) -> list[LiveKioskSchema]:
+    return [LiveKioskSchema.model_validate(row) for row in list_live_kiosks(user.organization_id)]
+
+
 @router.post("/kiosk/register", response_model=KioskRegisterResponse, status_code=status.HTTP_201_CREATED)
 def register_kiosk(
     payload: KioskRegisterRequest,
@@ -72,6 +82,7 @@ def register_kiosk(
         label=payload.label,
     )
     get_display_sse_hub().record_kiosk_connected(session, registration)
+    session.commit()
     ensure_display_orchestrator(session, user.organization_id)
     return KioskRegisterResponse(
         kiosk_id=registration.kiosk_id,

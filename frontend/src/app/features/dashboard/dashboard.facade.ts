@@ -1,10 +1,11 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, forkJoin, map, of } from 'rxjs';
+import { Observable, forkJoin, from, map, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
 import { ContentApiService, ContentItem } from '../../core/api/content.api';
 import { DisplayEvent, EventsApiService } from '../../core/api/events.api';
 import { ReadinessApiService } from '../../core/api/readiness.api';
+import { LiveKiosksApiService, type LiveKiosk } from '../../core/api/live-kiosks.api';
 import { RemoteControlApi } from '../remote-control/remote-control.api';
 import { RemoteControlState } from '../remote-control/remote-control.models';
 import { resolveReadinessRoute } from '../readiness/readiness-routes';
@@ -12,9 +13,11 @@ import {
   ActivityFeedItem,
   ActivityFeedSlice,
   ActivitySeverity,
+  ConnectedKiosk,
   ContentQueueKind,
   ContentQueueSlice,
   ContextualAction,
+  LiveKiosksSlice,
   LiveStatusSlice,
   OperationsDashboardState,
   ReadinessAlert,
@@ -23,6 +26,7 @@ import {
 
 const SECTION_READINESS = 'Comprobación';
 const SECTION_LIVE = 'Estado en vivo';
+const SECTION_LIVE_KIOSKS = 'Pantallas conectadas';
 const SECTION_QUEUE = 'Contenido';
 const SECTION_ACTIVITY = 'Actividad';
 
@@ -33,6 +37,7 @@ type SourceResult<T> = { ok: true; value: T } | { ok: false };
 interface DashboardSnapshot {
   readonly readiness: SourceResult<ReadinessSlice>;
   readonly live: SourceResult<RemoteControlState>;
+  readonly liveKiosks: SourceResult<LiveKiosk[]>;
   readonly content: SourceResult<ContentItem[]>;
   readonly events: SourceResult<DisplayEvent[]>;
 }
@@ -41,6 +46,7 @@ interface DashboardSnapshot {
 export class DashboardFacade {
   private readonly readinessApi = inject(ReadinessApiService);
   private readonly remoteControlApi = inject(RemoteControlApi);
+  private readonly liveKiosksApi = inject(LiveKiosksApiService);
   private readonly contentApi = inject(ContentApiService);
   private readonly eventsApi = inject(EventsApiService);
 
@@ -54,6 +60,10 @@ export class DashboardFacade {
         catchError(() => of({ ok: false as const }))
       ),
       live: this.remoteControlApi.getState().pipe(
+        map((value) => ({ ok: true as const, value })),
+        catchError(() => of({ ok: false as const }))
+      ),
+      liveKiosks: from(this.liveKiosksApi.listLive()).pipe(
         map((value) => ({ ok: true as const, value })),
         catchError(() => of({ ok: false as const }))
       ),
@@ -119,6 +129,11 @@ export class DashboardFacade {
       degradedSections.push(SECTION_LIVE);
     }
 
+    const liveKiosks = snap.liveKiosks.ok ? buildLiveKiosksSlice(snap.liveKiosks.value) : null;
+    if (!snap.liveKiosks.ok) {
+      degradedSections.push(SECTION_LIVE_KIOSKS);
+    }
+
     const queueWithPins =
       queue && live?.pinnedContentId
         ? buildQueueSlice(snap.content.ok ? snap.content.value : [], live.pinnedContentId)
@@ -132,6 +147,7 @@ export class DashboardFacade {
     return {
       readiness,
       live,
+      liveKiosks,
       queue: queueWithPins,
       activity,
       contextualActions: deriveContextualActions({ readiness, live, queue: queueWithPins }),
@@ -198,6 +214,14 @@ export function classifyKind(item: ContentItem): ContentQueueKind {
     return 'fixed-eligible';
   }
   return 'regular';
+}
+
+export function buildLiveKiosksSlice(rows: LiveKiosk[]): LiveKiosksSlice {
+  const items: ConnectedKiosk[] = rows.map((row) => ({
+    kioskId: row.kioskId,
+    displayLabel: row.displayLabel,
+  }));
+  return { items };
 }
 
 export function buildQueueSlice(items: ContentItem[], pinnedContentId: string | null): ContentQueueSlice {

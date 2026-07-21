@@ -14,6 +14,7 @@ import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { CursorService } from './cursor.service';
 import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
+import { DisplayLabelService } from './display-label.service';
 import { DisplayStreamService } from './display-stream.service';
 import type { ConfigUpdatedPayload } from './display-stream.models';
 import { DisplayScreenComponent } from './display-screen.component';
@@ -63,9 +64,14 @@ describe('DisplayScreenComponent', () => {
   };
 
   beforeEach(() => {
+    localStorage.setItem('kiosk_display_label', 'Pantalla test');
     TestBed.configureTestingModule({
-      providers: [displayStreamProvider(), provideHttpClient(), provideHttpClientTesting()],
+      providers: [displayStreamProvider(), displayLabelProvider(), provideHttpClient(), provideHttpClientTesting()],
     });
+  });
+
+  afterEach(() => {
+    localStorage.clear();
   });
 
   function createPollingMock(initialState: DisplayState, poll$?: Subject<DisplayState>) {
@@ -137,6 +143,7 @@ describe('DisplayScreenComponent', () => {
         modeChanged: computed(() => null),
         showIframe: computed(() => null),
         preload: computed(() => null),
+        layoutUpdated: computed(() => null),
         reconnecting: signal(false),
         connected: signal(false),
         sseFallbackActive: signal(false),
@@ -145,8 +152,19 @@ describe('DisplayScreenComponent', () => {
         lastSequence: signal(0),
         tryRegister: jasmine.createSpy('tryRegister').and.returnValue(Promise.resolve(null)),
         startWithRegistration: jasmine.createSpy('startWithRegistration').and.returnValue(Promise.resolve()),
-        start: jasmine.createSpy('start'),
+        start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
         stop: jasmine.createSpy('stop'),
+      },
+    };
+  }
+
+  function displayLabelProvider() {
+    return {
+      provide: DisplayLabelService,
+      useValue: {
+        label: signal('Pantalla test'),
+        setLabel: jasmine.createSpy('setLabel'),
+        readStoredLabel: () => 'Pantalla test',
       },
     };
   }
@@ -226,6 +244,7 @@ describe('DisplayScreenComponent', () => {
       },
       eventBrandingProvider(branding),
       displayStreamProvider(),
+      displayLabelProvider(),
       provideRouter([]),
       provideNoopAnimations()
     ]
@@ -335,10 +354,11 @@ describe('DisplayScreenComponent', () => {
             lastSequence: signal(0),
             tryRegister: jasmine.createSpy('tryRegister').and.returnValue(Promise.resolve(null)),
             startWithRegistration: jasmine.createSpy('startWithRegistration').and.returnValue(Promise.resolve()),
-            start: jasmine.createSpy('start'),
+            start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
             stop: jasmine.createSpy('stop'),
           },
         },
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -366,16 +386,30 @@ describe('DisplayScreenComponent', () => {
     expect(adRegionTitle.textContent).toContain('Patrocinadores del evento');
   });
 
-  it('keeps the same trusted iframe URL object while the iframe URL is unchanged', () => {
+  it('preserves query parameters in the kiosk iframe src', () => {
     const fixture = createComponent(readyState);
-    const component = fixture.componentInstance;
+    const url = 'https://example.org/live?token=abc&tab=scores';
+    driveIframe(fixture, url);
 
-    const first = component.safeIframeUrl('https://example.org/live');
-    const second = component.safeIframeUrl('https://example.org/live');
-    const third = component.safeIframeUrl('https://example.org/other');
+    expect(getIframeSrc(fixture)).toBe(url);
+  });
 
-    expect(second).toBe(first);
-    expect(third).not.toBe(first);
+  it('updates the kiosk iframe src when the active iframe URL changes', () => {
+    const fixture = createComponent(readyState);
+    driveIframe(fixture, 'https://example.org/live?foo=1');
+    expect(getIframeSrc(fixture)).toBe('https://example.org/live?foo=1');
+
+    driveIframe(fixture, 'https://example.org/other?foo=2');
+    expect(getIframeSrc(fixture)).toBe('https://example.org/other?foo=2');
+  });
+
+  it('exposes the configured iframe URL on data-iframe-url for debugging', () => {
+    const fixture = createComponent(readyState);
+    const url = 'https://example.org/live?embed_token=embed_test';
+    driveIframe(fixture, url);
+
+    const el = fixture.nativeElement.querySelector('[data-testid="display-iframe"]') as HTMLElement | null;
+    expect(el?.getAttribute('data-iframe-url')).toBe(url);
   });
 
   it('requests browser fullscreen when remote control asks for it', fakeAsync(() => {
@@ -494,6 +528,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -572,6 +608,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -644,6 +682,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -681,6 +721,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -1020,6 +1062,8 @@ describe('DisplayScreenComponent', () => {
       providers: [
         { provide: DisplayApiService, useValue: api },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations(),
       ],
@@ -1110,6 +1154,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -1172,6 +1218,8 @@ describe('DisplayScreenComponent', () => {
           }
         },
         eventBrandingProvider(),
+        displayStreamProvider(),
+        displayLabelProvider(),
         provideRouter([]),
         provideNoopAnimations()
       ]
@@ -1497,6 +1545,7 @@ describe('DisplayScreenComponent', () => {
           },
           eventBrandingProvider(),
           displayStreamProvider(),
+          displayLabelProvider(),
           provideRouter([]),
           provideNoopAnimations()
         ]
@@ -1650,6 +1699,8 @@ describe('DisplayScreenComponent', () => {
               clear: () => branding.set({ eventName: '', organizerName: '', organizerLogoUrl: null }),
             },
           },
+          displayStreamProvider(),
+          displayLabelProvider(),
           provideRouter([]),
           provideNoopAnimations(),
         ],
@@ -1700,7 +1751,7 @@ describe('DisplayScreenComponent', () => {
               lastSequence: signal(0),
               tryRegister: jasmine.createSpy('tryRegister').and.returnValue(Promise.resolve(null)),
               startWithRegistration: jasmine.createSpy('startWithRegistration').and.returnValue(Promise.resolve()),
-              start: jasmine.createSpy('start'),
+              start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
               stop: jasmine.createSpy('stop'),
             },
           },
@@ -1755,6 +1806,7 @@ describe('DisplayScreenComponent', () => {
         modeChanged: computed(() => null),
         showIframe: computed(() => null),
         preload: computed(() => null),
+        layoutUpdated: computed(() => null),
         reconnecting: signal(false),
         connected: signal(false),
         sseFallbackActive: signal(false),
@@ -1763,7 +1815,7 @@ describe('DisplayScreenComponent', () => {
         lastSequence: signal(0),
         tryRegister: jasmine.createSpy('tryRegister').and.returnValue(Promise.resolve(null)),
         startWithRegistration: jasmine.createSpy('startWithRegistration').and.returnValue(Promise.resolve()),
-        start: jasmine.createSpy('start'),
+        start: jasmine.createSpy('start').and.returnValue(Promise.resolve()),
         stop: jasmine.createSpy('stop'),
       };
     }
@@ -1793,6 +1845,7 @@ describe('DisplayScreenComponent', () => {
               clear: () => undefined,
             },
           },
+          displayLabelProvider(),
           provideRouter([]),
           provideNoopAnimations(),
         ],
@@ -1849,6 +1902,11 @@ describe('DisplayScreenComponent', () => {
     });
   });
 });
+
+function getIframeSrc(fixture: ComponentFixture<DisplayScreenComponent>): string | null {
+  const el = fixture.nativeElement.querySelector('[data-testid="display-iframe"]') as HTMLIFrameElement | null;
+  return el?.getAttribute('src') ?? null;
+}
 
 /**
  * Reads the current top-region media element's source from the rendered DOM.

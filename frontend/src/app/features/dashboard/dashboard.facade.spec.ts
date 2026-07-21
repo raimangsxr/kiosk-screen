@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 
-import { DashboardFacade, deriveContextualActions } from './dashboard.facade';
+import { DashboardFacade, buildLiveKiosksSlice, deriveContextualActions } from './dashboard.facade';
 
 describe('DashboardFacade', () => {
   let facade: DashboardFacade;
@@ -21,6 +21,10 @@ describe('DashboardFacade', () => {
     http.verify();
   });
 
+  function flushLiveKiosks(items: unknown[] = []): void {
+    http.expectOne('/api/admin/display/kiosks/live').flush(items);
+  }
+
   function flushHappyPath(): void {
     http.expectOne('/api/readiness').flush({
       ready: true,
@@ -35,6 +39,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([
       {
         id: 'c1',
@@ -55,6 +60,7 @@ describe('DashboardFacade', () => {
     expect(state.degradedSections).toEqual([]);
     expect(state.readiness?.ready).toBeTrue();
     expect(state.live?.contentMode).toBe('loop');
+    expect(state.liveKiosks?.items).toEqual([]);
     expect(state.queue?.activeContentCount).toBe(1);
     expect(state.activity?.items).toEqual([]);
   });
@@ -70,6 +76,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([]);
     http.expectOne('/api/events').flush([]);
     const state = await promise;
@@ -82,6 +89,7 @@ describe('DashboardFacade', () => {
     const promise = firstValueFrom(facade.load());
     http.expectOne('/api/readiness').flush({ ready: true, blockers: [], warnings: [] });
     http.expectOne('/api/display/remote-control/state').flush('boom', { status: 500, statusText: 'Error' });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([]);
     http.expectOne('/api/events').flush([]);
     const state = await promise;
@@ -100,6 +108,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush('boom', { status: 500, statusText: 'Error' });
     http.expectOne('/api/events').flush([]);
     const state = await promise;
@@ -118,6 +127,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([]);
     http.expectOne('/api/events').flush('boom', { status: 500, statusText: 'Error' });
     const state = await promise;
@@ -136,6 +146,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([]);
     const events = Array.from({ length: 20 }, (_, index) => ({
       id: `e-${index}`,
@@ -162,6 +173,7 @@ describe('DashboardFacade', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    flushLiveKiosks();
     http.expectOne('/api/content').flush([
       {
         id: 'r1',
@@ -196,6 +208,38 @@ describe('DashboardFacade', () => {
     expect(state.queue?.activeContentCount).toBe(2);
     expect(state.queue?.entries.map((entry) => entry.kind)).toEqual(['fixed-eligible', 'recurring']);
     expect(state.live?.pinnedContentUnresolved).toBeTrue();
+  });
+
+  it('degrades live kiosks when layout live endpoint fails', async () => {
+    const promise = firstValueFrom(facade.load());
+    http.expectOne('/api/readiness').flush({ ready: true, blockers: [], warnings: [] });
+    http.expectOne('/api/display/remote-control/state').flush({
+      contentMode: 'loop',
+      selectedIframeId: null,
+      adsVisible: true,
+      fullscreenRequested: false,
+      updatedAt: '2026-07-08T10:00:00.000Z',
+      displaySessionActive: true
+    });
+    http.expectOne('/api/admin/display/kiosks/live').flush('boom', { status: 503, statusText: 'Unavailable' });
+    http.expectOne('/api/content').flush([]);
+    http.expectOne('/api/events').flush([]);
+    const state = await promise;
+    expect(state.liveKiosks).toBeNull();
+    expect(state.degradedSections).toContain('Pantallas conectadas');
+  });
+});
+
+describe('buildLiveKiosksSlice', () => {
+  it('maps live kiosk rows for dashboard', () => {
+    const slice = buildLiveKiosksSlice([
+      {
+        kioskId: 'k1',
+        displayLabel: 'Sala A',
+      },
+    ]);
+    expect(slice.items[0]?.displayLabel).toBe('Sala A');
+    expect(slice.items[0]?.kioskId).toBe('k1');
   });
 });
 

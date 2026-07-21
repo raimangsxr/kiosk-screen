@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from app.api.schemas import (
     AdItemSchema,
     BrandingLayout,
@@ -52,7 +54,7 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         inlineAdItemBorderColor=configuration.inline_ad_item_border_color,
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         videoEndDelaySeconds=configuration.video_end_delay_seconds,
-        isEnabled=configuration.is_enabled
+        isEnabled=configuration.is_enabled,
     )
 
 
@@ -173,6 +175,8 @@ def to_iframe_schema(iframe: Iframe) -> IframeSchema:
         id=iframe.id,
         organizationId=iframe.organization_id,
         url=iframe.url,
+        scaleX=float(iframe.scale_x),
+        scaleY=float(iframe.scale_y),
         createdAt=iframe.created_at,
         updatedAt=iframe.updated_at,
     )

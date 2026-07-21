@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../core/auth/auth.service';
+import { DisplayLabelService } from './display-label.service';
 
 import {
   BrandingUpdatedPayload,
@@ -25,6 +26,7 @@ export class DisplayStreamService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly displayLabel = inject(DisplayLabelService);
 
   readonly kioskId = signal<string | null>(null);
   readonly connected = signal(false);
@@ -138,9 +140,11 @@ export class DisplayStreamService {
   }
 
   private async register(): Promise<KioskRegisterResponse> {
+    const label = this.displayLabel.label();
     return firstValueFrom(
       this.http.post<KioskRegisterResponse>('/api/display/kiosk/register', {
         clientInstanceId: this.clientInstanceId(),
+        label,
       }),
     );
   }

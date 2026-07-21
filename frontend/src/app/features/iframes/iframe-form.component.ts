@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,6 +31,14 @@ import { IframeFacade } from './iframe.facade';
             <mat-error>Enter a valid http(s) URL.</mat-error>
           }
         </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Escala X</mat-label>
+          <input matInput type="number" formControlName="scaleX" min="0.1" max="5" step="0.05" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Escala Y</mat-label>
+          <input matInput type="number" formControlName="scaleY" min="0.1" max="5" step="0.05" />
+        </mat-form-field>
         @if (facade.error(); as error) {
           <p class="admin-form__error">{{ error.message }}</p>
         }
@@ -52,6 +60,8 @@ export class IframeFormComponent implements OnInit, DirtyFormAware {
 
   protected readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/)]],
+    scaleX: [1, [Validators.required, Validators.min(0.1), Validators.max(5)]],
+    scaleY: [1, [Validators.required, Validators.min(0.1), Validators.max(5)]],
   });
 
   ngOnInit(): void {
@@ -60,7 +70,7 @@ export class IframeFormComponent implements OnInit, DirtyFormAware {
     this.initialSnapshot = this.snapshot();
     if (this.iframeId) {
       this.facade.load(this.iframeId).subscribe((item) => {
-        this.form.patchValue({ url: item.url });
+        this.form.patchValue({ url: item.url, scaleX: item.scaleX, scaleY: item.scaleY });
         this.initialSnapshot = this.snapshot();
       });
     }
@@ -78,14 +88,22 @@ export class IframeFormComponent implements OnInit, DirtyFormAware {
       this.form.markAllAsTouched();
       return;
     }
-    this.facade.save({ url: this.form.controls.url.value.trim() }, this.iframeId ?? undefined).subscribe(() => {
+    this.facade.save({
+      url: this.form.controls.url.value.trim(),
+      scaleX: this.form.controls.scaleX.value,
+      scaleY: this.form.controls.scaleY.value,
+    }, this.iframeId ?? undefined).subscribe(() => {
       this.markPristine();
       void this.router.navigate(['/admin/iframes']);
     });
   }
 
   private snapshot(): string {
-    return JSON.stringify({ url: this.form.controls.url.value });
+    return JSON.stringify({
+      url: this.form.controls.url.value,
+      scaleX: this.form.controls.scaleX.value,
+      scaleY: this.form.controls.scaleY.value,
+    });
   }
 
   private markPristine(): void {

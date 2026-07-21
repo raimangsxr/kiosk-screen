@@ -14,6 +14,7 @@ owns:
   - frontend/src/app/features/display-config/**
   - frontend/src/app/features/hall/**
   - frontend/src/app/core/api/display.api.ts
+  - frontend/src/app/core/api/live-kiosks.api.ts
 tests:
   - backend/tests/**/*
   - frontend/src/app/**/*.spec.ts
@@ -24,8 +25,10 @@ related_changes:
   - CHG-032
   - CHG-036
   - CHG-041
+  - CHG-044
 related_adrs:
   - ADR-0009
+  - ADR-0012
 ---
 
 # Kiosk Configuration and Session Contract
@@ -43,9 +46,10 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `GET /display/state` is read-only: it does not insert control-state rows, auto-fallback, audit events, or commits.
 - Readiness blockers prevent opening the kiosk when the setup is not safe for a live event.
 - Polling cadence configuration is deprecated. `GET /display/state` is retained as a degraded fallback only when SSE is unavailable for more than 60 seconds.
-- Displays register via `POST /api/display/kiosk/register` before opening the SSE stream. Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis).
+- Displays register via `POST /api/display/kiosk/register` with an optional `label` (display label for ops). Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis). Registration does not return embed-layout data.
 - `POST /display/open` bootstraps the server orchestrator and emits an initial `snapshot` to connected displays.
 - Session supersede sends `session_ended` SSE to prior connections.
+- Admin ops dashboard lists connected kiosks via `GET /api/admin/display/kiosks/live` (`kioskId`, `displayLabel` only).
 
 ## Public interfaces
 
@@ -54,6 +58,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `POST /display/open`
 - `POST /api/display/kiosk/register`
 - `GET /api/display/stream`
+- `GET /api/admin/display/kiosks/live`
 - `GET /display/state` (deprecated SSE-down fallback only)
 
 ## Owned code paths
@@ -67,6 +72,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `frontend/src/app/features/display-config/**`
 - `frontend/src/app/features/hall/**`
 - `frontend/src/app/core/api/display.api.ts`
+- `frontend/src/app/core/api/live-kiosks.api.ts`
 
 ## Quality gates
 
@@ -77,6 +83,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 ## Non-goals
 
 - Multi-organization tenant switching is not part of this contract.
+- Per-display iframe embed density profiles and calibration UI are out of scope (removed by CHG-044).
 
 ## Change history
 
@@ -86,3 +93,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-032
 - CHG-036
 - CHG-041
+- CHG-044 — removes CHG-042/043 layout REST, `layout_updated` SSE, and `embed_density_defaults`; adds live kiosks admin endpoint.

@@ -6,6 +6,8 @@ export interface IframeItem {
   id: string;
   organizationId: string;
   url: string;
+  scaleX: number;
+  scaleY: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,6 +18,8 @@ export interface IframeListResponse {
 
 export interface IframeRequest {
   url: string;
+  scaleX?: number;
+  scaleY?: number;
 }
 
 @Injectable({ providedIn: 'root' })

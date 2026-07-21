@@ -20,6 +20,7 @@ related_changes:
   - CHG-007
   - CHG-014
   - CHG-041
+  - CHG-044
 related_adrs:
   - ADR-0003
   - ADR-0009
@@ -76,3 +77,4 @@ This active contract is the current source of truth for `DISPLAY.EVENTS.AUDIT`. 
 - CHG-014
 - CHG-029
 - CHG-041
+- CHG-044 — removes layout calibration audit events introduced by CHG-042.

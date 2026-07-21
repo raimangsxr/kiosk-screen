@@ -162,12 +162,16 @@ class IframeSchema(CamelModel):
     id: UUID
     organization_id: UUID = Field(alias="organizationId")
     url: str
+    scale_x: float = Field(default=1.0, alias="scaleX", ge=0.1, le=5.0)
+    scale_y: float = Field(default=1.0, alias="scaleY", ge=0.1, le=5.0)
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
 
 class IframeRequest(CamelModel):
     url: str = Field(max_length=1024)
+    scale_x: float = Field(default=1.0, alias="scaleX", ge=0.1, le=5.0)
+    scale_y: float = Field(default=1.0, alias="scaleY", ge=0.1, le=5.0)
 
 
 class IframeListResponse(CamelModel):
@@ -318,3 +322,8 @@ class DisplayEventSchema(CamelModel):
     severity: str
     message: str
     created_at: datetime = Field(alias="createdAt")
+
+
+class LiveKioskSchema(CamelModel):
+    kiosk_id: UUID = Field(alias="kioskId")
+    display_label: str | None = Field(default=None, alias="displayLabel")

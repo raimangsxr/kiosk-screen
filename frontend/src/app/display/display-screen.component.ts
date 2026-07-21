@@ -1,15 +1,20 @@
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { firstValueFrom } from 'rxjs';
 
 import { DisplayAdItem, DisplayContentItem, DisplayState, DisplayApiService } from '../core/api/display.api';
 import { ApplicationErrorContract } from '../shared/contracts/admin-contracts';
 import { EventBrandingService } from '../core/event-branding.service';
 import { CursorService } from './cursor.service';
+import { DisplayLabelService } from './display-label.service';
 import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
 import { DisplayStreamService } from './display-stream.service';
@@ -41,8 +46,12 @@ type DisplayRenderableItem = Pick<
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatInputModule,
     KioskBrandingOverlayComponent,
-    KioskFullscreenPromptComponent
+    KioskFullscreenPromptComponent,
   ],
   providers: [
     CursorService,
@@ -69,17 +78,24 @@ type DisplayRenderableItem = Pick<
         >Por favor, rota el dispositivo</div>
       }
       <section class="top-region" aria-label="Main content">
-        @if (displayAvailable && iframeUrl(); as url) {
-          <iframe
-            [src]="safeIframeUrl(url)"
-            title="Pinned iframe"
-            class="display-content-media display-content-media--iframe"
-            data-testid="display-iframe"
-            frameborder="0"
-            allowfullscreen
-          ></iframe>
+        @if (displayAvailable && iframeMountKey(); as mountKey) {
+          <div class="iframe-scale-host">
+            @for (_ of [mountKey]; track mountKey) {
+              <iframe
+                #displayIframe
+                [src]="trustedIframeUrl()!"
+                [style.transform]="iframeTransform()"
+                [attr.data-iframe-url]="activeIframeUrl()"
+                title="Pinned iframe"
+                class="display-content-media display-content-media--iframe"
+                data-testid="display-iframe"
+                frameborder="0"
+                allowfullscreen
+              ></iframe>
+            }
+          </div>
         }
-        @if (displayAvailable && !iframeUrl() && contentRenderItems.length) {
+        @if (displayAvailable && !activeIframeUrl() && contentRenderItems.length) {
           @for (currentItem of contentRenderItems; track trackContent($index, currentItem)) {
             <div
               class="top-region__media-frame"
@@ -128,7 +144,7 @@ type DisplayRenderableItem = Pick<
             <div class="content-label">{{ currentItem.title }}</div>
           }
         }
-        @if (!displayAvailable || (!iframeUrl() && !contentRenderItems.length)) {
+        @if (!displayAvailable || (!activeIframeUrl() && !contentRenderItems.length)) {
           <div class="fallback" data-testid="display-fallback">
             {{ displayAvailable ? 'Content unavailable' : 'Display unavailable' }}
           </div>
@@ -136,7 +152,7 @@ type DisplayRenderableItem = Pick<
         <app-kiosk-branding-overlay
           [branding]="brandingViewModel()"
           [hiddenLogoUrl]="hiddenLogoUrl"
-          [visible]="!iframeUrl()"
+          [visible]="!activeIframeUrl()"
           (logoBroken)="hideBrokenLogo($event)"
         />
       </section>
@@ -211,6 +227,19 @@ type DisplayRenderableItem = Pick<
           Reconectando…
         </div>
       }
+
+      @if (labelModalVisible()) {
+        <div class="label-modal" data-testid="display-label-modal" role="dialog" aria-modal="true">
+          <h2 class="label-modal__title">Identificar pantalla</h2>
+          <p class="label-modal__hint">Elige un nombre para esta pantalla (por ejemplo, Sala ultrawide).</p>
+          <mat-form-field appearance="outline" class="label-modal__field">
+            <mat-label>Nombre de pantalla</mat-label>
+            <input matInput [(ngModel)]="labelDraft" (keyup.enter)="confirmLabel()" />
+          </mat-form-field>
+          <button mat-flat-button color="primary" type="button" (click)="confirmLabel()">Continuar</button>
+        </div>
+      }
+
     </main>
   `,
   styleUrl: './display-screen.component.css',
@@ -244,6 +273,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly displayViewer = inject(DisplayViewerController);
   private readonly mediaCache = inject(DisplayMediaCacheService);
   private readonly displayApi = inject(DisplayApiService);
+  private readonly displayLabel = inject(DisplayLabelService);
   private readonly router = inject(Router);
   private readonly sanitizer = inject(DomSanitizer);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -259,6 +289,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   protected readonly openError = this.polling.openError;
   protected readonly openInProgress = this.polling.openInProgress;
 
+  protected readonly labelModalVisible = signal(false);
+  protected labelDraft = '';
+
+  private bootstrapPending = false;
+
   constructor() {
     effect(() => {
       const payload = this.displayStream.showContent();
@@ -272,21 +307,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (event?.type !== 'snapshot') {
         return;
       }
-      const snapshot = event.payload as SnapshotPayload;
-      this.displayViewer.applyModeChanged({
-        contentMode: snapshot.contentMode,
-        isPaused: snapshot.isPaused,
-        adsVisible: snapshot.adsVisible,
-        selectedFixedContentId: null,
-        reason: 'snapshot',
-      });
-      if (snapshot.currentTop) {
-        this.displayViewer.applyShowContent(snapshot.currentTop as ShowContentPayload);
-        this.syncContentRenderItems();
-      }
-      if (snapshot.currentAds) {
-        this.displayViewer.applyShowAds(snapshot.currentAds as ShowAdsPayload);
-      }
+      this.displayViewer.applySnapshot(event.payload as SnapshotPayload);
+      this.syncContentRenderItems();
     });
     effect(() => {
       const payload = this.displayStream.showAds();
@@ -304,6 +326,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       const payload = this.displayStream.showIframe();
       if (payload) {
         this.displayViewer.applyShowIframe(payload);
+        this.cdr.markForCheck();
       }
     });
     effect(() => {
@@ -378,10 +401,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (!update?.applyImmediately || !this.state) {
         return;
       }
-      const patch: Record<string, unknown> = {};
+      const patch: Partial<DisplayState['configuration']> = {};
       for (const field of update.changedFields) {
         if (IMMEDIATE_CONFIG_FIELDS.has(field)) {
-          patch[field] = (update.configuration as Record<string, unknown>)[field];
+          const value = (update.configuration as Record<string, unknown>)[field];
+          (patch as Record<string, unknown>)[field] = value;
         }
       }
       if (Object.keys(patch).length === 0) {
@@ -416,6 +440,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
 
   @ViewChild('fixedVideo') private fixedVideoRef?: ElementRef<HTMLVideoElement>;
+  @ViewChild('displayIframe') private displayIframeRef?: ElementRef<HTMLIFrameElement>;
 
   private lastFullscreenRequested: boolean | null = null;
   protected hiddenLogoUrl: string | null = null;
@@ -442,8 +467,33 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
    */
   state: DisplayState | null = null;
   private readonly stateVersion = signal(0);
-  private cachedIframeUrl: string | null = null;
-  private cachedSafeIframeUrl: SafeResourceUrl | null = null;
+
+  protected readonly activeIframeUrl = computed(() => {
+    if (!this.displayViewer.iframeActive()) {
+      return null;
+    }
+    return this.displayViewer.currentIframe()?.url ?? null;
+  });
+
+  protected readonly trustedIframeUrl = computed(() => {
+    const url = this.activeIframeUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  });
+
+  /**
+   * Forces a fresh iframe document load whenever the active iframe URL or
+   * show_iframe command changes (needed for sibling apps that read query
+   * params such as embed_token only on first navigation).
+   */
+  protected readonly iframeMountKey = computed(() => {
+    const url = this.activeIframeUrl();
+    if (!url) {
+      return null;
+    }
+    const commandId = this.displayViewer.currentCommandId() ?? 'bootstrap';
+    const iframeId = this.displayViewer.currentIframe()?.id ?? 'iframe';
+    return `${iframeId}|${commandId}|${url}`;
+  });
 
   /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
   protected readonly sponsorStripAds = computed(() => {
@@ -536,6 +586,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     globalThis.addEventListener?.('keydown', this.escapeHandler);
+    if (!this.displayLabel.label()) {
+      this.labelModalVisible.set(true);
+    }
     if (typeof globalThis.matchMedia === 'function') {
       this.portraitQuery = globalThis.matchMedia('(orientation: portrait)');
       this.orientation.set(this.portraitQuery.matches ? 'portrait' : 'landscape');
@@ -568,6 +621,10 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   private async bootstrapDisplay(): Promise<void> {
+    if (!this.displayLabel.label()) {
+      this.labelModalVisible.set(true);
+      return;
+    }
     const registration = await this.displayStream.tryRegister();
     if (registration) {
       try {
@@ -588,6 +645,28 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
         void this.displayStream.start();
       }
     });
+  }
+
+  protected confirmLabel(): void {
+    const clean = this.labelDraft.trim();
+    if (!clean) {
+      return;
+    }
+    this.displayLabel.setLabel(clean);
+    this.labelModalVisible.set(false);
+    if (!this.bootstrapPending) {
+      this.bootstrapPending = true;
+      void this.bootstrapDisplay().finally(() => {
+        this.bootstrapPending = false;
+      });
+    }
+  }
+
+  iframeTransform(): string {
+    const iframe = this.displayViewer.currentIframe();
+    const scaleX = iframe?.scaleX ?? 1;
+    const scaleY = iframe?.scaleY ?? 1;
+    return `scale(${scaleX}, ${scaleY})`;
   }
 
   mediaSource(item: DisplayRenderableItem): string {
@@ -633,21 +712,6 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return this.state?.configuration.defaultAdAnimationDurationMilliseconds ?? 300;
   }
 
-  iframeUrl(): string | null {
-    if (this.displayViewer.iframeActive()) {
-      return this.displayViewer.currentIframe()?.url ?? null;
-    }
-    return null;
-  }
-
-  safeIframeUrl(url: string): SafeResourceUrl {
-    if (this.cachedIframeUrl !== url || this.cachedSafeIframeUrl === null) {
-      this.cachedIframeUrl = url;
-      this.cachedSafeIframeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(url);
-    }
-    return this.cachedSafeIframeUrl;
-  }
-
   hasBranding(): boolean {
     const branding = this.branding();
     return Boolean(branding.eventName || branding.organizerName || branding.organizerLogoUrl);
@@ -685,9 +749,38 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   private seedViewerFromState(state: DisplayState): void {
-    if (!this.displayViewer.currentContent() && state.topContent[0]) {
+    const remote = state.remoteControl;
+    if (remote) {
+      this.displayViewer.applyModeChanged({
+        contentMode: remote.contentMode,
+        isPaused: remote.navigationCommand === 'pause',
+        adsVisible: remote.adsVisible,
+        selectedFixedContentId: remote.selectedFixedContentId ?? null,
+        reason: 'bootstrap',
+      });
+    }
+
+    if (remote?.contentMode === 'iframe' && state.selectedIframe) {
+      this.displayViewer.applyShowIframe({
+        commandId: 'bootstrap',
+        iframe: {
+          id: state.selectedIframe.id,
+          title: state.selectedIframe.url,
+          url: state.selectedIframe.url,
+          scaleX: state.selectedIframe.scaleX ?? 1,
+          scaleY: state.selectedIframe.scaleY ?? 1,
+        },
+        reason: 'bootstrap',
+      });
+    } else if (remote?.contentMode === 'fixed' && remote.selectedFixedContentId) {
+      const fixedItem = state.topContent.find((item) => item.id === remote.selectedFixedContentId);
+      if (fixedItem) {
+        this.displayViewer.currentContent.set(fixedItem);
+      }
+    } else if (remote?.contentMode !== 'iframe' && !this.displayViewer.currentContent() && state.topContent[0]) {
       this.displayViewer.currentContent.set(state.topContent[0]);
     }
+
     if (!this.displayViewer.visibleAds().length && state.ads.length) {
       const count = Math.max(1, state.configuration.inlineAdCount ?? 1);
       this.displayViewer.visibleAds.set(state.ads.slice(0, count));

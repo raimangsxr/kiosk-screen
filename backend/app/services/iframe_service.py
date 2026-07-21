@@ -1,3 +1,4 @@
+from decimal import Decimal
 from urllib.parse import urlparse
 
 from sqlalchemy import select
@@ -5,10 +6,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.schemas import IframeRequest
+from app.application.iframe_runtime import refresh_active_iframe_display
 from app.domain.display_events import create_display_event
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.display_control_state import DisplayControlState
-from app.repositories.models.iframe import Iframe
+from app.repositories.models.iframe import Iframe, MAX_IFRAME_SCALE, MIN_IFRAME_SCALE
 
 
 class IframeService:
@@ -38,6 +40,8 @@ class IframeService:
         iframe = Iframe(
             organization_id=organization_id,
             url=url,
+            scale_x=self._validated_scale(request.scale_x),
+            scale_y=self._validated_scale(request.scale_y),
             created_by_user_id=current_user,
             updated_by_user_id=current_user,
         )
@@ -54,12 +58,15 @@ class IframeService:
         url = self._clean_url(request.url)
         self._ensure_unique(organization_id, url, exclude_id=iframe_id)
         iframe.url = url
+        iframe.scale_x = self._validated_scale(request.scale_x)
+        iframe.scale_y = self._validated_scale(request.scale_y)
         iframe.updated_by_user_id = current_user
         try:
             self.session.commit()
         except IntegrityError as exc:
             self.session.rollback()
             raise ValueError("An iframe with this URL already exists.") from exc
+        refresh_active_iframe_display(self.session, organization_id, iframe_id)
         return iframe
 
     def delete(self, organization_id: str, iframe_id: str, current_user: str) -> None:
@@ -96,6 +103,7 @@ class IframeService:
         self.session.commit()
 
     def _clean_url(self, url: str) -> str:
+        """Return the URL unchanged except for leading/trailing whitespace."""
         clean = (url or "").strip()
         parsed = urlparse(clean)
         if not clean or parsed.scheme not in {"http", "https"} or not parsed.netloc or any(ch.isspace() for ch in clean):
@@ -110,3 +118,9 @@ class IframeService:
             query = query.where(Iframe.id != exclude_id)
         if self.session.scalar(query) is not None:
             raise ValueError("An iframe with this URL already exists.")
+
+    def _validated_scale(self, value: float) -> Decimal:
+        scale = Decimal(str(value)).quantize(Decimal("0.01"))
+        if scale < MIN_IFRAME_SCALE or scale > MAX_IFRAME_SCALE:
+            raise ValueError("Scale must be between 0.1 and 5.0.")
+        return scale

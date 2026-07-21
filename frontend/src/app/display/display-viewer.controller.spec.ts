@@ -142,4 +142,32 @@ describe('DisplayViewerController', () => {
     expect(controller.iframeActive()).toBeTrue();
     expect(controller.currentIframe()?.url).toBe('https://example.com/live');
   });
+
+  it('restores iframe mode from snapshot without replaying loop content', () => {
+    controller.applyShowContent(showContentPayload);
+    controller.applySnapshot({
+      configuration: {
+        id: 'config-1',
+        name: 'Main',
+        topRegionRatio: 0.7,
+        bottomRegionRatio: 0.3,
+        defaultTopDurationSeconds: 10,
+        defaultAdDurationSeconds: 8,
+        isEnabled: true,
+      },
+      contentMode: 'iframe',
+      isPaused: false,
+      adsVisible: true,
+      selectedIframe: {
+        id: 'iframe-1',
+        url: 'https://example.com/live',
+      },
+      currentTop: showContentPayload,
+      currentAds: null,
+      fallbackActive: false,
+    });
+    expect(controller.iframeActive()).toBeTrue();
+    expect(controller.currentIframe()?.url).toBe('https://example.com/live');
+    expect(controller.currentContent()).toBeNull();
+  });
 });

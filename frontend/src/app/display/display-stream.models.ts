@@ -30,14 +30,21 @@ export interface ConfigUpdatedPayload {
   changedFields: string[];
 }
 
+export interface SnapshotIframe {
+  id: string;
+  url: string;
+  scaleX?: number;
+  scaleY?: number;
+}
+
 export interface SnapshotPayload {
   configuration: DisplayKioskConfiguration;
   contentMode: 'loop' | 'iframe' | 'fixed';
   isPaused: boolean;
   adsVisible: boolean;
-  selectedIframe: unknown | null;
-  currentTop: unknown | null;
-  currentAds: unknown | null;
+  selectedIframe: SnapshotIframe | null;
+  currentTop: ShowContentPayload | null;
+  currentAds: ShowAdsPayload | null;
   fallbackActive: boolean;
 }
 
@@ -84,8 +91,10 @@ export interface ShowIframePayload {
   commandId: string;
   iframe: {
     id: string;
-    title: string;
+    title?: string;
     url: string;
+    scaleX?: number;
+    scaleY?: number;
   };
   reason: string;
 }

@@ -20,6 +20,7 @@ The admin dashboard at `/admin` is an **operations center**, not a duplicate of 
 2. **Readiness alerts** — blockers and warnings with resolve navigation (same route heuristics as `/admin/readiness`). Omitted when ready with no warnings.
 3. **Content queue** — active top content in `displayOrder` with labels for regular, recurrente (cada N), and fijo elegible; pinned item highlighted in fixed mode. Excludes novelty items from the list.
 4. **Recent activity** — bounded list (≤15) of display audit events, newest first, with severity and timestamp. Section-level empty and error states; does not fail the whole page.
+5. **Connected kiosks** — each connected kiosk row shows display label and `kioskId`. Section degrades independently when `GET /api/admin/display/kiosks/live` fails.
 
 ### Removed dashboard behavior
 

@@ -5,6 +5,7 @@ from app.api.v1.api_keys.routes import router as api_keys_router
 from app.api.v1.auth.routes import router as auth_router
 from app.api.v1.content.routes import router as content_router
 from app.api.v1.display.routes import configuration_router, display_router
+from app.api.display_stream import admin_router as display_admin_router
 from app.api.display_stream import router as display_stream_router
 from app.api.v1.events.routes import router as events_router
 from app.api.event_branding import router as event_branding_router
@@ -19,6 +20,7 @@ api_v1_router = APIRouter()
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(display_router)
 api_v1_router.include_router(display_stream_router)
+api_v1_router.include_router(display_admin_router)
 api_v1_router.include_router(configuration_router)
 api_v1_router.include_router(content_router)
 api_v1_router.include_router(iframes_router)
