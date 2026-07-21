@@ -78,9 +78,9 @@ type DisplayRenderableItem = Pick<
         >Por favor, rota el dispositivo</div>
       }
       <section class="top-region" aria-label="Main content">
-        @if (displayAvailable && iframeMountKey(); as mountKey) {
+        @if (displayAvailable && iframeMountKey()) {
           <div class="iframe-scale-host">
-            @for (_ of [mountKey]; track mountKey) {
+            @for (_ of [iframeMountKey()!]; track iframeMountKey()) {
               <iframe
                 #displayIframe
                 [src]="trustedIframeUrl()!"
