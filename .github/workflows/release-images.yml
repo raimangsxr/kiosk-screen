@@ -47,7 +47,19 @@ jobs:
         run: npm --prefix frontend run test
 
       - name: Validate migrations import
-        run: alembic -c backend/alembic.ini current || true
+        run: |
+          python - <<'PY'
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+
+          cfg = Config("backend/alembic.ini")
+          script = ScriptDirectory.from_config(cfg)
+          revisions = list(script.walk_revisions())
+          heads = script.get_heads()
+          if len(heads) != 1:
+              raise SystemExit(f"expected single alembic head, got {heads}")
+          print(f"alembic: {len(revisions)} revisions, head={heads[0]}")
+          PY
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
