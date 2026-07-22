@@ -77,10 +77,10 @@ def _open_display(client: TestClient) -> None:
     assert response.status_code == 200
 
 
-def _register_kiosk(client: TestClient, client_instance_id: str) -> str:
+def _register_kiosk(client: TestClient, client_instance_id: str, label: str = "Pantalla test") -> str:
     response = client.post(
         "/api/display/kiosk/register",
-        json={"clientInstanceId": client_instance_id},
+        json={"clientInstanceId": client_instance_id, "label": label},
     )
     assert response.status_code == 201
     return response.json()["kioskId"]
@@ -626,6 +626,32 @@ def test_duplicate_client_instance_supersedes_prior_kiosk(stream_clients: tuple[
 
 
 @pytest.mark.redis
+def test_live_kiosks_endpoint_reflects_active_stream_subscribers(
+    stream_clients: tuple[TestClient, TestClient],
+) -> None:
+    """Dashboard live list only includes kiosks with an open SSE subscriber."""
+    operator_client, admin_client = stream_clients
+    _login_operator(operator_client)
+    _open_display(operator_client)
+
+    hub = get_display_sse_hub()
+    kiosk_id = _register_kiosk(operator_client, "live-list-client")
+    registration = hub.get_kiosk(kiosk_id)
+    assert registration is not None
+
+    _login(admin_client, "admin@example.com", "admin")
+    assert admin_client.get("/api/admin/display/kiosks/live").json() == []
+
+    subscriber = hub.subscribe(registration)
+    live = admin_client.get("/api/admin/display/kiosks/live")
+    assert live.status_code == 200
+    assert live.json() == [{"kioskId": kiosk_id, "displayLabel": "Pantalla test"}]
+
+    hub.unsubscribe(subscriber.connection_id)
+    assert admin_client.get("/api/admin/display/kiosks/live").json() == []
+
+
+@pytest.mark.redis
 def test_concurrent_kiosk_registrations(stream_clients: tuple[TestClient, TestClient]) -> None:
     """Performance goal: 50 SSE registrations complete without server errors."""
     operator_client, _admin_client = stream_clients
@@ -635,6 +661,6 @@ def test_concurrent_kiosk_registrations(stream_clients: tuple[TestClient, TestCl
     for index in range(50):
         response = operator_client.post(
             "/api/display/kiosk/register",
-            json={"clientInstanceId": f"load-client-{index}"},
+            json={"clientInstanceId": f"load-client-{index}", "label": f"Pantalla {index}"},
         )
         assert response.status_code == 201, response.text

@@ -60,6 +60,18 @@ function unwrapErrorEnvelope(error: unknown): BackendErrorEnvelope | null {
   }
 
   const detail = envelope.detail;
+  if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+    const structured = detail as BackendErrorEnvelope;
+    if (typeof structured.message === 'string' && structured.message.trim()) {
+      return {
+        code: typeof structured.code === 'string' ? structured.code : 'request_failed',
+        message: structured.message,
+        category: structured.category,
+        correlationId: structured.correlationId,
+      };
+    }
+  }
+
   if (typeof detail === 'string' && detail.trim()) {
     return {
       code: typeof envelope.code === 'string' ? envelope.code : 'validation_failed',

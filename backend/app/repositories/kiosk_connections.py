@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.repositories.base import utc_now
@@ -16,6 +17,7 @@ class KioskConnectionRepository:
         operator_session_id: str,
         client_instance_id: str,
         label: str | None,
+        display_device_id: str | None = None,
     ) -> KioskConnection:
         now = utc_now()
         row = self.session.get(KioskConnection, kiosk_id)
@@ -26,6 +28,7 @@ class KioskConnectionRepository:
                 operator_session_id=operator_session_id,
                 client_instance_id=client_instance_id,
                 label=label,
+                display_device_id=display_device_id,
                 connected_at=now,
                 last_heartbeat_at=now,
             )
@@ -36,6 +39,7 @@ class KioskConnectionRepository:
         row.operator_session_id = operator_session_id
         row.client_instance_id = client_instance_id
         row.label = label
+        row.display_device_id = display_device_id
         row.connected_at = now
         row.disconnected_at = None
         row.last_heartbeat_at = now
@@ -48,3 +52,9 @@ class KioskConnectionRepository:
         now = utc_now()
         row.disconnected_at = now
         row.last_heartbeat_at = now
+
+    def clear_display_device_references(self, display_device_id: str) -> None:
+        for row in self.session.scalars(
+            select(KioskConnection).where(KioskConnection.display_device_id == display_device_id)
+        ):
+            row.display_device_id = None

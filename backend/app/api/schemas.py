@@ -178,6 +178,56 @@ class IframeListResponse(CamelModel):
     items: list[IframeSchema]
 
 
+class DisplayScaleEntry(CamelModel):
+    display_device_id: UUID = Field(alias="displayDeviceId")
+    display_label: str = Field(alias="displayLabel")
+    connected: bool = False
+    scale_x: float = Field(alias="scaleX", ge=0.1, le=5.0)
+    scale_y: float = Field(alias="scaleY", ge=0.1, le=5.0)
+    source: Literal["override", "default"]
+
+
+class IframeWithDisplayScalesSchema(IframeSchema):
+    display_scales: list[DisplayScaleEntry] = Field(default_factory=list, alias="displayScales")
+
+
+class IframeListWithDisplayScalesResponse(CamelModel):
+    items: list[IframeWithDisplayScalesSchema]
+
+
+class DisplayScaleOverrideInput(CamelModel):
+    display_device_id: UUID = Field(alias="displayDeviceId")
+    scale_x: float | None = Field(default=None, alias="scaleX", ge=0.1, le=5.0)
+    scale_y: float | None = Field(default=None, alias="scaleY", ge=0.1, le=5.0)
+    clear: bool = False
+
+
+class IframeDisplayScalesRequest(CamelModel):
+    items: list[DisplayScaleOverrideInput]
+
+
+class DisplayDeviceSchema(CamelModel):
+    id: UUID
+    organization_id: UUID = Field(alias="organizationId")
+    label: str
+    last_seen_at: datetime | None = Field(default=None, alias="lastSeenAt")
+    created_at: datetime = Field(alias="createdAt")
+    updated_at: datetime = Field(alias="updatedAt")
+
+
+class DisplayDeviceRequest(CamelModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class DisplayDeviceRenameRequest(CamelModel):
+    label: str = Field(min_length=1, max_length=80)
+
+
+class KioskIframeScalesMeResponse(CamelModel):
+    display_device_id: UUID = Field(alias="displayDeviceId")
+    overrides: dict[str, dict[str, float]] = Field(default_factory=dict)
+
+
 class ContentItemSchema(CamelModel):
     id: UUID
     title: str

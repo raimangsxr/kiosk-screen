@@ -5,7 +5,9 @@ import { Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { AuthService } from '../core/auth/auth.service';
+import { DisplayLabelService } from './display-label.service';
 import { DisplayStreamService } from './display-stream.service';
+import { signal } from '@angular/core';
 
 class MockEventSource {
   static instances: MockEventSource[] = [];
@@ -78,6 +80,7 @@ describe('DisplayStreamService', () => {
         DisplayStreamService,
         { provide: Router, useValue: router },
         { provide: AuthService, useValue: auth },
+        { provide: DisplayLabelService, useValue: { label: signal('Pantalla test') } },
       ],
     });
     service = TestBed.inject(DisplayStreamService);
@@ -97,16 +100,32 @@ describe('DisplayStreamService', () => {
     await expectAsync(registerPromise).toBeResolvedTo(null);
   });
 
-  it('registers, connects, and applies config_updated events', async () => {
-    const startPromise = service.start();
-    const register = http.expectOne('/api/display/kiosk/register');
-    expect(register.request.body).toEqual(jasmine.objectContaining({ clientInstanceId: jasmine.any(String) }));
-    register.flush({
-      kioskId: 'kiosk-1',
+  function registrationResponse(kioskId: string) {
+    return {
+      kioskId,
       organizationId: 'org-1',
       operatorSessionId: 'session-1',
       protocolVersion: 1,
-    });
+      displayDeviceId: 'device-1',
+    };
+  }
+
+  async function flushRegistrationAndScales(kioskId: string): Promise<void> {
+    const register = http.expectOne('/api/display/kiosk/register');
+    expect(register.request.body).toEqual(jasmine.objectContaining({
+      clientInstanceId: jasmine.any(String),
+      label: 'Pantalla test',
+    }));
+    register.flush(registrationResponse(kioskId));
+    await Promise.resolve();
+    const scales = http.expectOne((req) => req.url.startsWith('/api/display/iframe-scales/me'));
+    expect(scales.request.url).toContain(`kioskId=${kioskId}`);
+    scales.flush({ displayDeviceId: 'device-1', overrides: {} });
+  }
+
+  it('registers, connects, and applies config_updated events', async () => {
+    const startPromise = service.start();
+    await flushRegistrationAndScales('kiosk-1');
     await startPromise;
 
     expect(MockEventSource.lastInstance?.url).toContain('kioskId=kiosk-1');
@@ -133,12 +152,7 @@ describe('DisplayStreamService', () => {
 
   it('marks reconnecting on EventSource error', async () => {
     const startPromise = service.start();
-    http.expectOne('/api/display/kiosk/register').flush({
-      kioskId: 'kiosk-2',
-      organizationId: 'org-1',
-      operatorSessionId: 'session-1',
-      protocolVersion: 1,
-    });
+    await flushRegistrationAndScales('kiosk-2');
     await startPromise;
     MockEventSource.lastInstance?.open();
     MockEventSource.lastInstance?.onerror?.();
@@ -148,12 +162,7 @@ describe('DisplayStreamService', () => {
 
   it('ends the stream cleanly on session_ended', async () => {
     const startPromise = service.start();
-    http.expectOne('/api/display/kiosk/register').flush({
-      kioskId: 'kiosk-3',
-      organizationId: 'org-1',
-      operatorSessionId: 'session-1',
-      protocolVersion: 1,
-    });
+    await flushRegistrationAndScales('kiosk-3');
     await startPromise;
     MockEventSource.lastInstance?.open();
 
@@ -175,12 +184,7 @@ describe('DisplayStreamService', () => {
   it('routes to login when auth refresh fails after stream error', async () => {
     auth.refresh.and.returnValue(of(null));
     const startPromise = service.start();
-    http.expectOne('/api/display/kiosk/register').flush({
-      kioskId: 'kiosk-4',
-      organizationId: 'org-1',
-      operatorSessionId: 'session-1',
-      protocolVersion: 1,
-    });
+    await flushRegistrationAndScales('kiosk-4');
     await startPromise;
     MockEventSource.lastInstance?.open();
     MockEventSource.lastInstance?.onerror?.();

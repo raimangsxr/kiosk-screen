@@ -19,6 +19,7 @@ import { DisplayStreamService } from './display-stream.service';
 import type { ConfigUpdatedPayload } from './display-stream.models';
 import { DisplayScreenComponent } from './display-screen.component';
 import { DisplayViewerController } from './display-viewer.controller';
+import { IframeScaleService } from './iframe-scale.service';
 
 describe('DisplayScreenComponent', () => {
   const readyState: DisplayState = {
@@ -423,6 +424,24 @@ describe('DisplayScreenComponent', () => {
     const host = fixture.nativeElement.querySelector('.iframe-scale-host') as HTMLElement | null;
     expect(host?.style.getPropertyValue('--iframe-scale-x')).toBe('1.25');
     expect(host?.style.getPropertyValue('--iframe-scale-y')).toBe('0.8');
+  });
+
+  it('prefers per-display override scale over iframe defaults', () => {
+    const fixture = createComponent(readyState);
+    const iframeScales = TestBed.inject(IframeScaleService);
+    iframeScales.displayDeviceId.set('device-1');
+    iframeScales.applyScaleUpdate({
+      displayDeviceId: 'device-1',
+      iframeId: 'iframe-1',
+      scaleX: 0.9,
+      scaleY: 1.1,
+      source: 'override',
+    });
+    driveIframe(fixture, 'https://example.org/live', { scaleX: 1.25, scaleY: 0.8 });
+
+    const host = fixture.nativeElement.querySelector('.iframe-scale-host') as HTMLElement | null;
+    expect(host?.style.getPropertyValue('--iframe-scale-x')).toBe('0.9');
+    expect(host?.style.getPropertyValue('--iframe-scale-y')).toBe('1.1');
   });
 
   it('requests browser fullscreen when remote control asks for it', fakeAsync(() => {

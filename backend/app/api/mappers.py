@@ -17,6 +17,8 @@ from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
 from app.repositories.models.event_configuration import EventConfiguration
+from app.api.schemas import DisplayDeviceSchema, DisplayScaleEntry, IframeSchema, IframeWithDisplayScalesSchema
+from app.repositories.models.display_device import DisplayDevice
 from app.repositories.models.iframe import Iframe
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
@@ -179,6 +181,33 @@ def to_iframe_schema(iframe: Iframe) -> IframeSchema:
         scaleY=float(iframe.scale_y),
         createdAt=iframe.created_at,
         updatedAt=iframe.updated_at,
+    )
+
+
+def to_iframe_with_display_scales_schema(
+    iframe: Iframe,
+    display_scales: list[DisplayScaleEntry],
+) -> IframeWithDisplayScalesSchema:
+    return IframeWithDisplayScalesSchema(
+        id=iframe.id,
+        organizationId=iframe.organization_id,
+        url=iframe.url,
+        scaleX=float(iframe.scale_x),
+        scaleY=float(iframe.scale_y),
+        createdAt=iframe.created_at,
+        updatedAt=iframe.updated_at,
+        displayScales=display_scales,
+    )
+
+
+def to_display_device_schema(device: DisplayDevice) -> DisplayDeviceSchema:
+    return DisplayDeviceSchema(
+        id=device.id,
+        organizationId=device.organization_id,
+        label=device.label,
+        lastSeenAt=device.last_seen_at,
+        createdAt=device.created_at,
+        updatedAt=device.updated_at,
     )
 
 

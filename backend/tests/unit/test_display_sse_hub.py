@@ -151,3 +151,29 @@ def test_publish_does_not_duplicate_events_via_local_pubsub_listener() -> None:
     hub.stop()
     reset_display_sse_hub()
     redis_state.reset_redis_client(None)
+
+
+def test_list_registrations_excludes_kiosks_without_active_stream() -> None:
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    redis_state.reset_redis_client(fake)
+    reset_display_sse_hub()
+    hub = DisplaySseHub()
+    org_id = str(uuid4())
+    session_id = str(uuid4())
+    registration = hub.register_kiosk(
+        organization_id=org_id,
+        operator_session_id=session_id,
+        client_instance_id="a",
+        label="Pantalla A",
+    )
+
+    assert hub.list_registrations(org_id) == []
+
+    subscriber = hub.subscribe(registration)
+    assert hub.list_registrations(org_id) == [registration]
+
+    hub.unsubscribe(subscriber.connection_id)
+    assert hub.list_registrations(org_id) == []
+
+    reset_display_sse_hub()
+    redis_state.reset_redis_client(None)

@@ -7,6 +7,7 @@ export type DisplayStreamEventType =
   | 'show_content'
   | 'show_ads'
   | 'show_iframe'
+  | 'iframe_scale_updated'
   | 'mode_changed'
   | 'config_updated'
   | 'branding_updated'
@@ -60,6 +61,7 @@ export interface KioskRegisterResponse {
   kioskId: string;
   organizationId: string;
   operatorSessionId: string;
+  displayDeviceId: string;
   protocolVersion: number;
 }
 
@@ -97,6 +99,14 @@ export interface ShowIframePayload {
     scaleY?: number;
   };
   reason: string;
+}
+
+export interface IframeScaleUpdatedPayload {
+  displayDeviceId: string;
+  iframeId: string;
+  scaleX: number;
+  scaleY: number;
+  source: 'override' | 'default';
 }
 
 export interface PreloadPayload {
