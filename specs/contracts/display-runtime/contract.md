@@ -15,6 +15,7 @@ owns:
   - frontend/src/app/display/kiosk-rotation.controller.ts
   - frontend/src/app/core/display-control-sync.service.ts
   - frontend/src/app/core/event-branding.service.ts
+  - frontend/src/app/display/display-label.service.ts
 tests:
   - frontend/src/app/display/**/*.spec.ts
   - frontend/src/app/core/display-control-sync.service.ts
@@ -28,11 +29,13 @@ related_changes:
   - CHG-030
   - CHG-036
   - CHG-041
+  - CHG-044
 related_adrs:
   - ADR-0001
   - ADR-0002
   - ADR-0007
   - ADR-0009
+  - ADR-0012
 ---
 
 # Display Screen Runtime Contract
@@ -56,7 +59,8 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Display configuration changes saved in the admin propagate to all connected displays via SSE `config_updated` within one second. Layout fields (ratios, sponsor-strip borders) apply immediately; playlist fields apply at the next content or sponsor boundary.
 - Branding changes propagate via SSE `branding_updated` (see `EVENT.BRANDING`); admin cross-tab `BroadcastChannel` remains optional for admin UI only.
 - Top-region photos and videos render the full frame without cropping (`object-fit: contain` on the foreground). Unused band space is filled with a blurred backdrop copy of the same media (blur-fill). Under `prefers-reduced-motion: reduce`, the backdrop degrades to solid `#102832` instead of blur. See `ADR-0007`.
-- Pinned iframes continue to fill the top region edge-to-edge without blur-fill framing (v1).
+- Pinned iframes fill the top region inside an `overflow: hidden` host. The iframe element uses CSS `transform: scale(scaleX, scaleY)` with `transform-origin: top center`. Scale values come from the active `show_iframe` / `snapshot` payload (`scaleX`, `scaleY`; default `1.0`). The iframe URL is not augmented with density query parameters and no `bull:config` postMessage is sent.
+- Operators set a stable kiosk display label via `DisplayLabelService` (local storage). The label is sent on `POST /api/display/kiosk/register` for ops visibility.
 - Ad rotation uses its own cadence and is not reset by faster top-content advances in loop/rotation mode; the same ad cadence continues in fixed, iframe, and paused states while ads remain visible.
 - The sponsor band avoids browser-extension bait in its rendered DOM class and test hook names (for example generic `ad-*` selectors) so Chrome deployments with cosmetic filtering still render first-party sponsor content.
 - Branding overlay is visible, legible, and non-overlapping when configured, hidden for iframe mode, and absent when branding is empty.
@@ -97,6 +101,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `frontend/src/app/core/display-control-sync.service.ts`
 - `frontend/src/app/core/event-branding.service.ts`
 - `frontend/src/app/core/event-config-sync.service.ts`
+- `frontend/src/app/display/display-label.service.ts`
 
 ## Quality gates
 
@@ -122,4 +127,5 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-030
 - CHG-036
 - CHG-041
+- CHG-044 — per-iframe CSS scale (`scaleX`/`scaleY`) replaces CHG-042/043 embed-density stack (`DisplayLayoutService`, `embed_app_height_px`, `bull:config`, `layout_updated` SSE).
 - CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)

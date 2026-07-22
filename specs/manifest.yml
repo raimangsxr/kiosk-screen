@@ -47,11 +47,13 @@ contracts:
       - frontend/src/app/features/display-config/**
       - frontend/src/app/features/hall/**
       - frontend/src/app/core/api/display.api.ts
+      - frontend/src/app/core/api/live-kiosks.api.ts
     related_changes:
       - CHG-002
       - CHG-011
       - CHG-020
       - CHG-041
+      - CHG-044
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -106,10 +108,12 @@ contracts:
       - backend/app/api/iframes.py
       - backend/app/repositories/models/iframe.py
       - backend/app/application/display_config/**
+      - backend/app/application/iframe_runtime.py
       - frontend/src/app/features/iframes/**
       - frontend/src/app/display/display-screen.component.ts
     related_changes:
       - CHG-006
+      - CHG-044
 
   - id: CONTENT.ROTATION
     path: specs/contracts/content-rotation/contract.md
@@ -211,6 +215,7 @@ contracts:
       - CHG-007
       - CHG-014
       - CHG-041
+      - CHG-044
 
   - id: ADMIN.SHELL.NAVIGATION
     path: specs/contracts/admin-shell-navigation/contract.md
@@ -241,6 +246,7 @@ contracts:
       - frontend/src/app/core/display-control-sync.service.ts
       - frontend/src/app/core/event-branding.service.ts
       - frontend/src/app/core/event-config-sync.service.ts
+      - frontend/src/app/display/display-label.service.ts
     related_changes:
       - CHG-014
       - CHG-019
@@ -254,6 +260,7 @@ contracts:
       - CHG-008
       - CHG-020
       - CHG-041
+      - CHG-044
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -655,5 +662,46 @@ changes:
       - EVENT.BRANDING
       - OPS.PLATFORM
     read_by_default: false
+
+  - id: CHG-042
+    path: specs/changes/042-per-display-iframe-layout/spec.md
+    status: cancelled
+    supersedes: []
+    modifies:
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONFIG_SESSION
+    depends_on:
+      - CHG-041
+    consolidated_into: []
+    read_by_default: false
+
+  - id: CHG-043
+    path: specs/changes/043-live-density-preview/spec.md
+    status: cancelled
+    modifies:
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONFIG_SESSION
+    depends_on:
+      - CHG-042
+    extends:
+      - CHG-042
+    consolidated_into: []
+    read_by_default: false
+
+  - id: CHG-044
+    path: specs/changes/044-iframe-css-scale/spec.md
+    status: implemented
+    modifies:
+      - IFRAMES.VIDEO_END
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONFIG_SESSION
+      - DISPLAY.EVENTS.AUDIT
+    supersedes:
+      - CHG-042
+      - CHG-043
+    depends_on:
+      - CHG-041
+    consolidated_into: []
+    read_by_default: true
 
 archive: []  

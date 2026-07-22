@@ -247,6 +247,21 @@
 .display-content-media--iframe {
   z-index: 2;
   object-fit: unset;
+  transform-origin: top center;
+}
+
+.iframe-scale-host {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.iframe-scale-host .display-content-media--iframe {
+  position: relative;
+  inset: unset;
 }
 
 @media (prefers-reduced-motion: reduce) {

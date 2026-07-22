@@ -18,6 +18,7 @@ related_changes:
   - CHG-011
   - CHG-037
   - CHG-040
+  - CHG-042
 related_adrs:
   []
 ---
@@ -44,6 +45,12 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 - The dashboard MUST surface the same blocker and warning messages returned by readiness evaluation.
 - Each blocker and warning on the dashboard MUST include a navigation control to the appropriate admin resolution route (equivalent intent to the readiness page "Resolver" / "Revisar" actions).
 - Dashboard readiness failure (endpoint unavailable) MUST show a recoverable error in the readiness section without preventing other dashboard sections from rendering when their sources succeed.
+
+### Dashboard connected kiosks (CHG-042)
+
+- The operations dashboard MUST show a **Pantallas conectadas** section listing each kiosk connected to the display stream.
+- Each row shows display label, effective Bull embed density in px, and a source chip (`perfil`, `ajuste local`, `predeterminado`).
+- Failure of `GET /api/admin/display/kiosks/live` degrades only this section; other dashboard sections continue to render.
 
 ## Public interfaces
 
@@ -80,3 +87,4 @@ This active contract is the current source of truth for `READINESS.SETUP`. Histo
 - CHG-032
 - CHG-037
 - CHG-040 — dashboard readiness alerts with resolve navigation and partial degradation.
+- CHG-042 — dashboard connected-kiosk density section with per-source chips and partial degradation.

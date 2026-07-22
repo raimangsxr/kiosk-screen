@@ -12,6 +12,7 @@ import { ReadinessAlertsComponent } from './sections/readiness-alerts.component'
 import { ContextualActionsComponent } from './sections/contextual-actions.component';
 import { ActivityFeedComponent } from './sections/activity-feed.component';
 import { ContentQueueComponent } from './sections/content-queue.component';
+import { LiveKiosksSectionComponent } from './sections/live-kiosks-section.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -27,7 +28,8 @@ import { ContentQueueComponent } from './sections/content-queue.component';
     ReadinessAlertsComponent,
     ContextualActionsComponent,
     ActivityFeedComponent,
-    ContentQueueComponent
+    ContentQueueComponent,
+    LiveKiosksSectionComponent
   ],
   template: `
     <app-admin-page
@@ -60,6 +62,11 @@ import { ContentQueueComponent } from './sections/content-queue.component';
         [live]="s.live"
         [liveDegraded]="isLiveDegraded()"
         (retryLive)="retryLive()"
+      />
+
+      <app-live-kiosks-section
+        [slice]="s.liveKiosks"
+        [degraded]="isLiveKiosksDegraded()"
       />
 
       <app-readiness-alerts [readiness]="s.readiness" [degraded]="isReadinessDegraded()" />
@@ -135,6 +142,11 @@ export class AdminDashboardComponent implements OnInit {
   protected isLiveDegraded(): boolean {
     const s = this.state();
     return Boolean(s && !s.live && s.degradedSections.includes('Estado en vivo'));
+  }
+
+  protected isLiveKiosksDegraded(): boolean {
+    const s = this.state();
+    return Boolean(s && !s.liveKiosks && s.degradedSections.includes('Pantallas conectadas'));
   }
 
   protected isQueueDegraded(): boolean {

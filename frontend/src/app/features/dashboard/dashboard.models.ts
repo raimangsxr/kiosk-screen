@@ -21,6 +21,15 @@ export interface LiveStatusSlice {
   readonly pinnedContentUnresolved: boolean;
 }
 
+export interface ConnectedKiosk {
+  readonly kioskId: string;
+  readonly displayLabel: string | null;
+}
+
+export interface LiveKiosksSlice {
+  readonly items: readonly ConnectedKiosk[];
+}
+
 export type ContentQueueKind = 'regular' | 'recurring' | 'fixed-eligible';
 
 export interface ContentQueueEntry {
@@ -61,6 +70,7 @@ export interface ContextualAction {
 export interface OperationsDashboardState {
   readonly readiness: ReadinessSlice | null;
   readonly live: LiveStatusSlice | null;
+  readonly liveKiosks: LiveKiosksSlice | null;
   readonly queue: ContentQueueSlice | null;
   readonly activity: ActivityFeedSlice | null;
   readonly contextualActions: readonly ContextualAction[];

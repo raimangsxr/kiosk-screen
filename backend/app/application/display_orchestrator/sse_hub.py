@@ -159,7 +159,11 @@ class DisplaySseHub:
                 self._subscribers.pop(connection_id, None)
             self._sequences.pop((organization_id, operator_session_id), None)
 
-    def record_kiosk_connected(self, session: Session, registration: KioskRegistration) -> None:
+    def record_kiosk_connected(
+        self,
+        session: Session,
+        registration: KioskRegistration,
+    ) -> None:
         KioskConnectionRepository(session).record_connected(
             kiosk_id=registration.kiosk_id,
             organization_id=registration.organization_id,
@@ -202,6 +206,24 @@ class DisplaySseHub:
             )
         )
         session.commit()
+
+    def list_registrations(self, organization_id: str) -> list[KioskRegistration]:
+        with self._lock:
+            return [
+                registration
+                for registration in self._kiosks.values()
+                if registration.organization_id == organization_id
+            ]
+
+    def fanout_to_kiosk(self, kiosk_id: str, envelope: dict[str, Any]) -> None:
+        with self._lock:
+            subscribers = [
+                subscriber
+                for subscriber in self._subscribers.values()
+                if subscriber.kiosk_id == kiosk_id
+            ]
+        for subscriber in subscribers:
+            subscriber.events.put(envelope)
 
     def get_kiosk(self, kiosk_id: str) -> KioskRegistration | None:
         with self._lock:

@@ -35,7 +35,7 @@ describe('RemoteControlFacade', () => {
 
     http.expectOne('/api/display/remote-control/state').flush(state);
     http.expectOne('/api/display/remote-control/iframe-options').flush({
-      items: [{ id: 'content-1', organizationId: 'org-1', url: 'https://example.org/agenda', createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }]
+      items: [{ id: 'content-1', organizationId: 'org-1', url: 'https://example.org/agenda', scaleX: 1, scaleY: 1, createdAt: '2026-06-18T00:00:00Z', updatedAt: '2026-06-18T00:00:00Z' }]
     });
 
     expect(facade.state()?.contentMode).toBe('loop');

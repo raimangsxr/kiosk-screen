@@ -52,13 +52,15 @@ describe('AdminDashboardComponent', () => {
       updatedAt: '2026-07-08T10:00:00.000Z',
       displaySessionActive: true
     });
+    http.expectOne('/api/admin/display/kiosks/live').flush([]);
     http.expectOne('/api/content').flush([]);
     http.expectOne('/api/events').flush([]);
   }
 
-  it('renders operations hero and removes legacy section grid', () => {
+  it('renders operations hero and removes legacy section grid', async () => {
     fixture.detectChanges();
     flushDashboard();
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-operations-hero')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.dashboard__grid')).toBeNull();

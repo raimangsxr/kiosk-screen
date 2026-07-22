@@ -9,6 +9,8 @@ import type {
   ShowAdsPayload,
   ShowContentPayload,
   ShowIframePayload,
+  SnapshotIframe,
+  SnapshotPayload,
 } from './display-stream.models';
 
 @Injectable()
@@ -39,6 +41,45 @@ export class DisplayViewerController {
     if (payload.contentMode !== 'iframe') {
       this.currentIframe.set(null);
     }
+  }
+
+  applySnapshot(snapshot: SnapshotPayload): void {
+    this.applyModeChanged({
+      contentMode: snapshot.contentMode,
+      isPaused: snapshot.isPaused,
+      adsVisible: snapshot.adsVisible,
+      selectedFixedContentId: null,
+      reason: 'snapshot',
+    });
+
+    if (snapshot.contentMode === 'iframe' && snapshot.selectedIframe) {
+      this.applyShowIframe(this.snapshotIframePayload(snapshot.selectedIframe));
+      if (snapshot.currentAds) {
+        this.applyShowAds(snapshot.currentAds);
+      }
+      return;
+    }
+
+    if (snapshot.currentTop) {
+      this.applyShowContent(snapshot.currentTop);
+    }
+    if (snapshot.currentAds) {
+      this.applyShowAds(snapshot.currentAds);
+    }
+  }
+
+  private snapshotIframePayload(iframe: SnapshotIframe): ShowIframePayload {
+    return {
+      commandId: 'snapshot',
+      iframe: {
+        id: iframe.id,
+        title: iframe.url,
+        url: iframe.url,
+        scaleX: iframe.scaleX ?? 1,
+        scaleY: iframe.scaleY ?? 1,
+      },
+      reason: 'snapshot',
+    };
   }
 
   applyShowContent(payload: ShowContentPayload): void {
