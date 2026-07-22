@@ -256,11 +256,15 @@ describe('DisplayScreenComponent', () => {
   return fixture;
 }
 
-  function driveIframe(fixture: ComponentFixture<DisplayScreenComponent>, url: string): void {
+  function driveIframe(
+    fixture: ComponentFixture<DisplayScreenComponent>,
+    url: string,
+    scale?: { scaleX: number; scaleY: number },
+  ): void {
     viewerFor(fixture).applyShowIframe({
       commandId: 'cmd-iframe',
       reason: 'remote_mode_change',
-      iframe: { id: 'iframe-1', title: 'Live', url },
+      iframe: { id: 'iframe-1', title: 'Live', url, ...scale },
     });
     fixture.detectChanges();
   }
@@ -410,6 +414,15 @@ describe('DisplayScreenComponent', () => {
 
     const el = fixture.nativeElement.querySelector('[data-testid="display-iframe"]') as HTMLElement | null;
     expect(el?.getAttribute('data-iframe-url')).toBe(url);
+  });
+
+  it('applies inverse-dimension scale CSS vars on the iframe host', () => {
+    const fixture = createComponent(readyState);
+    driveIframe(fixture, 'https://example.org/live', { scaleX: 1.25, scaleY: 0.8 });
+
+    const host = fixture.nativeElement.querySelector('.iframe-scale-host') as HTMLElement | null;
+    expect(host?.style.getPropertyValue('--iframe-scale-x')).toBe('1.25');
+    expect(host?.style.getPropertyValue('--iframe-scale-y')).toBe('0.8');
   });
 
   it('requests browser fullscreen when remote control asks for it', fakeAsync(() => {
