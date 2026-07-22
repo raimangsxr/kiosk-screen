@@ -79,12 +79,11 @@ type DisplayRenderableItem = Pick<
       }
       <section class="top-region" aria-label="Main content">
         @if (displayAvailable && iframeMountKey()) {
-          <div class="iframe-scale-host">
+          <div class="iframe-scale-host" [style]="iframeScaleHostStyles()">
             @for (_ of [iframeMountKey()!]; track iframeMountKey()) {
               <iframe
                 #displayIframe
                 [src]="trustedIframeUrl()!"
-                [style.transform]="iframeTransform()"
                 [attr.data-iframe-url]="activeIframeUrl()"
                 title="Pinned iframe"
                 class="display-content-media display-content-media--iframe"
@@ -662,11 +661,14 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
   }
 
-  iframeTransform(): string {
+  iframeScaleHostStyles(): Record<string, string> {
     const iframe = this.displayViewer.currentIframe();
     const scaleX = iframe?.scaleX ?? 1;
     const scaleY = iframe?.scaleY ?? 1;
-    return `scale(${scaleX}, ${scaleY})`;
+    return {
+      '--iframe-scale-x': String(scaleX),
+      '--iframe-scale-y': String(scaleY),
+    };
   }
 
   mediaSource(item: DisplayRenderableItem): string {

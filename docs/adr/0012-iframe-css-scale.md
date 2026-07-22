@@ -14,7 +14,8 @@ model heavy and hard to tune. Product chose a simpler global-per-iframe scale.
 ## Decision
 
 1. Each iframe record stores `scaleX` and `scaleY` (default `1.0`, range `0.1`–`5.0`).
-2. Kiosk runtime applies `transform: scale(X, Y)` with `transform-origin: top center`
+2. Kiosk runtime keeps the top-region host size fixed and zooms embedded content via
+   inverse iframe dimensions plus `transform: scale(X, Y)` (`transform-origin: top center`)
    inside an `overflow: hidden` host. No density query params or postMessage.
 3. Remove embed-density tables, admin calibration UI, SSE `layout_updated`, and
    `embed_density_defaults` from kiosk configuration.

@@ -247,7 +247,6 @@
 .display-content-media--iframe {
   z-index: 2;
   object-fit: unset;
-  transform-origin: top center;
 }
 
 .iframe-scale-host {
@@ -259,9 +258,22 @@
   height: 100%;
 }
 
+/**
+ * Inverse dimensions + CSS scale: the host keeps the top-region footprint while
+ * the iframe viewport is enlarged/shrunk then scaled so embedded content zooms.
+ * Center with margin (not translateX) so scale from top center stays aligned.
+ */
 .iframe-scale-host .display-content-media--iframe {
-  position: relative;
-  inset: unset;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: auto;
+  left: 0;
+  width: calc(100% / var(--iframe-scale-x, 1));
+  height: calc(100% / var(--iframe-scale-y, 1));
+  margin-inline: auto;
+  transform: scale(var(--iframe-scale-x, 1), var(--iframe-scale-y, 1));
+  transform-origin: top center;
 }
 
 @media (prefers-reduced-motion: reduce) {
