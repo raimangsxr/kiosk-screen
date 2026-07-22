@@ -11,6 +11,7 @@ import {
   ConfigUpdatedPayload,
   DisplayStreamEnvelope,
   DisplayStreamEventType,
+  IframeScaleUpdatedPayload,
   KioskRegisterResponse,
   ModeChangedPayload,
   PreloadPayload,
@@ -18,6 +19,7 @@ import {
   ShowContentPayload,
   ShowIframePayload,
 } from './display-stream.models';
+import { IframeScaleService } from './iframe-scale.service';
 
 const CLIENT_INSTANCE_STORAGE_KEY = 'kiosk-client-instance-id';
 
@@ -27,8 +29,10 @@ export class DisplayStreamService {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly displayLabel = inject(DisplayLabelService);
+  private readonly iframeScales = inject(IframeScaleService);
 
   readonly kioskId = signal<string | null>(null);
+  readonly displayDeviceId = signal<string | null>(null);
   readonly connected = signal(false);
   readonly reconnecting = signal(false);
   readonly sessionEnded = signal(false);
@@ -134,6 +138,8 @@ export class DisplayStreamService {
     this.started = false;
     this.disconnect();
     this.kioskId.set(null);
+    this.displayDeviceId.set(null);
+    this.iframeScales.reset();
     this.connected.set(false);
     this.reconnecting.set(false);
     this.sessionEnded.set(false);
@@ -141,12 +147,15 @@ export class DisplayStreamService {
 
   private async register(): Promise<KioskRegisterResponse> {
     const label = this.displayLabel.label();
-    return firstValueFrom(
+    const registration = await firstValueFrom(
       this.http.post<KioskRegisterResponse>('/api/display/kiosk/register', {
         clientInstanceId: this.clientInstanceId(),
         label,
       }),
     );
+    this.displayDeviceId.set(registration.displayDeviceId);
+    await this.iframeScales.loadForKiosk(registration.kioskId, registration.displayDeviceId);
+    return registration;
   }
 
   private connect(kioskId: string): void {
@@ -179,6 +188,7 @@ export class DisplayStreamService {
       'show_content',
       'show_ads',
       'show_iframe',
+      'iframe_scale_updated',
       'mode_changed',
       'preload',
       'session_ended',
@@ -209,6 +219,9 @@ export class DisplayStreamService {
         this.connected.set(false);
         this.reconnecting.set(false);
         this.disconnect();
+      }
+      if (envelope.type === 'iframe_scale_updated') {
+        this.iframeScales.applyScaleUpdate(envelope.payload as IframeScaleUpdatedPayload);
       }
     } catch {
       // Ignore malformed SSE payloads; EventSource will keep the connection alive.

@@ -44,6 +44,20 @@ describe('adaptApiError', () => {
     expect(result.category).toBe('validation');
   });
 
+  it('maps structured FastAPI detail objects to user messages', () => {
+    const result = adaptApiError({
+      error: {
+        detail: {
+          code: 'invalid_request',
+          message: 'No se puede eliminar la pantalla porque sigue referenciada por conexiones activas.',
+        },
+      },
+    });
+
+    expect(result.code).toBe('invalid_request');
+    expect(result.message).toContain('No se puede eliminar la pantalla');
+  });
+
   it('maps structured upload errors from ApplicationError responses', () => {
     const result = adaptApiError({
       error: {

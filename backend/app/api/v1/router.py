@@ -11,6 +11,7 @@ from app.api.v1.events.routes import router as events_router
 from app.api.event_branding import router as event_branding_router
 from app.api.event_configuration import router as event_configuration_router
 from app.api.v1.health.routes import router as health_router
+from app.api.display_devices import router as display_devices_router
 from app.api.iframes import router as iframes_router
 from app.api.v1.media.routes import router as media_router
 from app.api.v1.readiness.routes import router as readiness_router
@@ -24,6 +25,7 @@ api_v1_router.include_router(display_admin_router)
 api_v1_router.include_router(configuration_router)
 api_v1_router.include_router(content_router)
 api_v1_router.include_router(iframes_router)
+api_v1_router.include_router(display_devices_router)
 api_v1_router.include_router(ads_router)
 api_v1_router.include_router(media_router)
 api_v1_router.include_router(events_router)

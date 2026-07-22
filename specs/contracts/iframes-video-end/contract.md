@@ -16,8 +16,10 @@ tests:
 related_changes:
   - CHG-006
   - CHG-044
+  - CHG-045
 related_adrs:
   - ADR-0012
+  - ADR-0013
 ---
 
 # Preconfigured Iframes and Video-End Contract
@@ -29,12 +31,15 @@ This active contract is the current source of truth for `IFRAMES.VIDEO_END`. His
 ## Current behavior
 
 - Authorized users can create, list, update, and delete preconfigured iframe URLs.
-- Each iframe stores `scaleX` and `scaleY` (default `1.0`, validated range `0.1`–`5.0`). The same scale applies on every kiosk that shows that iframe.
+- Each iframe stores `scaleX` and `scaleY` (default `1.0`, validated range `0.1`–`5.0`) as the organization-wide baseline. Optional per-display overrides are stored in `iframe_display_scale_overrides` keyed by `(display_device_id, iframe_id)`.
 - Iframe mode requires a selected iframe that still exists and belongs to the user organization.
 - Deleted selected iframes cause the display control state to revert safely to loop mode.
 - Video end delay is configurable and applied by the runtime before advancing after video end.
 - Iframe rendering hides the branding overlay and uses a sanitized safe resource URL. The configured URL, including any query string, is passed through unchanged to the kiosk iframe `src` (no stripping or rewriting of operator-supplied parameters).
-- When an iframe is updated via `PUT /iframes/{id}` and that iframe is the active remote-control selection, the server re-emits `show_iframe` so connected kiosks refresh scale without reloading `/display`.
+- When an iframe is updated via `PUT /iframes/{id}` and that iframe is the active remote-control selection, the server re-emits `show_iframe` so connected kiosks refresh default scale without reloading `/display`. Kiosks without a per-display override pick up new defaults client-side.
+- `GET /iframes` and `GET /iframes/{id}` include `displayScales[]` with effective scale, `source` (`override` | `default`), and `connected` for every known `display_device`.
+- `PUT /iframes/{id}/display-scales` batch upserts or clears per-display overrides (last-write-wins). Deleting an iframe cascades its override rows.
+- When an override changes and the iframe is the active remote selection, the server emits `iframe_scale_updated` SSE to the affected display.
 
 ## Public interfaces
 
@@ -42,6 +47,7 @@ This active contract is the current source of truth for `IFRAMES.VIDEO_END`. His
 - `POST /iframes`
 - `PUT /iframes/{id}`
 - `DELETE /iframes/{id}`
+- `PUT /iframes/{id}/display-scales`
 - `GET /display/remote-control/iframe-options`
 
 ## Owned code paths
@@ -62,9 +68,10 @@ This active contract is the current source of truth for `IFRAMES.VIDEO_END`. His
 ## Non-goals
 
 - Arbitrary domains are not allowed unless approved by the iframe/domain governance.
-- Per-kiosk iframe scale overrides are not supported (scale is per iframe record).
+- On-display scale calibration UI is not supported (admin matrix + API only).
 
 ## Change history
 
 - CHG-006
 - CHG-044 — replaces CHG-042 embed-density model with per-iframe `scaleX`/`scaleY` and live `show_iframe` refresh on update.
+- CHG-045 — per-display iframe scale overrides via `display_devices` + `iframe_display_scale_overrides`; client-side effective scale resolution and `iframe_scale_updated` SSE.

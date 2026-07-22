@@ -44,16 +44,20 @@ contracts:
       - backend/app/api/v1/display/**
       - backend/app/repositories/models/operator_session.py
       - backend/app/repositories/models/kiosk_connection.py
+      - backend/app/repositories/models/display_device.py
+      - backend/app/api/display_devices.py
       - frontend/src/app/features/display-config/**
       - frontend/src/app/features/hall/**
       - frontend/src/app/core/api/display.api.ts
       - frontend/src/app/core/api/live-kiosks.api.ts
+      - frontend/src/app/core/api/display-device.api.ts
     related_changes:
       - CHG-002
       - CHG-011
       - CHG-020
       - CHG-041
       - CHG-044
+      - CHG-045
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -107,13 +111,18 @@ contracts:
     owns:
       - backend/app/api/iframes.py
       - backend/app/repositories/models/iframe.py
+      - backend/app/repositories/models/iframe_display_scale_override.py
       - backend/app/application/display_config/**
       - backend/app/application/iframe_runtime.py
+      - backend/app/application/iframe_scale_resolver.py
+      - backend/app/services/iframe_service.py
       - frontend/src/app/features/iframes/**
       - frontend/src/app/display/display-screen.component.ts
+      - frontend/src/app/display/iframe-scale.service.ts
     related_changes:
       - CHG-006
       - CHG-044
+      - CHG-045
 
   - id: CONTENT.ROTATION
     path: specs/contracts/content-rotation/contract.md
@@ -247,6 +256,9 @@ contracts:
       - frontend/src/app/core/event-branding.service.ts
       - frontend/src/app/core/event-config-sync.service.ts
       - frontend/src/app/display/display-label.service.ts
+      - frontend/src/app/display/iframe-scale.service.ts
+      - frontend/src/app/display/display-stream.service.ts
+      - frontend/src/app/display/display-viewer.controller.ts
     related_changes:
       - CHG-014
       - CHG-019
@@ -261,6 +273,7 @@ contracts:
       - CHG-020
       - CHG-041
       - CHG-044
+      - CHG-045
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -701,6 +714,18 @@ changes:
       - CHG-043
     depends_on:
       - CHG-041
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-045
+    path: specs/changes/045-per-display-iframe-scale/spec.md
+    status: implemented
+    modifies:
+      - IFRAMES.VIDEO_END
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONFIG_SESSION
+    depends_on:
+      - CHG-044
     consolidated_into: []
     read_by_default: true
 

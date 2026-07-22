@@ -18,6 +18,7 @@ import { DisplayLabelService } from './display-label.service';
 import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
 import { DisplayStreamService } from './display-stream.service';
+import { IframeScaleService } from './iframe-scale.service';
 import type { ShowAdsPayload, ShowContentPayload, SnapshotPayload } from './display-stream.models';
 import { DisplayViewerController } from './display-viewer.controller';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
@@ -270,6 +271,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly displayStream = inject(DisplayStreamService);
   private readonly eventBranding = inject(EventBrandingService);
   private readonly displayViewer = inject(DisplayViewerController);
+  private readonly iframeScales = inject(IframeScaleService);
   private readonly mediaCache = inject(DisplayMediaCacheService);
   private readonly displayApi = inject(DisplayApiService);
   private readonly displayLabel = inject(DisplayLabelService);
@@ -663,11 +665,10 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   iframeScaleHostStyles(): Record<string, string> {
     const iframe = this.displayViewer.currentIframe();
-    const scaleX = iframe?.scaleX ?? 1;
-    const scaleY = iframe?.scaleY ?? 1;
+    const resolved = this.iframeScales.resolveScale(iframe?.id, iframe?.scaleX ?? 1, iframe?.scaleY ?? 1);
     return {
-      '--iframe-scale-x': String(scaleX),
-      '--iframe-scale-y': String(scaleY),
+      '--iframe-scale-x': String(resolved.scaleX),
+      '--iframe-scale-y': String(resolved.scaleY),
     };
   }
 

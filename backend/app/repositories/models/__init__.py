@@ -4,7 +4,9 @@ from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.event_configuration import EventConfiguration
+from app.repositories.models.display_device import DisplayDevice
 from app.repositories.models.iframe import Iframe
+from app.repositories.models.iframe_display_scale_override import IframeDisplayScaleOverride
 from app.repositories.models.kiosk_connection import KioskConnection
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
 from app.repositories.models.media import MediaFileReference
@@ -17,10 +19,12 @@ from app.repositories.models.user_auth_session import UserAuthSession
 __all__ = [
     "ApiKey",
     "ClientAdItem",
+    "DisplayDevice",
     "DisplayEvent",
     "DisplayControlState",
     "EventConfiguration",
     "Iframe",
+    "IframeDisplayScaleOverride",
     "KioskConnection",
     "KioskDisplayConfiguration",
     "MediaFileReference",

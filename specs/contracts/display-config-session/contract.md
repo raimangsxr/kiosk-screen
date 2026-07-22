@@ -11,10 +11,13 @@ owns:
   - backend/app/api/v1/display/**
   - backend/app/repositories/models/operator_session.py
   - backend/app/repositories/models/kiosk_connection.py
+  - backend/app/repositories/models/display_device.py
+  - backend/app/api/display_devices.py
   - frontend/src/app/features/display-config/**
   - frontend/src/app/features/hall/**
   - frontend/src/app/core/api/display.api.ts
   - frontend/src/app/core/api/live-kiosks.api.ts
+  - frontend/src/app/core/api/display-device.api.ts
 tests:
   - backend/tests/**/*
   - frontend/src/app/**/*.spec.ts
@@ -26,9 +29,11 @@ related_changes:
   - CHG-036
   - CHG-041
   - CHG-044
+  - CHG-045
 related_adrs:
   - ADR-0009
   - ADR-0012
+  - ADR-0013
 ---
 
 # Kiosk Configuration and Session Contract
@@ -46,7 +51,8 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `GET /display/state` is read-only: it does not insert control-state rows, auto-fallback, audit events, or commits.
 - Readiness blockers prevent opening the kiosk when the setup is not safe for a live event.
 - Polling cadence configuration is deprecated. `GET /display/state` is retained as a degraded fallback only when SSE is unavailable for more than 60 seconds.
-- Displays register via `POST /api/display/kiosk/register` with an optional `label` (display label for ops). Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis). Registration does not return embed-layout data.
+- Displays register via `POST /api/display/kiosk/register` with a required non-empty `label`. Registration upserts `display_devices` by `(organization_id, label)`, links `kiosk_connections.display_device_id`, and returns `displayDeviceId` in the response. Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis). Registration does not return embed-layout data.
+- Known display devices are listed and managed via `GET/POST/PATCH/DELETE /api/admin/display-devices`. Manual pre-creation is supported; label rename updates metadata only (overrides stay on device id).
 - `POST /display/open` bootstraps the server orchestrator and emits an initial `snapshot` to connected displays.
 - Session supersede sends `session_ended` SSE to prior connections.
 - Admin ops dashboard lists connected kiosks via `GET /api/admin/display/kiosks/live` (`kioskId`, `displayLabel` only).
@@ -59,6 +65,10 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `POST /api/display/kiosk/register`
 - `GET /api/display/stream`
 - `GET /api/admin/display/kiosks/live`
+- `GET /api/admin/display-devices`
+- `POST /api/admin/display-devices`
+- `PATCH /api/admin/display-devices/{id}`
+- `DELETE /api/admin/display-devices/{id}`
 - `GET /display/state` (deprecated SSE-down fallback only)
 
 ## Owned code paths
@@ -69,10 +79,14 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `backend/app/api/display_stream.py`
 - `backend/app/api/v1/display/**`
 - `backend/app/repositories/models/operator_session.py`
+- `backend/app/repositories/models/kiosk_connection.py`
+- `backend/app/repositories/models/display_device.py`
+- `backend/app/api/display_devices.py`
 - `frontend/src/app/features/display-config/**`
 - `frontend/src/app/features/hall/**`
 - `frontend/src/app/core/api/display.api.ts`
 - `frontend/src/app/core/api/live-kiosks.api.ts`
+- `frontend/src/app/core/api/display-device.api.ts`
 
 ## Quality gates
 
@@ -83,7 +97,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 ## Non-goals
 
 - Multi-organization tenant switching is not part of this contract.
-- Per-display iframe embed density profiles and calibration UI are out of scope (removed by CHG-044).
+- Per-display iframe embed density profiles and on-display calibration UI are out of scope (removed by CHG-044).
 
 ## Change history
 
@@ -94,3 +108,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-036
 - CHG-041
 - CHG-044 — removes CHG-042/043 layout REST, `layout_updated` SSE, and `embed_density_defaults`; adds live kiosks admin endpoint.
+- CHG-045 — restores slim `display_devices` registry, required register label, and admin display-device CRUD.

@@ -136,7 +136,7 @@ def test_orchestrator_novelty_fan_out_same_command_id(
     for index in range(3):
         response = client.post(
             "/api/display/kiosk/register",
-            json={"clientInstanceId": f"novelty-{index}"},
+            json={"clientInstanceId": f"novelty-{index}", "label": f"Pantalla {index}"},
         )
         assert response.status_code == 201
         kiosk_ids.append(response.json()["kioskId"])

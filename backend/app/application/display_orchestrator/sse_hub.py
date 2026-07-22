@@ -163,6 +163,8 @@ class DisplaySseHub:
         self,
         session: Session,
         registration: KioskRegistration,
+        *,
+        display_device_id: str | None = None,
     ) -> None:
         KioskConnectionRepository(session).record_connected(
             kiosk_id=registration.kiosk_id,
@@ -170,6 +172,7 @@ class DisplaySseHub:
             operator_session_id=registration.operator_session_id,
             client_instance_id=registration.client_instance_id,
             label=registration.label,
+            display_device_id=display_device_id,
         )
         DisplayEventRepository(session).record(
             create_display_event(
@@ -208,11 +211,14 @@ class DisplaySseHub:
         session.commit()
 
     def list_registrations(self, organization_id: str) -> list[KioskRegistration]:
+        """Return kiosks with an active SSE subscriber (stream open)."""
         with self._lock:
+            live_kiosk_ids = {subscriber.kiosk_id for subscriber in self._subscribers.values()}
             return [
                 registration
                 for registration in self._kiosks.values()
                 if registration.organization_id == organization_id
+                and registration.kiosk_id in live_kiosk_ids
             ]
 
     def fanout_to_kiosk(self, kiosk_id: str, envelope: dict[str, Any]) -> None:
