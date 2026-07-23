@@ -25,7 +25,7 @@ export class AdminRouteContextService {
     const url = this.currentUrl();
     const breadcrumbs = this.buildTrail(url);
     const matched = this.matchSection(url);
-    const subtitle = this.resolveSubtitle(url, matched?.route ?? null);
+    const subtitle = this.resolveSubtitle(url);
     return {
       title: matched?.label ?? ADMIN_COPY.brandTitle,
       subtitle,
@@ -65,7 +65,7 @@ export class AdminRouteContextService {
     return best;
   }
 
-  private resolveSubtitle(url: string, sectionRoute: string | null): string | null {
+  private resolveSubtitle(url: string): string | null {
     const segments = url.split('?')[0].split('/').filter(Boolean);
     const last = segments[segments.length - 1];
     if (last === 'new') {
@@ -74,12 +74,9 @@ export class AdminRouteContextService {
     if (last === 'edit') {
       return ADMIN_COPY.routeSubtitles.edit;
     }
-    if (sectionRoute && url !== sectionRoute && !url.endsWith('/new') && !url.endsWith('/edit')) {
-      const tail = segments[segments.length - 1];
-      if (tail && tail !== 'admin') {
-        return tail;
-      }
-    }
+    // Deeper routes end in an opaque entity id (e.g. `/admin/iframes/abc-1`).
+    // Surfacing the raw id as a subtitle is noise, so we return no subtitle
+    // and let the page header own the human-readable context instead.
     return null;
   }
 

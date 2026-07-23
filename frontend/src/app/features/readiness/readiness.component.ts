@@ -12,6 +12,7 @@ import { ReadinessFacade } from './readiness.facade';
 import { resolveReadinessRoute } from './readiness-routes';
 import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import { AdminStateComponent } from '../../shared/admin-state.component';
+import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 
 @Component({
   selector: 'app-readiness',
@@ -26,7 +27,8 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
     MatProgressBarModule,
     MatDividerModule,
     AdminPageComponent,
-    AdminStateComponent
+    AdminStateComponent,
+    StatusChipComponent
   ],
   template: `
     <app-admin-page
@@ -48,15 +50,15 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
         }
 
         @if (facade.ready()) {
-          <div class="readiness__ready">
-            <span class="readiness__pill readiness__pill--ready">Listo para abrir el quiosco</span>
+          <div class="readiness__summary">
+            <app-status-chip label="Listo para abrir el quiosco" kind="success" icon="check_circle" />
             <p>Todos los requisitos están completos. Puedes abrir el modo quiosco desde el hall.</p>
           </div>
         }
 
         @if (facade.blocked()) {
-          <div class="readiness__blocked">
-            <span class="readiness__pill readiness__pill--blocked">Bloqueado</span>
+          <div class="readiness__summary">
+            <app-status-chip label="Bloqueado" kind="danger" icon="error" />
             <p>Resuelve cada bloqueo antes de abrir el modo quiosco.</p>
           </div>
         }
@@ -107,25 +109,14 @@ import { AdminStateComponent } from '../../shared/admin-state.component';
       .readiness__card {
         margin-top: 16px;
       }
-      .readiness__ready,
-      .readiness__blocked {
+      .readiness__summary {
+        display: grid;
+        gap: 8px;
+        justify-items: start;
         margin-bottom: 16px;
       }
-      .readiness__pill {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 999px;
-        font: var(--mat-sys-label-medium);
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-      .readiness__pill--ready {
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
-      }
-      .readiness__pill--blocked {
-        background: var(--mat-sys-error-container);
-        color: var(--mat-sys-on-error-container);
+      .readiness__summary p {
+        margin: 0;
       }
       .readiness__list {
         list-style: none;

@@ -54,7 +54,7 @@ export interface ApiKeyDialogResult {
         <form [formGroup]="labelForm" (ngSubmit)="onSubmit()">
           <p class="api-keys-create-dialog__description">{{ description }}</p>
           <mat-form-field appearance="outline" class="api-keys-create-dialog__field">
-            <mat-label>Label</mat-label>
+            <mat-label>Etiqueta</mat-label>
             <input
               matInput
               formControlName="label"
@@ -66,12 +66,12 @@ export interface ApiKeyDialogResult {
             <mat-hint align="end">{{ labelForm.get('label')?.value?.length || 0 }} / 120</mat-hint>
             @if (labelForm.get('label')?.hasError('required')) {
               <mat-error>
-                A label is required.
+                La etiqueta es obligatoria.
               </mat-error>
             }
             @if (labelForm.get('label')?.hasError('maxlength')) {
               <mat-error>
-                The label must be 120 characters or fewer.
+                La etiqueta debe tener 120 caracteres o menos.
               </mat-error>
             }
           </mat-form-field>
@@ -84,8 +84,8 @@ export interface ApiKeyDialogResult {
           <div class="api-keys-create-dialog__warning" role="alert" aria-live="polite">
             <mat-icon>warning</mat-icon>
             <div>
-              <strong>Copy this key now.</strong>
-              <p>You will not be able to see it again.</p>
+              <strong>Copia esta clave ahora.</strong>
+              <p>No podrás volver a verla.</p>
             </div>
           </div>
           <div class="api-keys-create-dialog__keybox" data-testid="raw-key">
@@ -95,10 +95,10 @@ export interface ApiKeyDialogResult {
               type="button"
               (click)="onCopy()"
               data-testid="copy-raw-key"
-              aria-label="Copy raw key to clipboard"
+              aria-label="Copiar clave al portapapeles"
             >
               <mat-icon>content_copy</mat-icon>
-              {{ copied ? 'Copied' : 'Copy' }}
+              {{ copied ? 'Copiado' : 'Copiar' }}
             </button>
           </div>
         </div>
@@ -108,7 +108,7 @@ export interface ApiKeyDialogResult {
     <mat-dialog-actions align="end">
       <!-- Phase 1: cancel + submit -->
       @if (phase === 'label') {
-        <button mat-button type="button" mat-dialog-close data-testid="cancel">Cancel</button>
+        <button mat-button type="button" mat-dialog-close data-testid="cancel">Cancelar</button>
         <button
           mat-flat-button
           color="primary"
@@ -117,13 +117,13 @@ export interface ApiKeyDialogResult {
           [disabled]="labelForm.invalid || facade.saving()"
           data-testid="submit"
         >
-          {{ facade.saving() ? 'Working…' : (data.mode === 'create' ? 'Create' : 'Rotate') }}
+          {{ facade.saving() ? 'Trabajando…' : (data.mode === 'create' ? 'Crear' : 'Rotar') }}
         </button>
       }
       <!-- Phase 2: only "Done" (Escape and click-outside are blocked) -->
       @if (phase === 'reveal') {
         <button mat-flat-button color="primary" type="button" (click)="onDone()" data-testid="done">
-          Done
+          Hecho
         </button>
       }
     </mat-dialog-actions>
@@ -194,16 +194,16 @@ export class ApiKeysApiKeyCreateDialogComponent {
 
   get title(): string {
     if (this.phase === 'reveal') {
-      return this.data.mode === 'create' ? 'API key created' : 'API key rotated';
+      return this.data.mode === 'create' ? 'Clave de API creada' : 'Clave de API rotada';
     }
-    return this.data.mode === 'create' ? 'Create API key' : 'Rotate API key';
+    return this.data.mode === 'create' ? 'Crear clave de API' : 'Rotar clave de API';
   }
 
   get description(): string {
     if (this.data.mode === 'rotate') {
-      return `The current value of "${this.data.keyLabel ?? 'this key'}" will stop working immediately. The new value will be shown once.`;
+      return `El valor actual de "${this.data.keyLabel ?? 'esta clave'}" dejará de funcionar de inmediato. El nuevo valor se mostrará una sola vez.`;
     }
-    return 'A human-readable name to identify this key. Choose something your team will recognize, like "Mobile app" or "Partner integration".';
+    return 'Un nombre legible para identificar esta clave. Elige algo que tu equipo reconozca, como "App móvil" o "Integración de socios".';
   }
 
   onSubmit(): void {

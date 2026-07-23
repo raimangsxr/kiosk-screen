@@ -57,13 +57,17 @@ describe('AdminDashboardComponent', () => {
     http.expectOne('/api/events').flush([]);
   }
 
-  it('renders operations hero and removes legacy section grid', async () => {
+  it('renders the operations panel with live display and KPI tiles', async () => {
     fixture.detectChanges();
     flushDashboard();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-operations-hero')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('.dashboard__grid')).toBeNull();
-    expect(fixture.nativeElement.textContent).not.toContain('Accesos rápidos');
+    const el: HTMLElement = fixture.nativeElement;
+    const text = el.textContent ?? '';
+    expect(el.querySelector('.stats')).toBeTruthy();
+    expect(text).toContain('Display en vivo');
+    expect(text).toContain('Estado');
+    expect(text).toContain('Contenido activo');
+    expect(text).not.toContain('Accesos rápidos');
   });
 });

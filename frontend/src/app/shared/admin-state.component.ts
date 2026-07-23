@@ -49,6 +49,21 @@ export type AdminStateKind = 'empty' | 'error' | 'success' | 'info' | 'warning';
       :host {
         display: block;
       }
+      .admin-state {
+        border-radius: var(--app-radius-md);
+      }
+      .admin-state--error {
+        border-left: 3px solid var(--app-danger);
+      }
+      .admin-state--success {
+        border-left: 3px solid var(--app-success);
+      }
+      .admin-state--warning {
+        border-left: 3px solid var(--app-warning);
+      }
+      .admin-state--info {
+        border-left: 3px solid var(--app-info);
+      }
       .admin-state__content {
         display: grid;
         grid-template-columns: auto 1fr;
@@ -64,16 +79,16 @@ export type AdminStateKind = 'empty' | 'error' | 'success' | 'info' | 'warning';
         color: var(--mat-sys-on-surface-variant);
       }
       .admin-state--error .admin-state__icon {
-        color: var(--mat-sys-error);
+        color: var(--app-danger);
       }
       .admin-state--success .admin-state__icon {
-        color: var(--mat-sys-primary);
+        color: var(--app-success);
       }
       .admin-state--warning .admin-state__icon {
-        color: var(--mat-sys-secondary);
+        color: var(--app-warning);
       }
       .admin-state--info .admin-state__icon {
-        color: var(--mat-sys-primary);
+        color: var(--app-info);
       }
       .admin-state__title {
         font: var(--mat-sys-title-medium);

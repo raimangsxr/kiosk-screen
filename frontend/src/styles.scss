@@ -1,24 +1,35 @@
 @use '@angular/material' as mat;
 @use 'sass:map';
 
+/* ============================================================================
+ * Kiosk Screen — "Control room" design system
+ * ----------------------------------------------------------------------------
+ * Angular Material still provides the interactive form/table/dialog machinery,
+ * so `mat.theme()` keeps emitting the full `--mat-sys-*` token set. On top of
+ * that we define our own `--app-*` tokens (the control-room palette) and then
+ * REMAP the impactful `--mat-sys-*` tokens onto them, so Material components
+ * inherit the new look. The remap blocks are placed AFTER the theme includes
+ * so they win the cascade deterministically (`:root` beats `html`; the dark
+ * `[data-theme]` / media blocks are later in source order at equal specificity).
+ * ========================================================================== */
+
+$ui-family: (system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
 $typography: (
-  plain-family: (Roboto, 'Helvetica Neue', Arial, sans-serif),
-  brand-family: (Roboto, 'Helvetica Neue', Arial, sans-serif),
+  plain-family: $ui-family,
+  brand-family: $ui-family,
   bold-weight: 700,
-  medium-weight: 500,
+  medium-weight: 600,
   regular-weight: 400,
 );
 
 html {
   min-height: 100%;
-  background: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
   color-scheme: light;
 
   @include mat.theme((
     color: (
       primary: mat.$azure-palette,
-      tertiary: mat.$violet-palette,
+      tertiary: mat.$cyan-palette,
       theme-type: light,
     ),
     typography: $typography,
@@ -29,235 +40,318 @@ html {
   @include mat.app-background();
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: map.get($typography, plain-family);
-  background: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-@import 'app/core/layout/admin-breakpoints.css';
-
-:root {
-  --app-page-max: 1200px;
-  --app-page-padding-xs: 12px;
-  --app-page-padding-md: 24px;
-  --app-page-padding-lg: 32px;
-  --app-card-radius: var(--mat-sys-corner-medium);
-  --app-card-radius-lg: var(--mat-sys-corner-large);
-  --app-section-gap: 16px;
-  --app-touch-target: 48px;
-  --focus-ring-color: var(--mat-sys-primary);
-  --focus-ring-width: 2px;
-  --focus-ring-offset: 2px;
-}
-
-@media (min-width: 600px) {
-  :root {
-    --app-page-padding: var(--app-page-padding-md);
-  }
-}
-
-@media (min-width: 840px) {
-  :root {
-    --app-page-padding: var(--app-page-padding-lg);
-  }
-}
-
-.app-page {
-  max-width: min(var(--app-page-max), 100%);
-  min-width: 0;
-  margin: 0 auto;
-  padding: var(--app-page-padding, 16px);
-  display: grid;
-  gap: var(--app-section-gap);
-  overflow-x: clip;
-}
-
-@media (max-width: 599.98px) {
-  .app-page {
-    padding: var(--app-page-padding-xs);
-  }
-}
-
-a {
-  color: var(--mat-sys-primary);
-}
-
-button,
-a {
-  touch-action: manipulation;
-}
-
-[mat-button],
-[mat-stroked-button],
-[mat-flat-button],
-[mat-raised-button] {
-  gap: 8px;
-}
-
-[mat-button] .mat-icon,
-[mat-stroked-button] .mat-icon,
-[mat-flat-button] .mat-icon,
-[mat-raised-button] .mat-icon {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-:where(
-  a:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
-  button:not(.mat-mdc-button-base),
-  [tabindex]:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
-  input,
-  select,
-  textarea
-):focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--mat-sys-corner-extra-small);
-}
-
-.admin-form-shell__actions--stacked > * {
-  width: 100%;
-  min-height: var(--app-touch-target);
-}
-
-.app-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.app-table {
-  width: 100%;
-  background: transparent;
-}
-
-.app-table th {
-  color: var(--mat-sys-on-surface-variant);
-  font-weight: 600;
-}
-
-.app-table td,
-.app-table th {
-  vertical-align: middle;
-}
-
-.app-table app-status-chip,
-.app-table mat-chip-set {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-}
-
-.app-table td [mat-button],
-.app-table td [mat-stroked-button],
-.app-table td [mat-flat-button] {
-  vertical-align: middle;
-}
-
-/* Zebra striping for admin list tables */
-.app-table .mat-mdc-row:nth-child(even) {
-  background: color-mix(in srgb, var(--mat-sys-surface) 92%, var(--mat-sys-surface-container));
-}
-
-.app-table .mat-mdc-row:hover {
-  background: var(--mat-sys-surface-container-low);
-}
-
-@media (prefers-contrast: more) {
-  .app-table .mat-mdc-row:nth-child(even) {
-    background: var(--mat-sys-surface-container);
-  }
-  .app-table .mat-mdc-row:hover {
-    background: var(--mat-sys-surface-container-high);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-/* The ThemeService flips `<html data-theme>` between `light` and `dark`;
- * the dark palette is re-applied here so every Material token (primary,
- * surface, container, etc.) gets swapped atomically without the admin
- * shell having to know about it. Operator preference is persisted in
- * `localStorage` and falls back to `prefers-color-scheme` on first load.
- */
 [data-theme='dark'] {
   color-scheme: dark;
-
   @include mat.theme((
-    color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$violet-palette,
-      theme-type: dark,
-    ),
+    color: (primary: mat.$azure-palette, tertiary: mat.$cyan-palette, theme-type: dark),
     typography: $typography,
     density: 0,
   ));
-
 }
 
-/* On first paint, if the operator has not expressed a preference, mirror
- * the OS-level preference so the choice "just works" without a flash.
- */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-
     @include mat.theme((
-      color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$violet-palette,
-        theme-type: dark,
-      ),
+      color: (primary: mat.$azure-palette, tertiary: mat.$cyan-palette, theme-type: dark),
       typography: $typography,
       density: 0,
     ));
   }
 }
 
-/* Windows High Contrast / forced colors mode: rely on the system
- * palette instead of our custom tokens so focus rings and outlines
- * remain visible regardless of the operator's color preferences. */
-@media (forced-colors: active) {
-  :root {
-    --focus-ring-color: Highlight;
-  }
-  :focus-visible {
-    outline: 3px solid Highlight !important;
-    outline-offset: 2px !important;
+/* ============ CONTROL-ROOM TOKENS + MATERIAL REMAP ============ */
+
+/* Shared, theme-agnostic scale + typography roles */
+:root {
+  --font-ui: #{$ui-family};
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  --app-page-max: 1280px;
+  --app-section-gap: 16px;
+  --app-touch-target: 44px;
+  --app-rail-w: 264px;
+  --app-rail-w-collapsed: 76px;
+  --app-topbar-h: 60px;
+  --admin-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* legacy aliases still referenced by older component styles */
+  --app-card-radius: var(--r-md);
+  --app-card-radius-lg: var(--r-lg);
+  --app-radius-sm: var(--r-sm);
+  --app-radius-md: var(--r-md);
+  --app-radius-lg: var(--r-lg);
+}
+
+/* ---- Light theme ---- */
+:root {
+  --app-bg: #f5f6f9;
+  --app-surface: #ffffff;
+  --app-surface-2: #eef1f6;
+  --app-surface-3: #e6eaf1;
+  --app-border: #dfe4ec;
+  --app-border-strong: #c9d0dc;
+  --app-text: #171a21;
+  --app-text-2: #444c5a;
+  --app-text-dim: #6b7482;
+  --app-text-faint: #8b93a1;
+
+  --app-accent: #2f5bff;
+  --app-accent-2: #1e46e0;
+  --app-accent-soft: #e8edff;
+  --app-accent-ink: #ffffff;
+
+  --app-success: #0f9d58; --app-success-container: #d9f5e6; --app-on-success-container: #076a3a;
+  --app-warning: #b7791f; --app-warning-container: #fbeecf; --app-on-warning-container: #8a5a12;
+  --app-danger: #d63a3a;  --app-danger-container: #fbe0e0;  --app-on-danger-container: #a52626;
+  --app-info: var(--app-accent); --app-info-container: var(--app-accent-soft); --app-on-info-container: var(--app-accent);
+  --app-live: #12b981;
+
+  --app-shadow-sm: 0 1px 2px rgba(19,26,40,.06), 0 1px 3px rgba(19,26,40,.05);
+  --app-shadow-md: 0 4px 12px rgba(19,26,40,.08), 0 2px 6px rgba(19,26,40,.05);
+  --app-shadow-lg: 0 12px 32px rgba(19,26,40,.14);
+
+  --focus-ring-color: var(--app-accent);
+}
+
+/* ---- Dark theme (explicit toggle) ---- */
+[data-theme='dark'] {
+  --app-bg: #0c0e13;
+  --app-surface: #14171e;
+  --app-surface-2: #1a1e27;
+  --app-surface-3: #222734;
+  --app-border: #262c38;
+  --app-border-strong: #333a49;
+  --app-text: #e9edf5;
+  --app-text-2: #c2c9d6;
+  --app-text-dim: #8b95a6;
+  --app-text-faint: #6a7382;
+
+  --app-accent: #5b83ff;
+  --app-accent-2: #7a9bff;
+  --app-accent-soft: #1a2340;
+  --app-accent-ink: #0c0e13;
+
+  --app-success: #34d399; --app-success-container: #10281f; --app-on-success-container: #7ee7bf;
+  --app-warning: #e0a53a; --app-warning-container: #2a2210; --app-on-warning-container: #f2c877;
+  --app-danger: #f26d6d;  --app-danger-container: #2c1414;  --app-on-danger-container: #f7a3a3;
+  --app-info: var(--app-accent); --app-info-container: var(--app-accent-soft); --app-on-info-container: var(--app-accent-2);
+  --app-live: #23d18b;
+
+  --app-shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --app-shadow-md: 0 6px 18px rgba(0,0,0,.45);
+  --app-shadow-lg: 0 18px 44px rgba(0,0,0,.6);
+}
+
+/* ---- Dark theme (system preference, no explicit choice) ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --app-bg: #0c0e13;
+    --app-surface: #14171e;
+    --app-surface-2: #1a1e27;
+    --app-surface-3: #222734;
+    --app-border: #262c38;
+    --app-border-strong: #333a49;
+    --app-text: #e9edf5;
+    --app-text-2: #c2c9d6;
+    --app-text-dim: #8b95a6;
+    --app-text-faint: #6a7382;
+
+    --app-accent: #5b83ff;
+    --app-accent-2: #7a9bff;
+    --app-accent-soft: #1a2340;
+    --app-accent-ink: #0c0e13;
+
+    --app-success: #34d399; --app-success-container: #10281f; --app-on-success-container: #7ee7bf;
+    --app-warning: #e0a53a; --app-warning-container: #2a2210; --app-on-warning-container: #f2c877;
+    --app-danger: #f26d6d;  --app-danger-container: #2c1414;  --app-on-danger-container: #f7a3a3;
+    --app-info: var(--app-accent); --app-info-container: var(--app-accent-soft); --app-on-info-container: var(--app-accent-2);
+    --app-live: #23d18b;
+
+    --app-shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+    --app-shadow-md: 0 6px 18px rgba(0,0,0,.45);
+    --app-shadow-lg: 0 18px 44px rgba(0,0,0,.6);
   }
 }
 
-/* Print stylesheet: hide chrome (sidebar/toolbar/cards) and let the
- * content section fill the page. Useful for printing readiness reports
- * and API-key audit pages without bespoke PDF exports. */
+/* ---- Remap Material system tokens onto the control-room palette ----
+ * A mixin keeps the light/dark/media scopes identical; each scope already
+ * carries the right `--app-*` values, so the remap just points Material at them. */
+@mixin mat-remap {
+  --mat-sys-background: var(--app-bg);
+  --mat-sys-surface: var(--app-surface);
+  --mat-sys-surface-dim: var(--app-surface-2);
+  --mat-sys-surface-bright: var(--app-surface);
+  --mat-sys-surface-container-lowest: var(--app-surface);
+  --mat-sys-surface-container-low: var(--app-surface-2);
+  --mat-sys-surface-container: var(--app-surface-2);
+  --mat-sys-surface-container-high: var(--app-surface-3);
+  --mat-sys-surface-container-highest: var(--app-surface-3);
+  --mat-sys-on-surface: var(--app-text);
+  --mat-sys-on-surface-variant: var(--app-text-dim);
+  --mat-sys-outline: var(--app-border-strong);
+  --mat-sys-outline-variant: var(--app-border);
+  --mat-sys-primary: var(--app-accent);
+  --mat-sys-on-primary: var(--app-accent-ink);
+  --mat-sys-primary-container: var(--app-accent-soft);
+  --mat-sys-on-primary-container: var(--app-accent);
+  --mat-sys-secondary: var(--app-text-2);
+  --mat-sys-secondary-container: var(--app-surface-3);
+  --mat-sys-on-secondary-container: var(--app-text);
+  --mat-sys-error: var(--app-danger);
+  --mat-sys-on-error: #ffffff;
+  --mat-sys-error-container: var(--app-danger-container);
+  --mat-sys-on-error-container: var(--app-on-danger-container);
+}
+:root { @include mat-remap; }
+[data-theme='dark'] { @include mat-remap; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme='light']) { @include mat-remap; } }
+
+/* ============ BASE ELEMENTS ============ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--app-bg);
+  color: var(--app-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+::selection { background: var(--app-accent); color: var(--app-accent-ink); }
+h1, h2, h3, h4 { margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+a { color: var(--app-accent); text-decoration: none; }
+button, a { touch-action: manipulation; }
+
+.mono { font-family: var(--font-mono); }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--app-text-dim);
+  font-weight: 600;
+}
+
+/* ============ PAGE LAYOUT ============ */
+.app-page {
+  max-width: min(var(--app-page-max), 100%);
+  min-width: 0;
+  margin: 0 auto;
+  display: grid;
+  gap: var(--app-section-gap);
+  overflow-x: clip;
+}
+
+/* ============ BUTTONS (global) ============ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 38px; padding: 0 15px; border-radius: var(--r-sm);
+  font-family: var(--font-ui); font-size: 13.5px; font-weight: 600;
+  border: 1px solid transparent; background: transparent; color: var(--app-text);
+  transition: background .12s, border-color .12s, transform .05s; white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn .mat-icon, .btn svg { width: 18px; height: 18px; font-size: 18px; flex: 0 0 auto; }
+.btn--primary { background: var(--app-accent); color: var(--app-accent-ink); }
+.btn--primary:hover { background: var(--app-accent-2); }
+.btn--ghost { background: var(--app-surface); border-color: var(--app-border); color: var(--app-text); }
+.btn--ghost:hover { background: var(--app-surface-2); border-color: var(--app-border-strong); }
+.btn--subtle { color: var(--app-text-2); }
+.btn--subtle:hover { background: var(--app-surface-2); color: var(--app-text); }
+.btn--danger { color: var(--app-danger); border-color: color-mix(in srgb, var(--app-danger) 35%, transparent); }
+.btn--danger:hover { background: var(--app-danger-container); }
+.btn--sm { height: 32px; padding: 0 11px; font-size: 12.5px; }
+.btn--block { width: 100%; }
+
+/* ============ CARDS (global) ============ */
+.app-card {
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--app-shadow-sm);
+}
+.app-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 18px; border-bottom: 1px solid var(--app-border);
+}
+.app-card__head h2, .app-card__head h3 { font-size: 15px; font-weight: 650; }
+.app-card__body { padding: 18px; }
+
+/* ============ PILLS / STATUS (global) ============ */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+  border-radius: var(--r-pill); font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.pill .pdot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.pill--ok   { background: var(--app-success-container); color: var(--app-on-success-container); } .pill--ok .pdot   { background: var(--app-success); }
+.pill--warn { background: var(--app-warning-container); color: var(--app-on-warning-container); } .pill--warn .pdot { background: var(--app-warning); }
+.pill--crit { background: var(--app-danger-container);  color: var(--app-on-danger-container);  } .pill--crit .pdot { background: var(--app-danger); }
+.pill--info { background: var(--app-accent-soft);       color: var(--app-info);                 } .pill--info .pdot { background: var(--app-accent); }
+.pill--muted{ background: var(--app-surface-2);         color: var(--app-text-dim);             } .pill--muted .pdot{ background: var(--app-text-faint); }
+
+/* ============ CARD ACTIONS ============ */
+.app-card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Stacks a row into a column on compact viewports (used by readiness, etc.) */
+@media (max-width: 599.98px) {
+  .admin-stack { flex-direction: column; align-items: stretch; }
+  .admin-stack > * { width: 100%; }
+}
+.admin-form-shell__actions--stacked > * { width: 100%; min-height: var(--app-touch-target); }
+
+/* ============ TABLES ============ */
+.app-table { width: 100%; background: transparent; }
+.app-table th {
+  color: var(--app-text-dim); font-family: var(--font-mono);
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+}
+.app-table td, .app-table th { vertical-align: middle; }
+.app-table app-status-chip, .app-table mat-chip-set { display: inline-flex; align-items: center; vertical-align: middle; }
+.app-table .mat-mdc-row:hover { background: var(--app-surface-2); }
+:root[data-density='compact'] .app-table .mat-mdc-cell,
+:root[data-density='compact'] .app-table .mat-mdc-header-cell { padding-top: 8px; padding-bottom: 8px; }
+
+/* ============ FOCUS ============ */
+:where(
+  a:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
+  button:not(.mat-mdc-button-base),
+  [tabindex]:not(.mat-mdc-button-base):not(.mat-mdc-list-item),
+  input, select, textarea
+):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-sm);
+}
+
+/* ============ MOTION / A11Y ============ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  :root { --focus-ring-color: Highlight; }
+  :focus-visible { outline: 3px solid Highlight !important; outline-offset: 2px !important; }
+}
+
+/* ============ PRINT ============ */
 @media print {
-  app-admin-toolbar,
-  mat-sidenav,
-  app-user-menu,
-  .breadcrumb {
-    display: none !important;
-  }
-  .admin-shell__main {
-    padding: 0 !important;
-    max-width: 100% !important;
-  }
-  body {
-    background: #fff !important;
-    color: #000 !important;
-  }
+  .rail, .topbar, app-user-menu { display: none !important; }
+  .main, .content { padding: 0 !important; max-width: 100% !important; }
+  body { background: #fff !important; color: #000 !important; }
 }

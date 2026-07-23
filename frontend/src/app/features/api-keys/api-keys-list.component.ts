@@ -36,70 +36,70 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
       [error]="facade.error()"
       [empty]="facade.empty()"
       [refreshAction]="refreshAction"
-      emptyTitle="No API keys yet"
-      emptyMessage="Create a key to let external systems upload content to your kiosk."
-      emptyActionLabel="Create key"
+      emptyTitle="Aún no hay claves de API"
+      emptyMessage="Crea una clave para que sistemas externos suban contenido a tu quiosco."
+      emptyActionLabel="Crear clave"
       emptyIcon="vpn_key"
       (refresh)="onRefresh()"
       (emptyAction)="onCreate()"
     >
       <button adminListActions mat-flat-button color="primary" type="button" (click)="onCreate()" data-testid="create-key">
         <mat-icon>add</mat-icon>
-        Create key
+        Crear clave
       </button>
       <ng-template #adminListTable>
-        <table mat-table [dataSource]="facade.keys()" aria-label="API keys" class="app-table api-keys-list__table">
+        <table mat-table [dataSource]="facade.keys()" aria-label="Claves de API" class="app-table api-keys-list__table">
           <ng-container matColumnDef="label">
-            <th mat-header-cell *matHeaderCellDef>Label</th>
+            <th mat-header-cell *matHeaderCellDef>Etiqueta</th>
             <td mat-cell *matCellDef="let key">{{ key.label }}</td>
           </ng-container>
 
           <ng-container matColumnDef="prefix">
-            <th mat-header-cell *matHeaderCellDef>Prefix</th>
+            <th mat-header-cell *matHeaderCellDef>Prefijo</th>
             <td mat-cell *matCellDef="let key">
               <code>{{ key.keyPrefix }}</code>
             </td>
           </ng-container>
 
           <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
             <td mat-cell *matCellDef="let key">
               <app-status-chip
-                [label]="key.isActive ? 'Active' : 'Revoked'"
+                [label]="key.isActive ? 'Activa' : 'Revocada'"
                 [kind]="key.isActive ? 'success' : 'neutral'"
               />
             </td>
           </ng-container>
 
           <ng-container matColumnDef="createdAt">
-            <th mat-header-cell *matHeaderCellDef>Created</th>
+            <th mat-header-cell *matHeaderCellDef>Creada</th>
             <td mat-cell *matCellDef="let key">{{ key.createdAt | date: 'short' }}</td>
           </ng-container>
 
           <ng-container matColumnDef="lastRotatedAt">
-            <th mat-header-cell *matHeaderCellDef>Last rotated</th>
+            <th mat-header-cell *matHeaderCellDef>Última rotación</th>
             <td mat-cell *matCellDef="let key">
               @if (key.lastRotatedAt) {
                 <span>{{ key.lastRotatedAt | date: 'short' }}</span>
               } @else {
-                <span class="api-keys-list__never">Never</span>
+                <span class="api-keys-list__never">Nunca</span>
               }
             </td>
           </ng-container>
 
           <ng-container matColumnDef="lastUsedAt">
-            <th mat-header-cell *matHeaderCellDef>Last used</th>
+            <th mat-header-cell *matHeaderCellDef>Último uso</th>
             <td mat-cell *matCellDef="let key">
               @if (key.lastUsedAt) {
                 <span>{{ key.lastUsedAt | date: 'short' }}</span>
               } @else {
-                <span class="api-keys-list__never">Never</span>
+                <span class="api-keys-list__never">Nunca</span>
               }
             </td>
           </ng-container>
 
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
             <td mat-cell *matCellDef="let key">
               <button
                 mat-button
@@ -108,7 +108,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 [disabled]="!key.isActive || facade.saving()"
                 data-testid="rotate-key"
               >
-                <mat-icon>autorenew</mat-icon> Rotate
+                <mat-icon>autorenew</mat-icon> Rotar
               </button>
               <button
                 mat-button
@@ -118,7 +118,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 [disabled]="!key.isActive || facade.saving()"
                 data-testid="revoke-key"
               >
-                <mat-icon>block</mat-icon> Revoke
+                <mat-icon>block</mat-icon> Revocar
               </button>
               <button
                 mat-button
@@ -127,7 +127,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 [disabled]="key.isActive || facade.saving()"
                 data-testid="delete-key"
               >
-                <mat-icon>delete_outline</mat-icon> Delete
+                <mat-icon>delete_outline</mat-icon> Eliminar
               </button>
             </td>
           </ng-container>
@@ -144,27 +144,27 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
               <div class="api-keys-list__card-header">
                 <h3 class="api-keys-list__card-title">{{ key.label }}</h3>
                 <app-status-chip
-                  [label]="key.isActive ? 'Active' : 'Revoked'"
+                  [label]="key.isActive ? 'Activa' : 'Revocada'"
                   [kind]="key.isActive ? 'success' : 'neutral'"
                 />
               </div>
 
               <dl class="api-keys-list__card-meta">
                 <div>
-                  <dt>Prefix</dt>
+                  <dt>Prefijo</dt>
                   <dd><code>{{ key.keyPrefix }}</code></dd>
                 </div>
                 <div>
-                  <dt>Created</dt>
+                  <dt>Creada</dt>
                   <dd>{{ key.createdAt | date: 'short' }}</dd>
                 </div>
                 <div>
-                  <dt>Last rotated</dt>
-                  <dd>{{ key.lastRotatedAt ? (key.lastRotatedAt | date: 'short') : 'Never' }}</dd>
+                  <dt>Última rotación</dt>
+                  <dd>{{ key.lastRotatedAt ? (key.lastRotatedAt | date: 'short') : 'Nunca' }}</dd>
                 </div>
                 <div>
-                  <dt>Last used</dt>
-                  <dd>{{ key.lastUsedAt ? (key.lastUsedAt | date: 'short') : 'Never' }}</dd>
+                  <dt>Último uso</dt>
+                  <dd>{{ key.lastUsedAt ? (key.lastUsedAt | date: 'short') : 'Nunca' }}</dd>
                 </div>
               </dl>
             </mat-card-content>
@@ -178,7 +178,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 data-testid="rotate-key"
               >
                 <mat-icon>autorenew</mat-icon>
-                Rotate
+                Rotar
               </button>
               <button
                 mat-button
@@ -189,7 +189,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 data-testid="revoke-key"
               >
                 <mat-icon>block</mat-icon>
-                Revoke
+                Revocar
               </button>
               <button
                 mat-button
@@ -199,7 +199,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 data-testid="delete-key"
               >
                 <mat-icon>delete_outline</mat-icon>
-                Delete
+                Eliminar
               </button>
             </mat-card-actions>
           </mat-card>
@@ -293,9 +293,9 @@ export class ApiKeysListComponent implements OnInit {
   private readonly confirmDialog = inject(ConfirmDialogService);
   private readonly snackBar = inject(MatSnackBar);
 
-  readonly pageTitle = 'API Keys';
+  readonly pageTitle = 'Claves de API';
   readonly pageDescription =
-    'Manage bearer tokens that external systems use to upload images and videos to your kiosk.';
+    'Gestiona los tokens de portador que los sistemas externos usan para subir imágenes y vídeos a tu quiosco.';
 
   readonly displayedColumns = [
     'label',
@@ -307,7 +307,7 @@ export class ApiKeysListComponent implements OnInit {
     'actions',
   ];
 
-  readonly refreshAction = { route: '/admin/api-keys', label: 'Refresh', icon: 'refresh' };
+  readonly refreshAction = { route: '/admin/api-keys', label: 'Actualizar', icon: 'refresh' };
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
@@ -327,7 +327,7 @@ export class ApiKeysListComponent implements OnInit {
       .afterClosed()
       .subscribe((result: { action: 'created' | 'cancelled' } | undefined) => {
         if (result?.action === 'created') {
-          this.snackBar.open('API key created.', 'Dismiss', { duration: 4000 });
+          this.snackBar.open('Clave de API creada.', 'Cerrar', { duration: 4000 });
           this.facade.refresh().subscribe();
         }
       });
@@ -336,10 +336,10 @@ export class ApiKeysListComponent implements OnInit {
   onRotate(id: string, label: string): void {
     this.confirmDialog
       .confirm({
-        title: `Rotate ${label}?`,
-        message: 'The current API key value will stop working immediately.',
-        confirmLabel: 'Rotate',
-        cancelLabel: 'Cancel',
+        title: `¿Rotar ${label}?`,
+        message: 'El valor actual de la clave de API dejará de funcionar de inmediato.',
+        confirmLabel: 'Rotar',
+        cancelLabel: 'Cancelar',
         destructive: true,
       })
       .afterClosed()
@@ -354,10 +354,10 @@ export class ApiKeysListComponent implements OnInit {
   onRevoke(id: string, label: string): void {
     this.confirmDialog
       .confirm({
-        title: `Revoke ${label}?`,
-        message: 'This key will no longer authorize public content uploads. This cannot be undone.',
-        confirmLabel: 'Revoke',
-        cancelLabel: 'Cancel',
+        title: `¿Revocar ${label}?`,
+        message: 'Esta clave dejará de autorizar la subida pública de contenido. Esta acción no se puede deshacer.',
+        confirmLabel: 'Revocar',
+        cancelLabel: 'Cancelar',
         destructive: true,
       })
       .afterClosed()
@@ -367,7 +367,7 @@ export class ApiKeysListComponent implements OnInit {
         }
         this.facade.revoke(id).subscribe({
           next: () => {
-            this.snackBar.open('API key revoked.', 'Dismiss', { duration: 4000 });
+            this.snackBar.open('Clave de API revocada.', 'Cerrar', { duration: 4000 });
             this.facade.refresh().subscribe();
           },
           error: () => {
@@ -380,10 +380,10 @@ export class ApiKeysListComponent implements OnInit {
   onDelete(id: string, label: string): void {
     this.confirmDialog
       .confirm({
-        title: `Delete ${label}?`,
-        message: 'This permanently removes the key from the list. The audit trail is preserved. This cannot be undone.',
-        confirmLabel: 'Delete',
-        cancelLabel: 'Cancel',
+        title: `¿Eliminar ${label}?`,
+        message: 'Esto elimina la clave de la lista de forma permanente. Se conserva el registro de auditoría. Esta acción no se puede deshacer.',
+        confirmLabel: 'Eliminar',
+        cancelLabel: 'Cancelar',
         destructive: true,
       })
       .afterClosed()
@@ -393,7 +393,7 @@ export class ApiKeysListComponent implements OnInit {
         }
         this.facade.delete(id).subscribe({
           next: () => {
-            this.snackBar.open('API key deleted.', 'Dismiss', { duration: 4000 });
+            this.snackBar.open('Clave de API eliminada.', 'Cerrar', { duration: 4000 });
             this.facade.refresh().subscribe();
           },
           error: () => {
@@ -413,7 +413,7 @@ export class ApiKeysListComponent implements OnInit {
       .afterClosed()
       .subscribe((result: { action: 'rotated' | 'cancelled' } | undefined) => {
         if (result?.action === 'rotated') {
-          this.snackBar.open('API key rotated.', 'Dismiss', { duration: 4000 });
+          this.snackBar.open('Clave de API rotada.', 'Cerrar', { duration: 4000 });
           this.facade.refresh().subscribe();
         }
       });

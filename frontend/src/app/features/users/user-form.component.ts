@@ -60,9 +60,8 @@ interface UserFormValue {
   ],
   template: `
     <app-admin-page
-      eyebrow="Administration"
       [title]="formTitle()"
-      description="Create or update an authorized account. Assign at least one existing role type."
+      description="Crea o actualiza una cuenta autorizada. Asigna al menos un rol existente."
     />
 
     @if (form) {
@@ -71,44 +70,44 @@ interface UserFormValue {
         (ngSubmit)="submit()"
         class="user-form"
         novalidate
-        aria-label="User form"
+        aria-label="Formulario de usuario"
       >
         <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not load user"
+              title="No se pudo cargar el usuario"
               [message]="error.message"
             />
           }
 
           <div class="user-form__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Email</mat-label>
+              <mat-label>Correo electrónico</mat-label>
               <input matInput type="email" formControlName="email" required maxlength="255" autocomplete="off" />
               @if (form.controls.email.hasError('required')) {
-                <mat-error>Email is required.</mat-error>
+                <mat-error>El correo electrónico es obligatorio.</mat-error>
               }
               @if (form.controls.email.hasError('nonBlankString')) {
-                <mat-error>Email cannot be blank.</mat-error>
+                <mat-error>El correo electrónico no puede estar vacío.</mat-error>
               }
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Display name</mat-label>
+              <mat-label>Nombre visible</mat-label>
               <input matInput formControlName="displayName" required maxlength="120" autocomplete="off" />
               @if (form.controls.displayName.hasError('required')) {
-                <mat-error>Name is required.</mat-error>
+                <mat-error>El nombre es obligatorio.</mat-error>
               }
               @if (form.controls.displayName.hasError('nonBlankString')) {
-                <mat-error>Name cannot be blank.</mat-error>
+                <mat-error>El nombre no puede estar vacío.</mat-error>
               }
             </mat-form-field>
           </div>
 
           @if (!userId()) {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Initial password</mat-label>
+              <mat-label>Contraseña inicial</mat-label>
               <input
                 matInput
                 type="password"
@@ -117,15 +116,15 @@ interface UserFormValue {
                 autocomplete="new-password"
               />
               @if (form.controls.password.hasError('required')) {
-                <mat-error>Initial password is required.</mat-error>
+                <mat-error>La contraseña inicial es obligatoria.</mat-error>
               }
               @if (form.controls.password.hasError('minPasswordLength')) {
-                <mat-error>Password must be at least {{ minPasswordLength }} characters.</mat-error>
+                <mat-error>La contraseña debe tener al menos {{ minPasswordLength }} caracteres.</mat-error>
               }
             </mat-form-field>
           } @else {
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>New password (optional reset)</mat-label>
+              <mat-label>Nueva contraseña (restablecimiento opcional)</mat-label>
               <input
                 matInput
                 type="password"
@@ -133,7 +132,7 @@ interface UserFormValue {
                 autocomplete="new-password"
               />
               @if (form.controls.resetPassword.hasError('minPasswordLength')) {
-                <mat-error>Password must be at least {{ minPasswordLength }} characters.</mat-error>
+                <mat-error>La contraseña debe tener al menos {{ minPasswordLength }} caracteres.</mat-error>
               }
             </mat-form-field>
           }
@@ -157,10 +156,10 @@ interface UserFormValue {
           <mat-divider />
 
           <div class="user-form__toggle">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            <mat-slide-toggle formControlName="isActive">Activo</mat-slide-toggle>
             @if (!form.controls.isActive.value) {
               <span class="user-form__hint">
-                Inactive users cannot sign in.
+                Los usuarios inactivos no pueden iniciar sesión.
               </span>
             }
           </div>
@@ -168,13 +167,13 @@ interface UserFormValue {
           @if (saveError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not save user"
+              title="No se pudo guardar el usuario"
               [message]="error.message"
             />
           }
 
           <div formShellActions>
-            <a mat-button routerLink="/admin/users">Cancel</a>
+            <a mat-button routerLink="/admin/users">Cancelar</a>
             <button
               mat-flat-button
               color="primary"
@@ -182,7 +181,7 @@ interface UserFormValue {
               [disabled]="form.invalid || facade.saving() || loading()"
             >
               <mat-icon aria-hidden="true">save</mat-icon>
-              {{ facade.saving() ? 'Saving…' : 'Save' }}
+              {{ facade.saving() ? 'Guardando…' : 'Guardar' }}
             </button>
           </div>
         </app-admin-form-shell>
@@ -274,7 +273,7 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
           } else {
             this.loadError.set(this.facade.error() ?? {
               code: 'not_found_user',
-              message: 'User could not be found.',
+              message: 'No se pudo encontrar el usuario.',
               category: 'not-found'
             });
           }
@@ -304,7 +303,7 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   }
 
   protected formTitle(): string {
-    return this.userId() ? 'Edit user' : 'New user';
+    return this.userId() ? 'Editar usuario' : 'Nuevo usuario';
   }
 
   protected toggleRole(index: number, checked: boolean): void {
@@ -322,7 +321,7 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     if (selectedRoles.length === 0) {
       this.saveError.set({
         code: 'validation_missing_role',
-        message: 'Select at least one role before saving.',
+        message: 'Selecciona al menos un rol antes de guardar.',
         category: 'validation'
       });
       return;
@@ -343,7 +342,7 @@ export class UserFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
       next: () => {
-        this.snackBar.open(`Saved ${payload.email}.`, 'Dismiss', { duration: 3000 });
+        this.snackBar.open(`${payload.email} guardado.`, 'Cerrar', { duration: 3000 });
         this.markPristine();
         this.router.navigate(['/admin/users']);
       },

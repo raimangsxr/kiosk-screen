@@ -7,7 +7,6 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
-import { MatSliderModule } from '@angular/material/slider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { debounceTime, distinctUntilChanged } from 'rxjs';
 
@@ -22,34 +21,27 @@ import { AdminPageComponent } from '../../shared/ui/admin/admin-page.component';
 import {
   EventConfigFacade,
   EventConfigFormValue,
-  EventConfigLayoutValue,
   VISUAL_DEFAULTS
 } from './event-config.facade';
-
-interface EventConfigLayoutField {
-  controlName: keyof EventConfigLayoutValue;
-  label: string;
-  hint: string;
-  min: number;
-  max: number;
-  step: number;
-  unit: string;
-}
+import {
+  BrandingLayoutSectionComponent,
+  EventConfigLayoutField
+} from './sections/branding-layout-section.component';
 
 const LOGO_LAYOUT_FIELDS: readonly EventConfigLayoutField[] = [
-  { controlName: 'logoSize', label: 'Logo size', hint: 'Height of the organizer logo', min: 1, max: 50, step: 1, unit: 'vh' },
-  { controlName: 'logoX', label: 'Logo X position', hint: 'Horizontal offset from the overlay\u2019s left edge', min: 0, max: 100, step: 1, unit: 'vw' },
-  { controlName: 'logoY', label: 'Logo Y position', hint: 'Vertical offset from the overlay\u2019s top edge', min: 0, max: 100, step: 1, unit: 'vh' },
-  { controlName: 'logoTransparency', label: 'Logo transparency', hint: '100 = fully transparent (invisible), 0 = fully opaque', min: 0, max: 100, step: 1, unit: '%' },
-  { controlName: 'logoBorderRadius', label: 'Logo border radius', hint: 'Rounded corners on the logo', min: 0, max: 50, step: 1, unit: 'vh' }
+  { controlName: 'logoSize', label: 'Tama\u00f1o del logo', hint: 'Altura del logo del organizador', min: 1, max: 50, step: 1, unit: 'vh' },
+  { controlName: 'logoX', label: 'Posici\u00f3n X del logo', hint: 'Desplazamiento horizontal desde el borde izquierdo de la superposici\u00f3n', min: 0, max: 100, step: 1, unit: 'vw' },
+  { controlName: 'logoY', label: 'Posici\u00f3n Y del logo', hint: 'Desplazamiento vertical desde el borde superior de la superposici\u00f3n', min: 0, max: 100, step: 1, unit: 'vh' },
+  { controlName: 'logoTransparency', label: 'Transparencia del logo', hint: '100 = totalmente transparente (invisible), 0 = totalmente opaco', min: 0, max: 100, step: 1, unit: '%' },
+  { controlName: 'logoBorderRadius', label: 'Radio de borde del logo', hint: 'Esquinas redondeadas del logo', min: 0, max: 50, step: 1, unit: 'vh' }
 ];
 
 const EVENT_NAME_LAYOUT_FIELDS: readonly EventConfigLayoutField[] = [
-  { controlName: 'eventNameSize', label: 'Event name size', hint: 'Font size of the event name pill', min: 1, max: 50, step: 1, unit: 'vw' },
-  { controlName: 'eventNameX', label: 'Event name X position', hint: 'Horizontal offset from the overlay\u2019s right edge', min: 0, max: 100, step: 1, unit: 'vw' },
-  { controlName: 'eventNameY', label: 'Event name Y position', hint: 'Vertical offset from the overlay\u2019s top edge', min: 0, max: 100, step: 1, unit: 'vh' },
-  { controlName: 'eventNameTransparency', label: 'Event name transparency', hint: '100 = fully transparent (invisible), 0 = fully opaque', min: 0, max: 100, step: 1, unit: '%' },
-  { controlName: 'eventNameBorderRadius', label: 'Event name border radius', hint: 'Rounded corners on the event name pill', min: 0, max: 50, step: 1, unit: 'vh' }
+  { controlName: 'eventNameSize', label: 'Tama\u00f1o del nombre del evento', hint: 'Tama\u00f1o de fuente de la etiqueta del nombre del evento', min: 1, max: 50, step: 1, unit: 'vw' },
+  { controlName: 'eventNameX', label: 'Posici\u00f3n X del nombre del evento', hint: 'Desplazamiento horizontal desde el borde derecho de la superposici\u00f3n', min: 0, max: 100, step: 1, unit: 'vw' },
+  { controlName: 'eventNameY', label: 'Posici\u00f3n Y del nombre del evento', hint: 'Desplazamiento vertical desde el borde superior de la superposici\u00f3n', min: 0, max: 100, step: 1, unit: 'vh' },
+  { controlName: 'eventNameTransparency', label: 'Transparencia del nombre del evento', hint: '100 = totalmente transparente (invisible), 0 = totalmente opaco', min: 0, max: 100, step: 1, unit: '%' },
+  { controlName: 'eventNameBorderRadius', label: 'Radio de borde del nombre del evento', hint: 'Esquinas redondeadas de la etiqueta del nombre del evento', min: 0, max: 50, step: 1, unit: 'vh' }
 ];
 
 const ALLOWED_LOGO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
@@ -61,12 +53,6 @@ function rangeValidator(field: EventConfigLayoutField): ReturnType<typeof Valida
     Validators.min(field.min),
     Validators.max(field.max)
   ]);
-}
-
-function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): string {
-  return errorKey === 'min'
-    ? `Must be ${field.min} ${field.unit} or more.`
-    : `Must be ${field.max} ${field.unit} or less.`;
 }
 
 @Component({
@@ -81,18 +67,17 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MatSliderModule,
     MatSnackBarModule,
     AdminStateComponent,
     FileInputComponent,
     AdminFormShellComponent,
     AdminPageComponent,
+    BrandingLayoutSectionComponent,
   ],
   template: `
     <app-admin-page
-      eyebrow="Administration"
-      title="Event configuration"
-      description="Organizer, event name, logo, operator session duration, and kiosko branding layout."
+      title="Configuración del evento"
+      description="Organizador, nombre del evento, logo, duración de la sesión del operador y disposición de marca del quiosco."
     />
 
     @if (form) {
@@ -101,39 +86,39 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
         (ngSubmit)="submit()"
         class="event-config"
         novalidate
-        aria-label="Event configuration form"
+        aria-label="Formulario de configuración del evento"
       >
         <app-admin-form-shell [loading]="facade.loading()">
           @if (facade.error(); as error) {
             <app-admin-state
               kind="error"
-              title="Event configuration issue"
+              title="Problema con la configuración del evento"
               [message]="error.message"
             />
           }
 
           <div class="event-config__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Organizer name</mat-label>
+              <mat-label>Nombre del organizador</mat-label>
               <input matInput formControlName="organizerName" maxlength="255" autocomplete="off" />
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Event name</mat-label>
+              <mat-label>Nombre del evento</mat-label>
               <input matInput formControlName="eventName" maxlength="255" autocomplete="off" />
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Event duration (minutes)</mat-label>
+              <mat-label>Duración del evento (minutos)</mat-label>
               <input matInput type="number" formControlName="eventDurationMinutes" min="1" max="1440" required />
               @if (form.controls.eventDurationMinutes.hasError('positiveInteger')) {
                 <mat-error>
-                  Must be a positive integer.
+                  Debe ser un número entero positivo.
                 </mat-error>
               }
               @if (form.controls.eventDurationMinutes.hasError('max')) {
                 <mat-error>
-                  Must be 1440 minutes or less.
+                  Debe ser 1440 minutos o menos.
                 </mat-error>
               }
             </mat-form-field>
@@ -141,8 +126,8 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
 
           <div class="event-config__logo">
             <app-file-input
-              buttonLabel="Choose logo"
-              ariaLabel="Choose organizer logo"
+              buttonLabel="Elegir logo"
+              ariaLabel="Elige el logo del organizador"
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
               [existingFileName]="configuration()?.organizerLogoMediaFile?.originalFilename ?? null"
               [showPreview]="true"
@@ -154,7 +139,7 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
                 formControlName="removeLogo"
                 [disabled]="selectedFile() !== null"
               >
-                Remove logo
+                Quitar logo
               </mat-checkbox>
             }
           </div>
@@ -162,119 +147,18 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
           @if (fileError(); as error) {
             <app-admin-state
               kind="error"
-              title="Logo rejected"
+              title="Logo rechazado"
               [message]="error"
             />
           }
 
-          <section class="event-config__layout" formGroupName="layout">
-            <h3 class="event-config__layout-title">Kiosko branding layout</h3>
-            <p class="event-config__layout-help">
-              Controls the visual treatment of the organizer logo and event name pill on the kiosko display.
-              Drag the sliders to iterate in real time; each change is auto-saved and pushed to the display.
-              Values are interpreted as viewport-relative units; leave a field blank to use the visual default.
-            </p>
-
-            <fieldset class="event-config__layout-group" data-testid="layout-logo">
-              <legend>
-                <span>Organizer logo</span>
-                <span class="event-config__layout-status" [attr.data-status]="facade.layoutAutoSave()" aria-live="polite">
-                  {{ autoSaveLabel() }}
-                </span>
-              </legend>
-              <div class="event-config__layout-grid">
-                @for (field of logoFields; track field.controlName) {
-                  <div class="event-config__slider" [attr.data-testid]="'layout-slider-' + field.controlName">
-                    <div class="event-config__slider-head">
-                      <label class="event-config__slider-label" [attr.for]="'layout-slider-' + field.controlName">
-                        {{ field.label }}
-                      </label>
-                      <span class="event-config__slider-value">
-                        {{ formatSliderValue(field, layoutControl(field).value) }} {{ field.unit }}
-                      </span>
-                    </div>
-                    <mat-slider
-                      [id]="'layout-slider-' + field.controlName"
-                      class="event-config__slider-input"
-                      [min]="field.min"
-                      [max]="field.max"
-                      [step]="field.step"
-                      [discrete]="true"
-                      [showTickMarks]="field.step >= 1"
-                      [attr.aria-label]="field.label + ' (' + field.unit + ')'"
-                      [attr.aria-describedby]="'layout-slider-' + field.controlName + '-hint'"
-                    >
-                      <input matSliderThumb [formControlName]="field.controlName" />
-                    </mat-slider>
-                    <mat-hint
-                      class="event-config__slider-hint"
-                      [id]="'layout-slider-' + field.controlName + '-hint'"
-                    >{{ field.hint }}</mat-hint>
-                    @if (layoutControl(field).hasError('min')) {
-                      <mat-error class="event-config__slider-error">
-                        {{ rangeErrorMessage(field, 'min') }}
-                      </mat-error>
-                    }
-                    @if (layoutControl(field).hasError('max')) {
-                      <mat-error class="event-config__slider-error">
-                        {{ rangeErrorMessage(field, 'max') }}
-                      </mat-error>
-                    }
-                  </div>
-                }
-              </div>
-            </fieldset>
-
-            <fieldset class="event-config__layout-group" data-testid="layout-event-name">
-              <legend>
-                <span>Event name pill</span>
-                <span class="event-config__layout-status" [attr.data-status]="facade.layoutAutoSave()" aria-live="polite">
-                  {{ autoSaveLabel() }}
-                </span>
-              </legend>
-              <div class="event-config__layout-grid">
-                @for (field of eventNameFields; track field.controlName) {
-                  <div class="event-config__slider" [attr.data-testid]="'layout-slider-' + field.controlName">
-                    <div class="event-config__slider-head">
-                      <label class="event-config__slider-label" [attr.for]="'layout-slider-' + field.controlName">
-                        {{ field.label }}
-                      </label>
-                      <span class="event-config__slider-value">
-                        {{ formatSliderValue(field, layoutControl(field).value) }} {{ field.unit }}
-                      </span>
-                    </div>
-                    <mat-slider
-                      [id]="'layout-slider-' + field.controlName"
-                      class="event-config__slider-input"
-                      [min]="field.min"
-                      [max]="field.max"
-                      [step]="field.step"
-                      [discrete]="true"
-                      [showTickMarks]="field.step >= 1"
-                      [attr.aria-label]="field.label + ' (' + field.unit + ')'"
-                      [attr.aria-describedby]="'layout-slider-' + field.controlName + '-hint'"
-                    >
-                      <input matSliderThumb [formControlName]="field.controlName" />
-                    </mat-slider>
-                    <mat-hint
-                      class="event-config__slider-hint"
-                      [id]="'layout-slider-' + field.controlName + '-hint'"
-                    >{{ field.hint }}</mat-hint>
-                    @if (layoutControl(field).hasError('min')) {
-                      <mat-error class="event-config__slider-error">
-                        {{ rangeErrorMessage(field, 'min') }}
-                      </mat-error>
-                    }
-                    @if (layoutControl(field).hasError('max')) {
-                      <mat-error class="event-config__slider-error">
-                        {{ rangeErrorMessage(field, 'max') }}
-                      </mat-error>
-                    }
-                  </div>
-                }
-              </div>
-            </fieldset>
-          </section>
+          <app-branding-layout-section
+            [layout]="form.controls.layout"
+            [logoFields]="logoFields"
+            [eventNameFields]="eventNameFields"
+            [autoSaveStatus]="facade.layoutAutoSave()"
+            [autoSaveLabel]="autoSaveLabel()"
+          />
 
           <div formShellActions>
             <button
@@ -284,7 +168,7 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
               [disabled]="form.invalid || facade.saving() || fileError() !== null"
             >
               <mat-icon aria-hidden="true">save</mat-icon>
-              {{ facade.saving() ? 'Saving...' : 'Save' }}
+              {{ facade.saving() ? 'Guardando...' : 'Guardar' }}
             </button>
           </div>
         </app-admin-form-shell>
@@ -308,88 +192,6 @@ function rangeError(field: EventConfigLayoutField, errorKey: 'min' | 'max'): str
         display: grid;
         gap: 12px;
         margin-top: 8px;
-      }
-      .event-config__layout {
-        display: grid;
-        gap: 16px;
-        margin-top: 24px;
-        padding: 16px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
-        border-radius: 8px;
-      }
-      .event-config__layout-title {
-        margin: 0;
-        font-size: 1.1rem;
-      }
-      .event-config__layout-help {
-        margin: 0;
-        color: rgba(0, 0, 0, 0.6);
-        font-size: 0.9rem;
-      }
-      .event-config__layout-group {
-        border: 0;
-        padding: 0;
-        margin: 0;
-      }
-      .event-config__layout-group legend {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        width: 100%;
-        font-weight: 600;
-        padding: 0 0 8px;
-      }
-      .event-config__layout-status {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: rgba(0, 0, 0, 0.55);
-      }
-      .event-config__layout-status[data-status='saving'] {
-        color: #1976d2;
-      }
-      .event-config__layout-status[data-status='saved'] {
-        color: #2e7d32;
-      }
-      .event-config__layout-status[data-status='error'] {
-        color: #c62828;
-      }
-      .event-config__layout-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 14px 18px;
-      }
-      .event-config__slider {
-        display: grid;
-        gap: 2px;
-        padding: 8px 4px 4px;
-      }
-      .event-config__slider-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .event-config__slider-label {
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: rgba(0, 0, 0, 0.75);
-      }
-      .event-config__slider-value {
-        font-size: 0.85rem;
-        font-variant-numeric: tabular-nums;
-        color: rgba(0, 0, 0, 0.6);
-      }
-      .event-config__slider-input {
-        width: 100%;
-      }
-      .event-config__slider-hint {
-        font-size: 0.75rem;
-        color: rgba(0, 0, 0, 0.55);
-      }
-      .event-config__slider-error {
-        font-size: 0.75rem;
-        color: #c62828;
       }
     `
   ],
@@ -443,44 +245,25 @@ export class EventConfigComponent implements OnInit, DirtyFormAware {
     this.fileError.set(null);
     this.selectedFile.set(null);
     if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-      this.fileError.set('Unsupported file type. Allowed: PNG, JPG, WebP, SVG.');
+      this.fileError.set('Tipo de archivo no admitido. Permitidos: PNG, JPG, WebP, SVG.');
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      this.fileError.set('Logo file too large (max 1 MB).');
+      this.fileError.set('El archivo del logo es demasiado grande (máx. 1 MB).');
       return;
     }
     this.selectedFile.set(file);
     this.form?.controls.removeLogo.setValue(false);
   }
 
-  protected rangeErrorMessage(field: EventConfigLayoutField, errorKey: 'min' | 'max'): string {
-    return rangeError(field, errorKey);
-  }
-
-  protected layoutControl(field: EventConfigLayoutField): FormControl<number | null> {
-    const layout = this.form?.controls.layout;
-    if (!layout) {
-      throw new Error('layout form group is not initialized');
-    }
-    return layout.controls[field.controlName];
-  }
-
-  protected formatSliderValue(field: EventConfigLayoutField, value: number | null): string {
-    if (value === null || value === undefined) {
-      return '—';
-    }
-    return String(Math.round(value));
-  }
-
   protected autoSaveLabel(): string {
     switch (this.facade.layoutAutoSave()) {
       case 'saving':
-        return 'Saving...';
+        return 'Guardando...';
       case 'saved':
-        return 'Saved';
+        return 'Guardado';
       case 'error':
-        return 'Error — will retry on next change';
+        return 'Error — se reintentará al próximo cambio';
       default:
         return '';
     }
@@ -499,7 +282,7 @@ export class EventConfigComponent implements OnInit, DirtyFormAware {
         this.selectedFile.set(null);
         this.populate(configuration);
         this.lastSavedLayoutJson = JSON.stringify(this.form?.controls.layout.value ?? {});
-        this.snackBar.open('Event configuration saved.', 'Dismiss', { duration: 3000 });
+        this.snackBar.open('Configuración del evento guardada.', 'Cerrar', { duration: 3000 });
       }
     });
   }

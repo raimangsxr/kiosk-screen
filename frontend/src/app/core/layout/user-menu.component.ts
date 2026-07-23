@@ -52,6 +52,11 @@ import { ThemeMode, ThemeService } from '../theme/theme.service';
         <span>Tema oscuro</span>
       </button>
       <mat-divider />
+      <button mat-menu-item type="button" (click)="theme.toggleDensity()" data-testid="user-menu-density">
+        <mat-icon aria-hidden="true">{{ theme.isCompact() ? 'expand' : 'compress' }}</mat-icon>
+        <span>{{ theme.isCompact() ? 'Vista cómoda' : 'Vista compacta' }}</span>
+      </button>
+      <mat-divider />
       <button mat-menu-item type="button" (click)="openChangePassword()">
         <mat-icon aria-hidden="true">password</mat-icon>
         <span>Cambiar contraseña</span>
