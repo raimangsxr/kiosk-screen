@@ -133,7 +133,7 @@ describe('UsersListComponent (Material)', () => {
     fixture.componentInstance['facade'].refresh().subscribe();
     httpController.expectOne('/api/users').flush([]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No users yet');
+    expect(fixture.nativeElement.textContent).toContain('Aún no hay usuarios');
   });
 });
 

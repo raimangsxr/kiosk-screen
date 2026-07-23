@@ -44,15 +44,21 @@ import { MatCardModule } from '@angular/material/card';
       .admin-entity-card {
         display: block;
         background: var(--mat-sys-surface);
+        border-radius: var(--app-radius-lg);
+        transition: box-shadow 160ms ease, border-color 160ms ease;
+      }
+      .admin-entity-card:hover {
+        box-shadow: var(--app-shadow-md);
       }
       .admin-entity-card--highlight {
         border-color: var(--mat-sys-primary);
+        box-shadow: inset 0 0 0 1px var(--mat-sys-primary);
       }
       .admin-entity-card__media {
         display: block;
       }
-      .admin-entity-card__media :ng-deep img,
-      .admin-entity-card__media :ng-deep video {
+      .admin-entity-card__media ::ng-deep img,
+      .admin-entity-card__media ::ng-deep video {
         width: 100%;
         height: 160px;
         object-fit: cover;
@@ -62,7 +68,7 @@ import { MatCardModule } from '@angular/material/card';
         border-top-right-radius: inherit;
       }
       .admin-entity-card__content {
-        padding-top: 12px;
+        padding-top: var(--app-density-card, 16px);
       }
       .admin-entity-card__header {
         display: flex;

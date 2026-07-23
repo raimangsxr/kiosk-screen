@@ -159,6 +159,8 @@ export interface AdminListRefreshAction {
       .admin-list__card {
         margin-top: 4px;
         min-width: 0;
+        border-radius: var(--app-radius-lg);
+        box-shadow: var(--app-shadow-sm);
       }
       .admin-list__refresh {
         min-height: var(--app-touch-target);

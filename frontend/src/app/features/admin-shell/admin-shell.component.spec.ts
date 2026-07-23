@@ -86,26 +86,15 @@ describe('AdminShellComponent', () => {
     expect(text).toContain('Usuarios');
     expect(text).toContain('Control remoto');
     expect(text).toContain('Volver al hall');
-    expect(text).toContain('Entrar en quiosco');
+    expect(text).toContain('Abrir display');
   });
 
-  it('renders the brand in the admin toolbar on desktop', () => {
-    emitBreakpoints(breakpointObserver, {
-      HandsetPortrait: false,
-      Web: true,
-      Large: true,
-      XSmall: false,
-      Small: false,
-      Medium: false,
-      XLarge: false
-    });
-
+  it('renders the brand in the sidebar rail', () => {
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
-    const toolbar = fixture.nativeElement.querySelector('mat-toolbar');
-    expect(toolbar?.textContent).toContain('Kiosk Screen');
-    expect(toolbar?.textContent).toContain('Administración');
+    const brand = fixture.nativeElement.querySelector('.rail__brand');
+    expect(brand?.textContent).toContain('Kiosk Screen');
   });
 
   it('shows menu button on compact non-handset viewports', () => {
@@ -154,40 +143,15 @@ describe('AdminShellComponent', () => {
     expect(routeContext.subtitle()).toBe('Editar');
   });
 
-  it('hides breadcrumb on compact viewports', async () => {
-    emitBreakpoints(breakpointObserver, {
-      HandsetPortrait: true,
-      XSmall: true,
-      Small: false,
-      Medium: false,
-      Large: false,
-      XLarge: false
-    });
-
+  it('renders the breadcrumb trail with the active section in the topbar', async () => {
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/admin/users');
     const fixture = TestBed.createComponent(AdminShellComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('app-breadcrumb')).toBeNull();
-  });
-
-  it('renders breadcrumb on expanded viewports', async () => {
-    emitBreakpoints(breakpointObserver, {
-      HandsetPortrait: false,
-      Web: true,
-      XSmall: false,
-      Small: false,
-      Medium: false,
-      Large: true,
-      XLarge: false
-    });
-
-    const router = TestBed.inject(Router);
-    await router.navigateByUrl('/admin/users');
-    const fixture = TestBed.createComponent(AdminShellComponent);
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.querySelector('app-breadcrumb')).not.toBeNull();
+    const crumbs = fixture.nativeElement.querySelector('.crumbs');
+    expect(crumbs).not.toBeNull();
+    expect(crumbs.textContent).toContain('Administración');
+    expect(crumbs.textContent).toContain('Usuarios');
   });
 });

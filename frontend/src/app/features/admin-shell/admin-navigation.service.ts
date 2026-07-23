@@ -87,4 +87,33 @@ export class AdminNavigationService {
   iconFor(route: string): string {
     return ICONS[route] ?? 'arrow_forward';
   }
+
+  /**
+   * Resolves the navigation group a URL belongs to (Operación / Configuración
+   * / Acceso) by matching against the deepest nav item that prefixes the URL.
+   * Used as the page-header eyebrow so operators always see which area of the
+   * admin they are in, instead of a static "Administración" label.
+   */
+  groupLabelFor(url: string): string {
+    const path = url.split('?')[0];
+    const urlSegments = path.split('/').filter(Boolean);
+    let best: { group: string; depth: number } | null = null;
+    for (const group of this.groups) {
+      for (const item of group.items) {
+        const segments = item.route.split('/').filter(Boolean);
+        if (segments.length > urlSegments.length) {
+          continue;
+        }
+        const prefix = segments.join('/');
+        const urlPrefix = urlSegments.slice(0, segments.length).join('/');
+        if (prefix !== urlPrefix) {
+          continue;
+        }
+        if (!best || segments.length > best.depth) {
+          best = { group: group.label, depth: segments.length };
+        }
+      }
+    }
+    return best?.group ?? ADMIN_COPY.eyebrow;
+  }
 }

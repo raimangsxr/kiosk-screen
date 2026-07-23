@@ -45,7 +45,7 @@ describe('AdListComponent (Material)', () => {
   it('renders ad metadata and active status', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Sponsor');
-    expect(text).toContain('External source');
+    expect(text).toContain('Origen externo');
     expect(text).toContain('Activo');
   });
 

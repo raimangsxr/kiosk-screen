@@ -10,13 +10,11 @@ import {
 } from '@angular/forms';
 
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { Observable, Subject, takeUntil } from 'rxjs';
@@ -30,6 +28,9 @@ import { AdminFormShellComponent } from '../../shared/ui/admin/admin-form-shell.
 import { FileInputComponent } from '../../shared/ui/file-input.component';
 import { positiveInteger } from '../../shared/forms/admin-validators';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
+import { ContentAnimationSectionComponent } from './sections/content-animation-section.component';
+import { ContentLifecycleSectionComponent } from './sections/content-lifecycle-section.component';
+import { ContentActiveToggleSectionComponent } from './sections/content-active-toggle-section.component';
 
 type ContentType = 'photo' | 'video';
 
@@ -58,21 +59,21 @@ interface ContentFormValue {
     MatInputModule,
     MatSelectModule,
     MatButtonModule,
-    MatCheckboxModule,
     MatIconModule,
-    MatSlideToggleModule,
     MatDividerModule,
     MatSnackBarModule,
     AdminPageComponent,
     AdminStateComponent,
     AdminFormShellComponent,
-    FileInputComponent
+    FileInputComponent,
+    ContentAnimationSectionComponent,
+    ContentLifecycleSectionComponent,
+    ContentActiveToggleSectionComponent
   ],
   template: `
     <app-admin-page
-      eyebrow="Administration"
       [title]="formTitle()"
-      description="Configure ordering, rotation, animation, and availability for one top-region item."
+      description="Configura el orden, la rotación, la animación y la disponibilidad de un elemento de la zona superior."
     />
 
     @if (form) {
@@ -81,32 +82,32 @@ interface ContentFormValue {
         (ngSubmit)="submit()"
         class="content-form"
         novalidate
-        aria-label="Content item form"
+        aria-label="Formulario de contenido"
       >
         <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not load content"
+              title="No se pudo cargar el contenido"
               [message]="error.message"
             />
           }
 
           <div class="content-form__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Type</mat-label>
+              <mat-label>Tipo</mat-label>
               <mat-select formControlName="contentType" required>
-                <mat-option value="photo">Photo</mat-option>
-                <mat-option value="video">Video</mat-option>
+                <mat-option value="photo">Foto</mat-option>
+                <mat-option value="video">Vídeo</mat-option>
               </mat-select>
               @if (form.controls.contentType.hasError('required')) {
-                <mat-error>Type is required.</mat-error>
+                <mat-error>El tipo es obligatorio.</mat-error>
               }
             </mat-form-field>
           </div>
 
           <div class="content-form__file">
-            <span class="content-form__file-label">Upload file</span>
+            <span class="content-form__file-label">Subir archivo</span>
             <app-file-input
               [accept]="fileAccept()"
               [buttonLabel]="fileButtonLabel()"
@@ -122,114 +123,47 @@ interface ContentFormValue {
           @if (contentId()) {
             <div class="content-form__row">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Display order</mat-label>
+                <mat-label>Orden de visualización</mat-label>
                 <input matInput type="number" formControlName="displayOrder" min="1" />
-                <mat-hint>Reorder by dragging rows in the content list.</mat-hint>
+                <mat-hint>Reordena arrastrando las filas en la lista de contenido.</mat-hint>
                 @if (form.controls.displayOrder.hasError('positiveInteger')) {
                   <mat-error>
-                    Order must be a positive integer.
+                    El orden debe ser un número entero positivo.
                   </mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Rotation time (seconds)</mat-label>
+                <mat-label>Tiempo de rotación (segundos)</mat-label>
                 <input matInput type="number" formControlName="durationSeconds" min="1" />
-                <mat-hint>Leave empty to use kiosk default.</mat-hint>
+                <mat-hint>Déjalo vacío para usar el valor por defecto del quiosco.</mat-hint>
               </mat-form-field>
             </div>
           }
 
-          <div class="content-form__row">
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Animation</mat-label>
-              <mat-select formControlName="rotationAnimation">
-                <mat-option [value]="null">Default</mat-option>
-                @for (animation of animations; track animation) {
-                  <mat-option [value]="animation">
-                    {{ animation }}
-                  </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Animation duration (ms)</mat-label>
-              <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-              <mat-hint>Leave empty to use kiosk default.</mat-hint>
-            </mat-form-field>
-          </div>
+          <app-content-animation-section [form]="form" [animations]="animations" />
 
           <mat-divider />
 
-          <div
-            class="content-form__lifecycle"
-            aria-label="Display modes"
-          >
-            <h3
-              class="content-form__section-title"
-            >Modo de visualización</h3>
-            <p class="content-form__hint">
-              Recurrente y Fijo son mutuamente excluyentes.
-            </p>
-
-            <mat-checkbox
-              formControlName="isFixed"
-              (change)="onIsFixedChange()"
-              class="content-form__checkbox"
-            >
-              Marcar como contenido fijo
-            </mat-checkbox>
-            @if (form.controls.isFixed.value) {
-              <p
-                class="content-form__hint content-form__hint--detail"
-              >
-                Sólo se mostrará en modo "Fixed" del control remoto. No aparece en la rotación normal.
-              </p>
-            }
-
-            @if (!form.controls.isFixed.value) {
-              <mat-form-field
-                appearance="outline"
-                subscriptSizing="dynamic"
-                class="content-form__cadence"
-              >
-                <mat-label>Recurrente cada (iteraciones)</mat-label>
-                <input
-                  matInput
-                  type="number"
-                  formControlName="recurringEveryXIterations"
-                  min="1"
-                />
-                <mat-hint>
-                  Transiciones de pantalla entre apariciones de este contenido (contador
-                  independiente por ítem). Tiempo aproximado ≈ N × duración media del slide.
-                </mat-hint>
-              </mat-form-field>
-            }
-          </div>
+          <app-content-lifecycle-section
+            [form]="form"
+            (isFixedChange)="onIsFixedChange()"
+          />
 
           <mat-divider />
 
-          <div class="content-form__toggle">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
-            @if (!form.controls.isActive.value) {
-              <span class="content-form__hint">
-                Inactive items are skipped during rotation.
-              </span>
-            }
-          </div>
+          <app-content-active-toggle-section [form]="form" />
 
           @if (saveError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not save content"
+              title="No se pudo guardar el contenido"
               [message]="error.message"
             />
           }
 
           <div formShellActions>
-            <a mat-button routerLink="/admin/content">Cancel</a>
+            <a mat-button routerLink="/admin/content">Cancelar</a>
             <button
               mat-flat-button
               color="primary"
@@ -237,7 +171,7 @@ interface ContentFormValue {
               [disabled]="form.invalid || facade.saving() || loading()"
             >
               <mat-icon aria-hidden="true">save</mat-icon>
-              {{ facade.saving() ? 'Saving…' : 'Save' }}
+              {{ facade.saving() ? 'Guardando…' : 'Guardar' }}
             </button>
           </div>
         </app-admin-form-shell>
@@ -266,39 +200,6 @@ interface ContentFormValue {
         letter-spacing: var(--mat-sys-label-large-tracking);
         font-weight: 500;
         color: var(--mat-sys-on-surface);
-      }
-      .content-form__toggle {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-        padding: 4px 0;
-      }
-      .content-form__lifecycle {
-        display: grid;
-        gap: 8px;
-        padding: 12px 0;
-      }
-      .content-form__section-title {
-        margin: 0;
-        font: var(--mat-sys-title-medium);
-        letter-spacing: var(--mat-sys-title-medium-tracking);
-      }
-      .content-form__checkbox {
-        padding: 4px 0;
-      }
-      .content-form__cadence {
-        width: 100%;
-      }
-      .content-form__hint {
-        color: var(--mat-sys-on-surface-variant);
-        font: var(--mat-sys-body-small);
-        letter-spacing: var(--mat-sys-body-small-tracking);
-        margin: 0;
-      }
-      .content-form__hint--detail {
-        padding-left: 32px;
-        font-style: italic;
       }
     `
   ]
@@ -372,7 +273,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   }
 
   protected formTitle(): string {
-    return this.contentId() ? 'Edit content item' : 'New content item';
+    return this.contentId() ? 'Editar contenido' : 'Nuevo contenido';
   }
 
   protected fileAccept(): string {
@@ -389,23 +290,23 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   protected fileButtonLabel(): string {
     const type = this.form?.controls.contentType.value;
     if (type === 'video') {
-      return this.contentId() ? 'Choose video' : 'Choose videos';
+      return this.contentId() ? 'Elegir vídeo' : 'Elegir vídeos';
     }
     if (type === 'photo') {
-      return this.contentId() ? 'Choose image' : 'Choose images';
+      return this.contentId() ? 'Elegir imagen' : 'Elegir imágenes';
     }
-    return 'Choose file';
+    return 'Elegir archivo';
   }
 
   protected fileLabel(): string {
     const type = this.form?.controls.contentType.value;
     if (type === 'video') {
-      return this.contentId() ? 'Choose a video file to upload' : 'Choose video files to upload';
+      return this.contentId() ? 'Elige un archivo de vídeo para subir' : 'Elige archivos de vídeo para subir';
     }
     if (type === 'photo') {
-      return this.contentId() ? 'Choose an image file to upload' : 'Choose image files to upload';
+      return this.contentId() ? 'Elige un archivo de imagen para subir' : 'Elige archivos de imagen para subir';
     }
-    return 'Choose a file to upload';
+    return 'Elige un archivo para subir';
   }
 
   protected existingMediaName(): string | null {
@@ -458,7 +359,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     if (this.requiresFile(value.contentType) && !uploadFiles.length && !value.sourceReference.trim() && !this.contentId()) {
       this.saveError.set({
         code: 'validation_missing_file',
-        message: 'Choose an image, video, or external source URL before saving.',
+        message: 'Elige una imagen, un vídeo o una URL de origen externa antes de guardar.',
         category: 'validation'
       });
       return;
@@ -485,7 +386,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
 
     request$.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
-        this.snackBar.open(`Saved content.`, 'Dismiss', { duration: 3000 });
+        this.snackBar.open(`Contenido guardado.`, 'Cerrar', { duration: 3000 });
         this.markPristine();
         this.router.navigate(['/admin/content']);
       },
@@ -577,7 +478,7 @@ export class ContentFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     }
 
     const existingTitle = value.title.trim();
-    return existingTitle || 'Content item';
+    return existingTitle || 'Contenido';
   }
 
   private titleFromFileName(fileName: string): string {
