@@ -164,6 +164,35 @@ def test_pause_freezes_top_not_ads(
     orchestrator.advance_ad(session)
 
 
+def test_remote_previous_while_paused_keeps_pause_and_skips_timer(
+    orchestrator_env: tuple[DisplayOrchestrator, Session, str, sessionmaker[Session]],
+) -> None:
+    orchestrator, session, org_id, _factory = orchestrator_env
+    second = _content(org_id, str(uuid4()), display_order=2)
+    session.add(second)
+    session.commit()
+    orchestrator.bootstrap(session)
+    orchestrator.handle_remote_navigation(
+        session,
+        _remote_state(navigation_command="pause"),
+        command="pause",
+    )
+    orchestrator.advance_top(session, reason="remote_next")
+    paused_state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
+    assert paused_state["isPaused"] is True
+    before_previous_id = paused_state["currentTopContentId"]
+
+    orchestrator.handle_remote_navigation(
+        session,
+        _remote_state(navigation_command="previous"),
+        command="previous",
+    )
+    after = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
+    assert after["isPaused"] is True
+    assert after["currentTopContentId"] != before_previous_id
+    assert orchestrator._scheduler._top_timer is None  # noqa: SLF001
+
+
 def test_arm_top_timer_skips_when_paused(
     orchestrator_env: tuple[DisplayOrchestrator, Session, str, sessionmaker[Session]],
 ) -> None:

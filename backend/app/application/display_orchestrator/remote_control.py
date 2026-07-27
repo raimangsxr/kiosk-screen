@@ -135,8 +135,6 @@ def handle_remote_navigation(
     if remote.content_mode != "loop":
         return
 
-    orchestrator._update_state({"isPaused": False})  # noqa: SLF001
-
     if command == "next":
         orchestrator.advance_top(session, reason="remote_next")
         return
