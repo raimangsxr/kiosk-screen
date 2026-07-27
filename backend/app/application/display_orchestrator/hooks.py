@@ -93,12 +93,18 @@ def notify_remote_state_changed(session: Session, organization_id: str) -> None:
     orchestrator.apply_remote_state(session, remote, reason="remote_mode_change")
 
 
-def notify_remote_navigation(session: Session, organization_id: str, remote_state: object) -> None:
-    command = getattr(remote_state, "navigation_command", None)
-    if not command:
+def notify_remote_navigation(
+    session: Session,
+    organization_id: str,
+    remote_state: object,
+    *,
+    command: str | None = None,
+) -> None:
+    resolved = command or getattr(remote_state, "navigation_command", None)
+    if not resolved:
         return
     ensure_display_orchestrator(session, organization_id)
     orchestrator = _active_orchestrator(session, organization_id)
     if orchestrator is None:
         return
-    orchestrator.handle_remote_navigation(session, remote_state, command=command)
+    orchestrator.handle_remote_navigation(session, remote_state, command=resolved)

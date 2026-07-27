@@ -1,26 +1,51 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  HostListener,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { ContentFacade } from './content.facade';
 import { ContentItem } from '../../core/api/content.api';
 import { injectExtendedColors } from '../../core/theme/extended-colors';
+import { RotationAnimation } from '../../shared/media-upload.models';
+import {
+  MediaHoverPreviewService,
+  type MediaPreviewConfig
+} from '../../shared/ui/media-hover-preview/media-hover-preview.component';
 import { AdminListComponent } from '../../shared/ui/admin/admin-list.component';
 import { StatusChipComponent } from '../../shared/ui/status-chip.component';
 import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
-import { ContentCardComponent } from './sections/content-card.component';
 import {
-  contentMediaLabel,
-  contentRotationSummary,
-  contentTypeLabel
-} from './content-labels';
+  CLIENT_PAGE_SIZE_OPTIONS,
+  clampPageIndex,
+  formatPaginationRange,
+  pageCount,
+  pageSizeLabel,
+  slicePage,
+  type ClientPageSize
+} from '../../shared/util/client-pagination';
+import {
+  readContentListPageSize,
+  writeContentListPageSize
+} from '../../shared/util/client-pagination-storage';
 
 @Component({
   selector: 'app-content-list',
@@ -34,15 +59,18 @@ import {
     RouterLink,
     MatTableModule,
     MatButtonModule,
+    MatCardModule,
     MatIconModule,
     MatCheckboxModule,
     MatSnackBarModule,
     MatSlideToggleModule,
+    MatTooltipModule,
+    MatFormFieldModule,
+    MatSelectModule,
     CdkDropList,
     CdkDrag,
     AdminListComponent,
-    StatusChipComponent,
-    ContentCardComponent
+    StatusChipComponent
   ],
   template: `
     <app-admin-list
@@ -100,7 +128,7 @@ import {
       <mat-slide-toggle
         adminListActions
         [checked]="noveltyFilterOnly()"
-        (change)="noveltyFilterOnly.set($event.checked)"
+        (change)="onNoveltyFilterChange($event.checked)"
         data-testid="content-novelty-filter"
       >
         Solo novedades
@@ -109,9 +137,10 @@ import {
         <div
           cdkDropList
           class="content-list__drop"
-          [cdkDropListDisabled]="noveltyFilterOnly()"
+          [cdkDropListDisabled]="!reorderEnabled()"
           (cdkDropListDropped)="onDrop($event)"
-          aria-label="Arrastra para reordenar contenido"
+          (cdkDragStarted)="onDragStarted()"
+          aria-label="Drag to reorder content items"
         >
           <table mat-table [dataSource]="visibleItems()" [trackBy]="trackById" aria-label="Contenido de la zona superior" class="app-table content-list__table">
             <ng-container matColumnDef="select">
@@ -120,7 +149,7 @@ import {
                   [checked]="allChecked()"
                   [indeterminate]="someChecked()"
                   (change)="toggleAll($event.checked)"
-                  aria-label="Seleccionar todo el contenido"
+                  aria-label="Seleccionar todo en la página"
                   data-testid="content-select-all"
                 />
               </th>
@@ -128,7 +157,7 @@ import {
                 <mat-checkbox
                   [checked]="isSelected(item.id)"
                   (change)="toggleSelection(item.id, $event.checked)"
-                  [attr.aria-label]="'Seleccionar contenido ' + item.id + ' para acciones en lote'"
+                  [attr.aria-label]="'Seleccionar ' + item.title"
                   data-testid="content-select"
                 />
               </td>
@@ -138,24 +167,36 @@ import {
               <th mat-header-cell *matHeaderCellDef class="content-list__thumb-cell" scope="col">Vista previa</th>
               <td mat-cell *matCellDef="let item" class="content-list__thumb-cell">
                 @if (item.mediaFile?.mediaUrl) {
-                  @if (item.contentType === 'video') {
-                    <video
-                      class="content-list__thumb"
-                      [src]="item.mediaFile?.mediaUrl ?? ''"
-                      preload="metadata"
-                      muted
-                      aria-hidden="true"
-                      data-testid="content-thumbnail"
-                    ></video>
-                  } @else {
-                    <img
-                      class="content-list__thumb"
-                      [src]="item.mediaFile?.mediaUrl ?? ''"
-                      alt=""
-                      loading="lazy"
-                      data-testid="content-thumbnail"
-                    />
-                  }
+                  <button
+                    type="button"
+                    class="content-list__thumb-button"
+                    [attr.tabindex]="0"
+                    [attr.aria-label]="'Vista ampliada de ' + item.title"
+                    (mouseenter)="openPreview($event.currentTarget, item)"
+                    (mouseleave)="closePreview()"
+                    (focus)="openPreview($event.currentTarget, item)"
+                    (blur)="closePreview()"
+                    data-testid="content-thumbnail-trigger"
+                  >
+                    @if (item.contentType === 'video') {
+                      <video
+                        class="content-list__thumb"
+                        [src]="item.mediaFile?.mediaUrl ?? ''"
+                        preload="metadata"
+                        muted
+                        aria-hidden="true"
+                        data-testid="content-thumbnail"
+                      ></video>
+                    } @else {
+                      <img
+                        class="content-list__thumb"
+                        [src]="item.mediaFile?.mediaUrl ?? ''"
+                        alt=""
+                        loading="lazy"
+                        data-testid="content-thumbnail"
+                      />
+                    }
+                  </button>
                 } @else {
                   <mat-icon class="content-list__thumb-placeholder" aria-hidden="true">
                     {{ item.contentType === 'video' ? 'videocam' : 'photo' }}
@@ -171,7 +212,9 @@ import {
 
             <ng-container matColumnDef="title">
               <th mat-header-cell *matHeaderCellDef>Título</th>
-              <td mat-cell *matCellDef="let item">{{ item.title }}</td>
+              <td mat-cell *matCellDef="let item">
+                <span class="content-list__truncate" [title]="item.title">{{ item.title }}</span>
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="type">
@@ -180,31 +223,34 @@ import {
             </ng-container>
 
             <ng-container matColumnDef="media">
-              <th mat-header-cell *matHeaderCellDef>Medio</th>
-              <td mat-cell *matCellDef="let item">{{ mediaLabel(item) }}</td>
+              <th mat-header-cell *matHeaderCellDef>Media</th>
+              <td mat-cell *matCellDef="let item">
+                <span class="content-list__truncate" [title]="mediaLabel(item)">{{ mediaLabel(item) }}</span>
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="rotation">
               <th mat-header-cell *matHeaderCellDef>Rotación</th>
               <td mat-cell *matCellDef="let item">
                 <div class="content-list__rotation">
-                  <span>{{ rotationSummary(item) }}</span>
+                  <span class="content-list__truncate" [title]="rotationSummary(item)">{{ rotationSummary(item) }}</span>
                   @if (item.isFixed) {
-                    <app-status-chip
-                      label="Fijo"
-                      kind="info"
-                      ariaLabel="Contenido fijo"
-                    />
+                    <app-status-chip label="Fijo" kind="info" ariaLabel="Contenido fijo" />
                   }
                   @if (item.recurringEveryXIterations) {
-                    <app-status-chip
-                      [label]="'Recurrente cada ' + item.recurringEveryXIterations"
-                      kind="warning"
-                      [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
-                    />
+                    <span
+                      [matTooltip]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
+                      matTooltipPosition="above"
+                    >
+                      <app-status-chip
+                        [label]="'R×' + item.recurringEveryXIterations"
+                        kind="warning"
+                        [ariaLabel]="'Recurrente cada ' + item.recurringEveryXIterations + ' iteraciones'"
+                      />
+                    </span>
                   }
                   @if (item.isNovelty) {
-                    <app-status-chip label="Novedad" kind="warning" icon="new_releases" />
+                    <app-status-chip label="Nov." kind="warning" icon="new_releases" ariaLabel="Novedad" />
                   }
                 </div>
               </td>
@@ -221,40 +267,45 @@ import {
             </ng-container>
 
             <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef>Acciones</th>
-              <td mat-cell *matCellDef="let item">
-                <button
-                  mat-button
-                  color="primary"
-                  type="button"
-                  (click)="showOnScreen(item)"
-                  [disabled]="facade.saving() || !item.isActive || item.isFixed === true"
-                  [attr.aria-label]="'Mostrar contenido ' + item.title + ' en pantalla ahora'"
-                  data-testid="content-show-on-screen"
-                >
-                  <mat-icon aria-hidden="true">play_circle</mat-icon>
-                  Mostrar en pantalla
-                </button>
-                <a
-                  mat-button
-                  color="primary"
-                  [routerLink]="['/admin/content', item.id, 'edit']"
-                  [attr.aria-label]="'Editar contenido ' + item.id"
-                >
-                  <mat-icon aria-hidden="true">edit</mat-icon>
-                  Editar
-                </a>
-                <button
-                  mat-button
-                  color="warn"
-                  type="button"
-                  (click)="remove(item)"
-                  [disabled]="facade.saving()"
-                  [attr.aria-label]="'Eliminar contenido ' + item.id"
-                >
-                  <mat-icon aria-hidden="true">delete</mat-icon>
-                  Eliminar
-                </button>
+              <th mat-header-cell *matHeaderCellDef class="content-list__actions-header">Acciones</th>
+              <td mat-cell *matCellDef="let item" class="content-list__actions-cell">
+                <div class="content-list__actions">
+                  <button
+                    mat-icon-button
+                    color="primary"
+                    type="button"
+                    (click)="showOnScreen(item)"
+                    [disabled]="facade.saving() || !item.isActive || item.isFixed === true"
+                    matTooltip="Mostrar en pantalla"
+                    matTooltipPosition="above"
+                    [attr.aria-label]="'Mostrar en pantalla ' + item.title"
+                    data-testid="content-show-on-screen"
+                  >
+                    <mat-icon aria-hidden="true">play_circle</mat-icon>
+                  </button>
+                  <a
+                    mat-icon-button
+                    color="primary"
+                    [routerLink]="['/admin/content', item.id, 'edit']"
+                    matTooltip="Editar"
+                    matTooltipPosition="above"
+                    [attr.aria-label]="'Editar ' + item.title"
+                  >
+                    <mat-icon aria-hidden="true">edit</mat-icon>
+                  </a>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    type="button"
+                    (click)="remove(item)"
+                    [disabled]="facade.saving()"
+                    matTooltip="Eliminar"
+                    matTooltipPosition="above"
+                    [attr.aria-label]="'Eliminar ' + item.title"
+                  >
+                    <mat-icon aria-hidden="true">delete</mat-icon>
+                  </button>
+                </div>
               </td>
             </ng-container>
 
@@ -273,32 +324,187 @@ import {
           <p class="content-list__filter-hint" data-testid="content-novelty-filter-hint">
             Desactiva "Solo novedades" para reordenar.
           </p>
+        } @else if (!reorderEnabled()) {
+          <p class="content-list__filter-hint" data-testid="content-pagination-reorder-hint">
+            Muestra todas las filas para reordenar.
+          </p>
         }
         @if (selection().size > 0) {
           <p class="content-list__selection-hint" aria-live="polite">
-            {{ selection().size }} elemento(s) seleccionado(s). Arrastra cualquier fila seleccionada para mover la selección como un bloque.
+            {{ selection().size }} seleccionado(s). Arrastra una fila seleccionada para mover el bloque.
           </p>
+        }
+        @if (showPaginationFooter()) {
+          <ng-container *ngTemplateOutlet="paginationFooter" />
         }
       </ng-template>
 
       <ng-template #adminListCards>
         @for (item of visibleItems(); track item.id) {
-          <app-content-card
-            [item]="item"
-            [selected]="isSelected(item.id)"
-            [saving]="facade.saving()"
-            [reorderEnabled]="!noveltyFilterOnly()"
-            [canMoveUp]="canMove(item, -1)"
-            [canMoveDown]="canMove(item, 1)"
-            (toggleSelect)="toggleSelection(item.id, $event)"
-            (moveUp)="moveItem(item, -1)"
-            (moveDown)="moveItem(item, 1)"
-            (showOnScreen)="showOnScreen(item)"
-            (remove)="remove(item)"
-          />
+          <mat-card
+            appearance="outlined"
+            class="content-list__card-item"
+            [class.content-list__card-item--novelty]="item.isNovelty"
+          >
+            @if (item.mediaFile?.mediaUrl) {
+              <button
+                type="button"
+                class="content-list__card-thumb-button"
+                [attr.aria-label]="'Vista ampliada de ' + item.title"
+                (click)="openTapPreview(item)"
+              >
+                @if (item.contentType === 'video') {
+                  <video
+                    class="content-list__card-thumb"
+                    [src]="item.mediaFile?.mediaUrl ?? ''"
+                    preload="metadata"
+                    muted
+                    aria-hidden="true"
+                  ></video>
+                } @else {
+                  <img
+                    class="content-list__card-thumb"
+                    [src]="item.mediaFile?.mediaUrl ?? ''"
+                    alt=""
+                    loading="lazy"
+                  />
+                }
+              </button>
+            }
+            <mat-card-content>
+              <div class="content-list__card-select">
+                <mat-checkbox
+                  [checked]="isSelected(item.id)"
+                  (change)="toggleSelection(item.id, $event.checked)"
+                  [attr.aria-label]="'Seleccionar ' + item.title"
+                />
+                @if (reorderEnabled()) {
+                  <div class="content-list__card-reorder">
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [disabled]="!canMove(item, -1)"
+                      (click)="moveItem(item, -1)"
+                      aria-label="Subir"
+                    >
+                      <mat-icon aria-hidden="true">arrow_upward</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [disabled]="!canMove(item, 1)"
+                      (click)="moveItem(item, 1)"
+                      aria-label="Bajar"
+                    >
+                      <mat-icon aria-hidden="true">arrow_downward</mat-icon>
+                    </button>
+                  </div>
+                }
+              </div>
+              <div class="content-list__card-header">
+                <h3 class="content-list__card-title">{{ item.title }}</h3>
+                <app-status-chip
+                  [label]="item.isActive ? 'Activo' : 'Inactivo'"
+                  [kind]="item.isActive ? 'success' : 'neutral'"
+                />
+              </div>
+              <p class="content-list__card-meta">
+                <span>{{ typeLabel(item.contentType) }}</span>
+                <span> · {{ mediaLabel(item) }}</span>
+                <span> · Orden {{ item.displayOrder }}</span>
+              </p>
+              <p class="content-list__card-rotation">
+                {{ rotationSummary(item) }}
+                @if (item.isNovelty) {
+                  <app-status-chip label="Nov." kind="warning" icon="new_releases" ariaLabel="Novedad" />
+                }
+              </p>
+            </mat-card-content>
+            <mat-card-actions class="app-card-actions content-list__card-actions">
+              <button
+                mat-icon-button
+                color="primary"
+                type="button"
+                (click)="showOnScreen(item)"
+                [disabled]="facade.saving() || !item.isActive || item.isFixed === true"
+                matTooltip="Mostrar en pantalla"
+                [attr.aria-label]="'Mostrar en pantalla ' + item.title"
+              >
+                <mat-icon aria-hidden="true">play_circle</mat-icon>
+              </button>
+              <a
+                mat-icon-button
+                color="primary"
+                [routerLink]="['/admin/content', item.id, 'edit']"
+                matTooltip="Editar"
+                [attr.aria-label]="'Editar ' + item.title"
+              >
+                <mat-icon aria-hidden="true">edit</mat-icon>
+              </a>
+              <button
+                mat-icon-button
+                color="warn"
+                type="button"
+                (click)="remove(item)"
+                [disabled]="facade.saving()"
+                matTooltip="Eliminar"
+                [attr.aria-label]="'Eliminar ' + item.title"
+              >
+                <mat-icon aria-hidden="true">delete</mat-icon>
+              </button>
+            </mat-card-actions>
+          </mat-card>
+        }
+        @if (!reorderEnabled() && !noveltyFilterOnly()) {
+          <p class="content-list__filter-hint" data-testid="content-pagination-reorder-hint">
+            Muestra todas las filas para reordenar.
+          </p>
+        }
+        @if (showPaginationFooter()) {
+          <ng-container *ngTemplateOutlet="paginationFooter" />
         }
       </ng-template>
     </app-admin-list>
+
+    <ng-template #paginationFooter>
+      <div class="content-list__pagination" data-testid="content-pagination">
+        <mat-form-field appearance="outline" class="content-list__page-size" subscriptSizing="dynamic">
+          <mat-label>Filas por página</mat-label>
+          <mat-select
+            [value]="pageSize()"
+            (selectionChange)="onPageSizeChange($event.value)"
+            data-testid="content-page-size"
+          >
+            @for (size of pageSizeOptions; track size) {
+              <mat-option [value]="size">{{ pageSizeLabel(size) }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (pageSize() !== 'all' && filteredTotal() > 0) {
+          <span class="content-list__page-range" data-testid="content-page-range">{{ paginationLabel() }}</span>
+          <button
+            mat-icon-button
+            type="button"
+            [disabled]="!canGoPrevious()"
+            (click)="goToPreviousPage()"
+            aria-label="Página anterior"
+            data-testid="content-page-prev"
+          >
+            <mat-icon aria-hidden="true">chevron_left</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            [disabled]="!canGoNext()"
+            (click)="goToNextPage()"
+            aria-label="Página siguiente"
+            data-testid="content-page-next"
+          >
+            <mat-icon aria-hidden="true">chevron_right</mat-icon>
+          </button>
+        }
+      </div>
+    </ng-template>
   `,
   styles: [
     `
@@ -309,40 +515,90 @@ import {
       .content-list__table {
         width: 100%;
         background: transparent;
+        border-collapse: collapse;
+      }
+      .content-list__table .mat-mdc-cell,
+      .content-list__table .mat-mdc-header-cell {
+        padding-top: 4px;
+        padding-bottom: 4px;
+        vertical-align: middle;
       }
       .content-list__select-cell {
-        width: 48px;
+        width: 40px;
         padding-left: 8px;
         padding-right: 0;
       }
       .content-list__thumb-cell {
-        width: 80px;
-        padding-right: 8px;
+        width: 56px;
+        padding-right: 4px;
+        vertical-align: middle;
+      }
+      .content-list__thumb-button,
+      .content-list__card-thumb-button {
+        display: block;
+        padding: 0;
+        border: none;
+        background: transparent;
+        cursor: zoom-in;
+        border-radius: 4px;
+      }
+      .content-list__thumb-button:focus-visible,
+      .content-list__card-thumb-button:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: 2px;
+      }
+      .content-list__card-thumb-button {
+        width: 100%;
+        cursor: pointer;
       }
       .content-list__thumb {
-        width: 64px;
-        height: 64px;
+        width: 48px;
+        height: 48px;
         object-fit: cover;
         border-radius: 4px;
         display: block;
         background: var(--mat-sys-surface-container);
       }
       .content-list__thumb-placeholder {
-        width: 64px;
-        height: 64px;
-        font-size: 32px;
-        line-height: 64px;
+        width: 48px;
+        height: 48px;
+        font-size: 28px;
+        line-height: 48px;
         text-align: center;
         display: inline-block;
         color: var(--mat-sys-on-surface-variant);
         background: var(--mat-sys-surface-container);
         border-radius: 4px;
       }
+      .content-list__truncate {
+        display: inline-block;
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
       .content-list__rotation {
         display: inline-flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
+        max-width: 220px;
+      }
+      .content-list__rotation .content-list__truncate {
+        max-width: 100px;
+      }
+      .content-list__actions-header,
+      .content-list__actions-cell {
+        width: 120px;
+        text-align: right;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .content-list__actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
       }
       .content-list__row {
         cursor: grab;
@@ -357,17 +613,89 @@ import {
       .content-list__row.cdk-drag-placeholder {
         opacity: 0.4;
       }
-      .content-list__selection-hint {
-        margin: 8px 4px 0;
-        color: var(--mat-sys-on-surface-variant);
-        font: var(--mat-sys-body-small);
-        letter-spacing: var(--mat-sys-body-small-tracking);
-      }
+      .content-list__selection-hint,
       .content-list__filter-hint {
         margin: 8px 4px 0;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .content-list__pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 0 4px 4px;
+      }
+      .content-list__page-size {
+        width: 140px;
+        margin: 0;
+      }
+      .content-list__page-range {
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        min-width: 96px;
+        text-align: center;
+      }
+      .content-list__card-item {
+        display: block;
+        background: var(--mat-sys-surface);
+      }
+      .content-list__card-item--novelty {
+        border-color: var(--status-warning-container);
+        background: color-mix(in srgb, var(--status-warning-container) 20%, var(--mat-sys-surface));
+      }
+      .content-list__card-thumb {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        display: block;
+        background: var(--mat-sys-surface-container);
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+      }
+      .content-list__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .content-list__card-select {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .content-list__card-reorder {
+        display: inline-flex;
+        gap: 4px;
+      }
+      .content-list__card-title {
+        margin: 0;
+        font: var(--mat-sys-title-medium);
+        letter-spacing: var(--mat-sys-title-medium-tracking);
+      }
+      .content-list__card-meta,
+      .content-list__card-rotation {
+        margin: 4px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-small);
+        letter-spacing: var(--mat-sys-body-small-tracking);
+      }
+      .content-list__card-rotation {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+      }
+      .content-list__card-actions {
+        padding: 0 8px 8px;
+        min-height: 40px;
       }
     `
   ]
@@ -377,6 +705,7 @@ export class ContentListComponent implements OnInit {
   protected readonly facade = inject(ContentFacade);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly previewService = inject(MediaHoverPreviewService);
 
   protected readonly pageTitle = 'Contenido superior';
   protected readonly pageDescription =
@@ -398,13 +727,30 @@ export class ContentListComponent implements OnInit {
     'status',
     'actions'
   ] as const;
+  protected readonly pageSizeOptions = CLIENT_PAGE_SIZE_OPTIONS;
+  protected readonly pageSizeLabel = pageSizeLabel;
 
   protected readonly selection = signal<ReadonlySet<string>>(new Set());
   protected readonly noveltyFilterOnly = signal(false);
-  protected readonly visibleItems = computed(() => {
+  protected readonly pageSize = signal<ClientPageSize>(readContentListPageSize());
+  protected readonly pageIndex = signal(0);
+
+  protected readonly filteredItems = computed(() => {
     const items = this.facade.items();
     return this.noveltyFilterOnly() ? items.filter((item) => item.isNovelty === true) : items;
   });
+  protected readonly filteredTotal = computed(() => this.filteredItems().length);
+  protected readonly paginatedItems = computed(() =>
+    slicePage(this.filteredItems(), this.pageIndex(), this.pageSize())
+  );
+  protected readonly visibleItems = this.paginatedItems;
+  protected readonly reorderEnabled = computed(
+    () => this.pageSize() === 'all' && !this.noveltyFilterOnly()
+  );
+  protected readonly paginationLabel = computed(() =>
+    formatPaginationRange(this.pageIndex(), this.pageSize(), this.filteredTotal()).label
+  );
+
   protected readonly listEmpty = computed(() => {
     if (this.facade.loading() || this.facade.error()) {
       return false;
@@ -412,7 +758,7 @@ export class ContentListComponent implements OnInit {
     if (this.facade.items().length === 0) {
       return true;
     }
-    return this.noveltyFilterOnly() && this.visibleItems().length === 0;
+    return this.noveltyFilterOnly() && this.filteredItems().length === 0;
   });
   protected readonly emptyTitle = computed(() => {
     if (this.noveltyFilterOnly() && this.facade.items().length > 0) {
@@ -426,17 +772,107 @@ export class ContentListComponent implements OnInit {
     }
     return 'Añade fotos o vídeos para la zona superior.';
   });
-  private readonly rows = computed(() => this.visibleItems());
+  private readonly rows = computed(() => this.paginatedItems());
   protected readonly allChecked = computed(() => {
     const items = this.rows();
     if (items.length === 0) return false;
     const selected = this.selection();
     return items.every((item) => selected.has(item.id));
   });
-  protected readonly someChecked = computed(() => this.selection().size > 0);
+  protected readonly someChecked = computed(() => {
+    const items = this.rows();
+    if (items.length === 0) return false;
+    const selected = this.selection();
+    return items.some((item) => selected.has(item.id)) && !this.allChecked();
+  });
+
+  constructor() {
+    effect(() => {
+      const total = this.filteredTotal();
+      const size = this.pageSize();
+      const clamped = clampPageIndex(this.pageIndex(), total, size);
+      if (clamped !== this.pageIndex()) {
+        this.pageIndex.set(clamped);
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
+  }
+
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    this.previewService.hideImmediate();
+  }
+
+  protected showPaginationFooter(): boolean {
+    return this.filteredTotal() > 0;
+  }
+
+  protected canGoPrevious(): boolean {
+    return this.pageIndex() > 0;
+  }
+
+  protected canGoNext(): boolean {
+    const size = this.pageSize();
+    if (size === 'all') {
+      return false;
+    }
+    return this.pageIndex() < pageCount(this.filteredTotal(), size) - 1;
+  }
+
+  protected goToPreviousPage(): void {
+    if (!this.canGoPrevious()) {
+      return;
+    }
+    this.clearSelection();
+    this.pageIndex.update((index) => index - 1);
+  }
+
+  protected goToNextPage(): void {
+    if (!this.canGoNext()) {
+      return;
+    }
+    this.clearSelection();
+    this.pageIndex.update((index) => index + 1);
+  }
+
+  protected onPageSizeChange(size: ClientPageSize): void {
+    this.pageSize.set(size);
+    writeContentListPageSize(size);
+    this.pageIndex.set(0);
+    this.clearSelection();
+  }
+
+  protected onNoveltyFilterChange(checked: boolean): void {
+    this.noveltyFilterOnly.set(checked);
+    this.pageIndex.set(0);
+    this.clearSelection();
+  }
+
+  protected openPreview(trigger: EventTarget | null, item: ContentItem): void {
+    const config = this.previewConfig(item);
+    if (!config || !(trigger instanceof HTMLElement)) {
+      return;
+    }
+    this.previewService.showHover(trigger, config);
+  }
+
+  protected closePreview(): void {
+    this.previewService.scheduleHide();
+  }
+
+  protected openTapPreview(item: ContentItem): void {
+    const config = this.previewConfig(item);
+    if (!config) {
+      return;
+    }
+    this.previewService.showTap(config);
+  }
+
+  protected onDragStarted(): void {
+    this.previewService.hideImmediate();
   }
 
   protected isSelected(id: string): boolean {
@@ -453,32 +889,34 @@ export class ContentListComponent implements OnInit {
     this.selection.set(next);
   }
 
-  /**
-   * Toggle every visible row. The selection is bounded to the current
-   * page (the full list, since the API does not paginate), so an empty
-   * list is a no-op.
-   */
   protected toggleAll(checked: boolean): void {
     const items = this.rows();
     if (items.length === 0) return;
     if (checked) {
       this.selection.set(new Set(items.map((item) => item.id)));
     } else {
-      this.selection.set(new Set());
+      this.clearSelection();
     }
   }
 
-  /**
-   * Confirm and remove every selected row. After the call resolves we
-   * drop the selection unconditionally — even on partial failure —
-   * so the UI never keeps ids that the backend has already deleted.
-   */
+  private clearSelection(): void {
+    this.selection.set(new Set());
+  }
+
+  private previewConfig(item: ContentItem): MediaPreviewConfig | null {
+    const mediaUrl = item.mediaFile?.mediaUrl;
+    if (!mediaUrl) {
+      return null;
+    }
+    return { mediaUrl, contentType: item.contentType };
+  }
+
   protected removeSelected(): void {
     const ids = Array.from(this.selection());
     if (ids.length === 0) return;
     const ref = this.dialog.open({
       title: `¿Eliminar ${ids.length} elemento${ids.length === 1 ? '' : 's'}?`,
-      message: 'Estos elementos se eliminarán de la rotación. La acción no se puede deshacer.',
+      message: 'Se eliminarán de la rotación. Esta acción no se puede deshacer.',
       confirmLabel: 'Eliminar',
       cancelLabel: 'Cancelar',
       destructive: true
@@ -488,10 +926,10 @@ export class ContentListComponent implements OnInit {
         return;
       }
       this.facade.removeMany(ids).subscribe(() => {
-        this.selection.set(new Set());
+        this.clearSelection();
         if (this.facade.error() === null) {
           this.snackBar.open(
-            `${ids.length} elemento${ids.length === 1 ? '' : 's'} eliminado${ids.length === 1 ? '' : 's'}.`,
+            `Eliminado${ids.length === 1 ? '' : 's'} ${ids.length} elemento${ids.length === 1 ? '' : 's'}.`,
             'Cerrar',
             { duration: 3000 }
           );
@@ -500,13 +938,6 @@ export class ContentListComponent implements OnInit {
     });
   }
 
-  /**
-   * Bulk activate/deactivate the current selection. Reads each selected
-   * item from the current items list (rather than from the selection
-   * set) so the facade can rebuild the full payload per row. Skips the
-   * work if nothing is selected — the action buttons are also hidden
-   * via `*ngIf` in that case.
-   */
   protected setActiveSelected(isActive: boolean): void {
     const ids = Array.from(this.selection());
     if (ids.length === 0) {
@@ -516,12 +947,11 @@ export class ContentListComponent implements OnInit {
     if (items.length === 0) {
       return;
     }
-    const action = isActive ? 'activate' : 'deactivate';
     const ref = this.dialog.open({
-      title: `¿${isActive ? 'Activar' : 'Desactivar'} ${items.length} elemento${items.length === 1 ? '' : 's'}?`,
+      title: `${isActive ? 'Activar' : 'Desactivar'} ${items.length} elemento${items.length === 1 ? '' : 's'}?`,
       message: isActive
-        ? 'Los elementos seleccionados empezarán a aparecer en la rotación del quiosco en el próximo sondeo.'
-        : 'Los elementos seleccionados se omitirán en la rotación del quiosco hasta que se reactiven.',
+        ? 'Los elementos seleccionados aparecerán en la rotación del quiosco en la siguiente actualización.'
+        : 'Los elementos seleccionados no se mostrarán hasta que se reactiven.',
       confirmLabel: isActive ? 'Activar' : 'Desactivar',
       cancelLabel: 'Cancelar'
     });
@@ -530,10 +960,10 @@ export class ContentListComponent implements OnInit {
         return;
       }
       this.facade.setActiveMany(items, isActive).subscribe(() => {
-        this.selection.set(new Set());
+        this.clearSelection();
         if (this.facade.error() === null) {
           this.snackBar.open(
-            `${items.length} elemento${items.length === 1 ? '' : 's'} ${isActive ? 'activado' : 'desactivado'}${items.length === 1 ? '' : 's'}.`,
+            `${isActive ? 'Activado' : 'Desactivado'}${items.length === 1 ? '' : 's'} ${items.length} elemento${items.length === 1 ? '' : 's'}.`,
             'Cerrar',
             { duration: 3000 }
           );
@@ -547,10 +977,10 @@ export class ContentListComponent implements OnInit {
   }
 
   protected canMove(item: ContentItem, direction: -1 | 1): boolean {
-    if (this.noveltyFilterOnly()) {
+    if (!this.reorderEnabled()) {
       return false;
     }
-    const items = this.visibleItems();
+    const items = this.filteredItems();
     const index = items.findIndex((row) => row.id === item.id);
     const target = index + direction;
     return index >= 0 && target >= 0 && target < items.length;
@@ -560,7 +990,7 @@ export class ContentListComponent implements OnInit {
     if (!this.canMove(item, direction)) {
       return;
     }
-    const items = this.visibleItems();
+    const items = this.filteredItems();
     const index = items.findIndex((row) => row.id === item.id);
     const ids = items.map((row) => row.id);
     moveItemInArray(ids, index, index + direction);
@@ -573,14 +1003,38 @@ export class ContentListComponent implements OnInit {
     });
   }
 
-  // Shared with the card variant via `./content-labels` so both layouts
-  // render identical copy (extracted during the CHG-046 split).
-  protected readonly typeLabel = contentTypeLabel;
-  protected readonly mediaLabel = contentMediaLabel;
-  protected readonly rotationSummary = contentRotationSummary;
+  protected typeLabel(type: ContentItem['contentType']): string {
+    switch (type) {
+      case 'photo':
+        return 'Foto';
+      case 'video':
+        return 'Vídeo';
+      default:
+        return type;
+    }
+  }
+
+  protected mediaLabel(item: ContentItem): string {
+    if (item.mediaFile) {
+      return item.mediaFile.originalFilename;
+    }
+    return 'Fuente externa';
+  }
+
+  protected rotationSummary(item: ContentItem): string {
+    const duration = item.effectiveDurationSeconds ?? item.durationSeconds;
+    const animation: RotationAnimation | null | undefined =
+      item.effectiveRotationAnimation ?? item.rotationAnimation;
+    const durationLabel = duration ? `${duration}s` : 'predeterminado';
+    const animationLabel = animation ?? 'predeterminado';
+    return `${durationLabel}, ${animationLabel}`;
+  }
 
   protected onDrop(event: CdkDragDrop<ContentItem>): void {
-    const ids = this.rows().map((item) => item.id);
+    if (!this.reorderEnabled()) {
+      return;
+    }
+    const ids = this.filteredItems().map((item) => item.id);
     const movedId = ids[event.previousIndex];
     moveItemInArray(ids, event.previousIndex, event.currentIndex);
 
@@ -600,7 +1054,7 @@ export class ContentListComponent implements OnInit {
       newOrder = withoutBlock;
     }
 
-    this.selection.set(new Set());
+    this.clearSelection();
     this.facade.reorder(newOrder).subscribe({
       next: () => {
         if (this.facade.error() === null) {
@@ -613,7 +1067,7 @@ export class ContentListComponent implements OnInit {
   protected remove(item: ContentItem): void {
     const ref = this.dialog.open({
       title: `¿Eliminar ${item.title}?`,
-      message: 'Este contenido se eliminará de la rotación. La acción no se puede deshacer.',
+      message: 'Se eliminará de la rotación. Esta acción no se puede deshacer.',
       confirmLabel: 'Eliminar',
       cancelLabel: 'Cancelar',
       destructive: true
@@ -630,19 +1084,10 @@ export class ContentListComponent implements OnInit {
     });
   }
 
-  /**
-   * Spec 014 addendum 2 (FR-020) / spec 009 addendum: posts a `jump_to`
-   * navigation command so the kiosk rotation cursor lands on this
-   * content id on the next poll.
-   */
   protected showOnScreen(item: ContentItem): void {
     this.facade.showOnScreen(item.id).subscribe(() => {
       if (this.facade.error() === null) {
-        this.snackBar.open(
-          `Mostrando ${item.title} en pantalla.`,
-          'Cerrar',
-          { duration: 3000 }
-        );
+        this.snackBar.open(`Mostrando ${item.title} en pantalla.`, 'Cerrar', { duration: 3000 });
       } else {
         this.snackBar.open(
           `No se pudo mostrar ${item.title}: ${this.facade.error()?.message ?? 'error desconocido'}.`,

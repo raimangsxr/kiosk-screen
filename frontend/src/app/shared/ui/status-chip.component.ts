@@ -75,7 +75,8 @@ export type StatusKind = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
     '[style.--status-warning-container]': 'colors.warning.container',
     '[style.--status-on-warning-container]': 'colors.warning.onContainer',
     '[style.--status-info-container]': 'colors.info.container',
-    '[style.--status-on-info-container]': 'colors.info.onContainer'
+    '[style.--status-on-info-container]': 'colors.info.onContainer',
+    '[attr.aria-label]': 'ariaLabel() || label()'
   }
 })
 export class StatusChipComponent {
@@ -84,4 +85,5 @@ export class StatusChipComponent {
   readonly label = input.required<string>();
   readonly kind = input<StatusKind>('neutral');
   readonly icon = input<string>('');
+  readonly ariaLabel = input<string>('');
 }

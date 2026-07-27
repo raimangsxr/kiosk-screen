@@ -118,6 +118,24 @@ def test_admin_can_issue_pause_and_resume_in_loop_mode(api_client: TestClient, c
     assert state.json()["remoteControl"]["navigationCommandId"] == response.json()["navigationCommandId"]
 
 
+def test_previous_while_paused_keeps_pause_latch(api_client: TestClient) -> None:
+    login(api_client, "admin@example.com", "admin")
+    opened = api_client.post("/api/display/open")
+    assert opened.status_code == 200
+
+    paused = api_client.post("/api/display/remote-control/navigation", json={"command": "pause"})
+    assert paused.status_code == 200
+    assert paused.json()["navigationCommand"] == "pause"
+
+    previous = api_client.post("/api/display/remote-control/navigation", json={"command": "previous"})
+    state = api_client.get("/api/display/state")
+
+    assert previous.status_code == 200
+    assert previous.json()["navigationCommand"] == "pause"
+    assert state.status_code == 200
+    assert state.json()["remoteControl"]["navigationCommand"] == "pause"
+
+
 def test_pause_command_is_rejected_outside_loop_mode(api_client: TestClient) -> None:
     login(api_client, "admin@example.com", "admin")
     opened = api_client.post("/api/display/open")

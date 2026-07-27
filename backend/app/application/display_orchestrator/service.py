@@ -313,13 +313,26 @@ class DisplayOrchestrator:
         """Align orchestrator pause state with persisted remote control."""
         display_state = get_display_state(session, self.organization_id)
         remote = display_state.remote_control
-        is_paused = remote is not None and remote.navigation_command == "pause"
         state = self._load_state()
-        if state.get("isPaused") != is_paused:
-            self._update_state({"isPaused": is_paused})
-        if is_paused:
+        current_paused = bool(state.get("isPaused"))
+        if remote is None:
+            return current_paused
+
+        command = remote.navigation_command
+        if command == "pause":
+            if not current_paused:
+                self._update_state({"isPaused": True})
             self._scheduler.cancel_top()
-        return is_paused
+            return True
+        if command == "resume":
+            if current_paused:
+                self._update_state({"isPaused": False})
+            return False
+
+        # next/previous/jump_to do not change the pause latch.
+        if current_paused:
+            self._scheduler.cancel_top()
+        return current_paused
 
     def ensure_top_rotation(self, session: Session) -> None:
         """Re-arm top rotation and republish the current content window for joining kiosks."""

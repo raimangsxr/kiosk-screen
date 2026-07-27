@@ -273,6 +273,25 @@ class DisplayControlService:
         self.session.commit()
         return state
 
+    def restore_rotation_pause_latch(
+        self,
+        organization_id: str,
+        user_id: str,
+        *,
+        was_paused: bool,
+        issued_command: str,
+    ) -> None:
+        """Keep the pause latch after manual next/previous/jump_to navigation."""
+        if not was_paused or issued_command not in {"next", "previous", "jump_to"}:
+            return
+        state = self.get_state_for_active_session(organization_id)
+        if state.navigation_command == "pause":
+            return
+        state.navigation_command = "pause"
+        state.navigation_command_id = str(uuid4())
+        state.updated_by_user_id = user_id
+        self.session.commit()
+
     def _issue_jump_to(
         self,
         state: DisplayControlState,

@@ -176,6 +176,7 @@ contracts:
       - CHG-003
       - CHG-007
       - CHG-027
+      - CHG-046
 
   - id: USERS.ROLES.ADMIN
     path: specs/contracts/users-roles-admin/contract.md
@@ -726,6 +727,15 @@ changes:
       - DISPLAY.CONFIG_SESSION
     depends_on:
       - CHG-044
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-046
+    path: specs/changes/046-top-content-list-ux/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ADS.ADMIN
+    depends_on: []
     consolidated_into: []
     read_by_default: true
 

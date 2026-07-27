@@ -246,13 +246,27 @@ def remote_control_navigation_route(
     ensure_remote_control_admin(user, session)
     try:
         service = DisplayControlService(session)
+        remote_before = service.get_state_for_active_session(user.organization_id)
+        was_paused = remote_before.navigation_command == "pause"
         state = service.issue_navigation_command(
             user.organization_id,
             user.id,
             command=payload.command,
             target_content_id=str(payload.target_content_id) if payload.target_content_id else None,
         )
-        notify_remote_navigation(session, user.organization_id, state)
+        notify_remote_navigation(
+            session,
+            user.organization_id,
+            state,
+            command=payload.command,
+        )
+        service.restore_rotation_pause_latch(
+            user.organization_id,
+            user.id,
+            was_paused=was_paused,
+            issued_command=payload.command,
+        )
+        state = service.get_state_for_active_session(user.organization_id)
         return to_remote_control_admin_schema(state, service.selected_iframe(state))
     except LookupError as exc:
         raise ConflictApplicationError("no_active_display_session", str(exc)) from exc

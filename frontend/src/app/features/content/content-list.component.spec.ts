@@ -1,177 +1,232 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, ComponentFixture, fakeAsync, tick } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { of, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { provideRouter, Routes } from '@angular/router';
 import { BreakpointObserver, BreakpointState, Breakpoints } from '@angular/cdk/layout';
-import { BehaviorSubject, of } from 'rxjs';
-import { Component, signal } from '@angular/core';
+import { BehaviorSubject } from 'rxjs';
+import { OverlayModule } from '@angular/cdk/overlay';
 
+import { ContentApiService, ContentItem } from '../../core/api/content.api';
 import { ContentListComponent } from './content-list.component';
-import { ContentFacade } from './content.facade';
-import { ContentItem } from '../../core/api/content.api';
-
-/**
- * Characterization spec added before the CHG-046 structural split of the
- * content list into presentational subcomponents. It pins the observable
- * behaviour (table on desktop, cards on compact, status chips, empty state,
- * bulk-selection bar) so the extraction can be verified as behaviour-neutral.
- */
-
-@Component({ selector: 'app-stub', standalone: true, template: '' })
-class StubComponent {}
-
-const ROUTES: Routes = [
-  { path: 'admin/content/new', component: StubComponent },
-  { path: 'admin/content/:id/edit', component: StubComponent }
-];
+import { CONTENT_LIST_PAGE_SIZE_STORAGE_KEY } from '../../shared/util/client-pagination-storage';
 
 class BreakpointObserverStub {
-  readonly events = new BehaviorSubject<BreakpointState>({ matches: false, breakpoints: {} });
+  readonly events = new BehaviorSubject<BreakpointState>({
+    matches: false,
+    breakpoints: {
+      [Breakpoints.Large]: true,
+      [Breakpoints.HandsetPortrait]: false,
+      [Breakpoints.TabletPortrait]: false
+    }
+  });
+
   observe() {
     return this.events.asObservable();
   }
-  isMatched(): boolean {
-    return false;
-  }
 }
 
-function emitBreakpoints(
-  observer: BreakpointObserverStub,
-  breakpoints: Partial<Record<keyof typeof Breakpoints, boolean>>
-): void {
-  const next: Record<string, boolean> = {};
-  for (const [key, value] of Object.entries(breakpoints)) {
-    next[Breakpoints[key as keyof typeof Breakpoints]] = Boolean(value);
-  }
-  observer.events.next({ matches: false, breakpoints: next });
-}
-
-const ITEMS: ContentItem[] = [
-  {
-    id: 'c1',
-    title: 'Foto de bienvenida',
+function buildItem(partial: Partial<ContentItem> = {}): ContentItem {
+  return {
+    id: 'item-1',
+    title: 'Agenda',
     contentType: 'photo',
-    sourceReference: 'welcome.jpg',
-    mediaFile: { mediaUrl: 'https://cdn.example/w.jpg', originalFilename: 'welcome.jpg' } as never,
+    sourceReference: 'https://example.com/agenda.jpg',
     isActive: true,
     displayOrder: 1,
-    isFixed: false,
-    isNovelty: false
-  },
-  {
-    id: 'c2',
-    title: 'Vídeo promocional',
-    contentType: 'video',
-    sourceReference: 'promo.mp4',
-    mediaFile: null,
-    isActive: false,
-    displayOrder: 2,
-    isFixed: false,
-    isNovelty: true
-  }
-];
-
-class ContentFacadeMock {
-  readonly items = signal<ContentItem[]>(ITEMS);
-  readonly loading = signal(false);
-  readonly saving = signal(false);
-  readonly error = signal<{ message: string } | null>(null);
-  refresh() {
-    return of(this.items());
-  }
-  reorder() {
-    return of(this.items());
-  }
-  remove() {
-    return of(void 0);
-  }
-  removeMany() {
-    return of(void 0);
-  }
-  setActiveMany() {
-    return of(this.items());
-  }
-  showOnScreen() {
-    return of(void 0);
-  }
+    mediaFile: {
+      id: 'media-1',
+      mediaType: 'image',
+      contentType: 'image/jpeg',
+      fileSizeBytes: 1024,
+      originalFilename: 'agenda.jpg',
+      mediaUrl: 'https://example.com/agenda.jpg'
+    },
+    ...partial
+  };
 }
 
-function configure(facade: ContentFacadeMock): BreakpointObserverStub {
-  const breakpointObserver = new BreakpointObserverStub();
-  TestBed.configureTestingModule({
-    imports: [ContentListComponent, NoopAnimationsModule],
-    providers: [
-      provideRouter(ROUTES),
-      { provide: ContentFacade, useValue: facade },
-      { provide: BreakpointObserver, useValue: breakpointObserver }
-    ]
-  });
-  return breakpointObserver;
+function buildItems(count: number): ContentItem[] {
+  return Array.from({ length: count }, (_, index) =>
+    buildItem({
+      id: `item-${index + 1}`,
+      title: `Item ${index + 1}`,
+      displayOrder: index + 1
+    })
+  );
 }
 
-describe('ContentListComponent (characterization)', () => {
-  it('renders a table row per item with status chips on desktop', () => {
-    const facade = new ContentFacadeMock();
-    const observer = configure(facade);
-    emitBreakpoints(observer, { Web: true, Large: true });
+describe('ContentListComponent (Material)', () => {
+  let fixture: ComponentFixture<ContentListComponent>;
+  let api: jasmine.SpyObj<ContentApiService>;
 
-    const fixture = TestBed.createComponent(ContentListComponent);
+  beforeEach(async () => {
+    localStorage.clear();
+    api = jasmine.createSpyObj<ContentApiService>('ContentApiService', ['list', 'delete']);
+    api.list.and.returnValue(of([buildItem()]));
+    api.delete.and.returnValue(of(undefined as void));
+
+    await TestBed.configureTestingModule({
+      imports: [ContentListComponent, NoopAnimationsModule, OverlayModule],
+      providers: [
+        { provide: ContentApiService, useValue: api },
+        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() },
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting()
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ContentListComponent);
     fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
+  });
 
-    expect(el.querySelector('table[mat-table]')).not.toBeNull();
-    expect(el.querySelector('[data-testid="content-select-all"]')).not.toBeNull();
-    const text = el.textContent ?? '';
-    expect(text).toContain('Foto de bienvenida');
-    expect(text).toContain('Vídeo promocional');
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('renders item title and active status', () => {
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Agenda');
     expect(text).toContain('Activo');
-    expect(text).toContain('Inactivo');
-    expect(text).toContain('Foto');
-    expect(text).toContain('Vídeo');
-    expect(el.querySelectorAll('[data-testid="content-show-on-screen"]').length).toBe(2);
   });
 
-  it('renders a card per item on compact viewports', () => {
-    const facade = new ContentFacadeMock();
-    const observer = configure(facade);
-    emitBreakpoints(observer, { HandsetPortrait: true, XSmall: true });
-
-    const fixture = TestBed.createComponent(ContentListComponent);
+  it('shows empty state when no items are returned', () => {
+    api.list.and.returnValue(of([]));
+    fixture.componentInstance['facade'].refresh().subscribe();
     fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
-
-    expect(el.querySelector('table[mat-table]')).toBeNull();
-    expect(el.querySelectorAll('.content-list__card-item').length).toBe(2);
-    expect(el.textContent).toContain('Foto de bienvenida');
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('No hay contenido');
   });
 
-  it('shows the empty state when there is no content', () => {
-    const facade = new ContentFacadeMock();
-    facade.items.set([]);
-    const observer = configure(facade);
-    emitBreakpoints(observer, { Web: true, Large: true });
-
-    const fixture = TestBed.createComponent(ContentListComponent);
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('No hay contenido');
-  });
-
-  it('reveals the bulk-selection bar after selecting all rows', () => {
-    const facade = new ContentFacadeMock();
-    const observer = configure(facade);
-    emitBreakpoints(observer, { Web: true, Large: true });
-
-    const fixture = TestBed.createComponent(ContentListComponent);
-    fixture.detectChanges();
-    const el: HTMLElement = fixture.nativeElement;
-
-    const selectAll = el.querySelector<HTMLInputElement>(
-      '[data-testid="content-select-all"] input'
+  it('exposes error message when list fails', () => {
+    api.list.and.returnValue(
+      throwError(() => ({ error: { code: 'unexpected_error', message: 'Internal failure at /var/log/app.log', category: 'unexpected' } }))
     );
-    selectAll?.click();
+    fixture.componentInstance['facade'].refresh().subscribe({ error: () => undefined });
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Contenido no disponible');
+    expect(text).not.toContain('/var/log/');
+  });
+
+  it('highlights pending novelty items with chip and row class', () => {
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
+        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
+      ])
+    );
+    fixture.componentInstance['pageSize'].set('all');
+    fixture.componentInstance['facade'].refresh().subscribe();
     fixture.detectChanges();
 
-    expect(el.querySelector('[data-testid="admin-list-bulk-bar"]')).not.toBeNull();
-    expect(el.querySelector('[data-testid="content-delete-selected"]')).not.toBeNull();
+    const table = fixture.nativeElement.querySelector('.content-list__table');
+    const noveltyChips = Array.from(
+      table.querySelectorAll('.status-chip__label') as NodeListOf<Element>
+    ).filter((el) => el.textContent?.trim() === 'Nov.');
+    expect(noveltyChips.length).toBe(1);
+
+    const noveltyRow = fixture.nativeElement.querySelector('.content-list__row--novelty');
+    expect(noveltyRow).not.toBeNull();
+    expect(noveltyRow?.textContent).toContain('Fresh upload');
+  });
+
+  it('filters to pending novelties only and disables reorder hint', () => {
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
+        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
+      ])
+    );
+    fixture.componentInstance['pageSize'].set('all');
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.detectChanges();
+
+    const toggle = fixture.nativeElement.querySelector('[data-testid="content-novelty-filter"] button') as HTMLButtonElement;
+    toggle.click();
+    fixture.detectChanges();
+
+    const rows = fixture.nativeElement.querySelectorAll('tr.content-list__row');
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.textContent).toContain('Fresh upload');
+
+    const dropList = fixture.nativeElement.querySelector('.content-list__drop');
+    expect(dropList.classList.contains('cdk-drop-list-disabled')).toBeTrue();
+    expect(fixture.nativeElement.querySelector('[data-testid="content-novelty-filter-hint"]')).not.toBeNull();
+  });
+
+  it('uses icon-only actions with Spanish aria-labels', () => {
+    const play = fixture.nativeElement.querySelector('[data-testid="content-show-on-screen"]') as HTMLButtonElement;
+    expect(play).not.toBeNull();
+    expect(play.className).toContain('mat-mdc-icon-button');
+    expect(play.getAttribute('aria-label')).toContain('Mostrar en pantalla');
+    expect(play.textContent).not.toContain('Mostrar en pantalla');
+  });
+
+  it('paginates items when page size is 10', () => {
+    api.list.and.returnValue(of(buildItems(25)));
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.componentInstance['pageSize'].set(10);
+    fixture.componentInstance['pageIndex'].set(0);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('tr.content-list__row').length).toBe(10);
+    expect(fixture.nativeElement.querySelector('[data-testid="content-page-range"]')?.textContent).toContain('1–10 de 25');
+  });
+
+  it('shows all rows when page size is Todas', () => {
+    api.list.and.returnValue(of(buildItems(12)));
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.componentInstance['onPageSizeChange']('all');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('tr.content-list__row').length).toBe(12);
+    expect(fixture.nativeElement.querySelector('[data-testid="content-page-prev"]')).toBeNull();
+  });
+
+  it('clears selection when changing page', () => {
+    api.list.and.returnValue(of(buildItems(15)));
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.componentInstance['onPageSizeChange'](10);
+    fixture.detectChanges();
+
+    fixture.componentInstance['toggleSelection']('item-1', true);
+    fixture.detectChanges();
+    expect(fixture.componentInstance['selection']().size).toBe(1);
+
+    fixture.componentInstance['goToNextPage']();
+    fixture.detectChanges();
+    expect(fixture.componentInstance['selection']().size).toBe(0);
+  });
+
+  it('disables drag reorder when page size is not Todas', () => {
+    api.list.and.returnValue(of(buildItems(15)));
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.componentInstance['onPageSizeChange'](10);
+    fixture.detectChanges();
+
+    const dropList = fixture.nativeElement.querySelector('.content-list__drop');
+    expect(dropList.classList.contains('cdk-drop-list-disabled')).toBeTrue();
+    expect(fixture.nativeElement.querySelector('[data-testid="content-pagination-reorder-hint"]')).not.toBeNull();
+  });
+
+  it('opens hover preview on thumbnail focus within 500ms', fakeAsync(() => {
+    const trigger = fixture.nativeElement.querySelector('[data-testid="content-thumbnail-trigger"]') as HTMLButtonElement;
+    expect(trigger).not.toBeNull();
+    trigger.dispatchEvent(new FocusEvent('focus'));
+    tick(100);
+    fixture.detectChanges();
+    expect(document.querySelector('[data-testid="media-hover-preview-image"]')).not.toBeNull();
+    fixture.componentInstance['onEscape']();
+    tick(100);
+    fixture.detectChanges();
+    expect(document.querySelector('[data-testid="media-hover-preview-image"]')).toBeNull();
+  }));
+
+  it('persists page size in localStorage', () => {
+    fixture.componentInstance['onPageSizeChange'](50);
+    expect(localStorage.getItem(CONTENT_LIST_PAGE_SIZE_STORAGE_KEY)).toBe('50');
   });
 });
