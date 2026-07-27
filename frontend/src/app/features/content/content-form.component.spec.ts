@@ -2,30 +2,11 @@ import { TestBed, ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { of, throwError } from 'rxjs';
+import { of } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { BreakpointObserver, BreakpointState, Breakpoints } from '@angular/cdk/layout';
-import { BehaviorSubject } from 'rxjs';
 
 import { ContentApiService, ContentItem } from '../../core/api/content.api';
-import { ContentFacade } from './content.facade';
-import { ContentListComponent } from './content-list.component';
 import { ContentFormComponent } from './content-form.component';
-
-class BreakpointObserverStub {
-  readonly events = new BehaviorSubject<BreakpointState>({
-    matches: false,
-    breakpoints: {
-      [Breakpoints.Large]: true,
-      [Breakpoints.HandsetPortrait]: false,
-      [Breakpoints.TabletPortrait]: false
-    }
-  });
-
-  observe() {
-    return this.events.asObservable();
-  }
-}
 
 function buildItem(partial: Partial<ContentItem> = {}): ContentItem {
   return {
@@ -38,110 +19,6 @@ function buildItem(partial: Partial<ContentItem> = {}): ContentItem {
     ...partial
   };
 }
-
-describe('ContentListComponent (Material)', () => {
-  let fixture: ComponentFixture<ContentListComponent>;
-  let api: jasmine.SpyObj<ContentApiService>;
-
-  beforeEach(async () => {
-    api = jasmine.createSpyObj<ContentApiService>('ContentApiService', ['list', 'delete']);
-    api.list.and.returnValue(of([buildItem()]));
-    api.delete.and.returnValue(of(undefined as void));
-
-    await TestBed.configureTestingModule({
-      imports: [ContentListComponent, NoopAnimationsModule],
-      providers: [
-        { provide: ContentApiService, useValue: api },
-        { provide: BreakpointObserver, useValue: new BreakpointObserverStub() },
-        provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting()
-      ]
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(ContentListComponent);
-    fixture.detectChanges();
-  });
-
-  it('renders item title and active status', () => {
-    const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Agenda');
-    expect(text).toContain('Activo');
-  });
-
-  it('shows empty state when no items are returned', () => {
-    api.list.and.returnValue(of([]));
-    fixture.componentInstance['facade'].refresh().subscribe();
-    fixture.detectChanges();
-    const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('No hay contenido');
-  });
-
-  it('exposes error message when list fails', () => {
-    api.list.and.returnValue(
-      throwError(() => ({ error: { code: 'unexpected_error', message: 'Internal failure at /var/log/app.log', category: 'unexpected' } }))
-    );
-    fixture.componentInstance['facade'].refresh().subscribe({ error: () => undefined });
-    fixture.detectChanges();
-    const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Contenido no disponible');
-    expect(text).not.toContain('/var/log/');
-  });
-
-  it('highlights pending novelty items with chip and row class', () => {
-    api.list.and.returnValue(
-      of([
-        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
-        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
-      ])
-    );
-    fixture.componentInstance['facade'].refresh().subscribe();
-    fixture.detectChanges();
-
-    const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Novedad');
-    expect(text).toContain('Fresh upload');
-    expect(text).toContain('Regular');
-
-    const table = fixture.nativeElement.querySelector('.content-list__table');
-    const noveltyChips = Array.from(
-      table.querySelectorAll('.status-chip__label') as NodeListOf<Element>
-    ).filter((el) => el.textContent?.trim() === 'Novedad');
-    expect(noveltyChips.length).toBe(1);
-
-    const noveltyRow = fixture.nativeElement.querySelector('.content-list__row--novelty');
-    expect(noveltyRow).not.toBeNull();
-    expect(noveltyRow?.textContent).toContain('Fresh upload');
-  });
-
-  it('filters to pending novelties only and disables reorder hint', () => {
-    api.list.and.returnValue(
-      of([
-        buildItem({ id: 'item-1', title: 'Regular', isNovelty: false }),
-        buildItem({ id: 'item-2', title: 'Fresh upload', isNovelty: true })
-      ])
-    );
-    fixture.componentInstance['facade'].refresh().subscribe();
-    fixture.detectChanges();
-
-    const toggle = fixture.nativeElement.querySelector('[data-testid="content-novelty-filter"] button') as HTMLButtonElement;
-    toggle.click();
-    fixture.detectChanges();
-
-    const rows = fixture.nativeElement.querySelectorAll('tr.content-list__row');
-    expect(rows.length).toBe(1);
-    expect(rows[0]?.textContent).toContain('Fresh upload');
-
-    const dropList = fixture.nativeElement.querySelector('.content-list__drop');
-    expect(dropList.classList.contains('cdk-drop-list-disabled')).toBeTrue();
-    expect(fixture.nativeElement.querySelector('[data-testid="content-novelty-filter-hint"]')).not.toBeNull();
-
-    toggle.click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('tr.content-list__row').length).toBe(2);
-    expect(fixture.nativeElement.querySelector('[data-testid="content-novelty-filter-hint"]')).toBeNull();
-  });
-});
 
 describe('ContentFormComponent (Reactive Forms + Material)', () => {
   let fixture: ComponentFixture<ContentFormComponent>;

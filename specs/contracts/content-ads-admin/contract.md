@@ -20,6 +20,7 @@ related_changes:
   - CHG-003
   - CHG-007
   - CHG-027
+  - CHG-046
 related_adrs:
   []
 ---
@@ -43,6 +44,11 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - Admin content list exposes `isNovelty` on each item (pending public-upload novelty, cleared after kiosk consume).
 - Items with `isNovelty=true` are visually highlighted in the list.
 - A client-side **Solo novedades** filter shows only pending novelties (`isNovelty=true`); drag-and-drop reorder is disabled while the filter is active.
+- Top content list (`content-list.component`) uses a **compact desktop table**: icon-only inline actions with Spanish `matTooltip` labels; truncated title/media cells; slightly smaller thumbnails.
+- Thumbnail **full-resolution media preview** on hover (desktop), keyboard focus, or tap (compact cards): anchored beside the thumbnail; uses `mediaFile.mediaUrl`; max display ~480px; dismiss on pointer exit, blur, Escape, or outside tap.
+- Top content list **client-side pagination**: page sizes 10, 20, 50, 100, and **Todas** (default 20); range indicator (e.g. `21–40 de 87`); prev/next navigation; same pagination on desktop table and compact cards; page size persisted in browser local storage.
+- Changing page size or **Solo novedades** resets to page 1; changing page clears bulk selection (current page only).
+- Drag-and-drop reorder is disabled when page size is not **Todas** (in addition to novelty filter); Spanish hint when disabled due to pagination. Mobile up/down reorder follows the same rule.
 
 ## Public interfaces
 
@@ -80,3 +86,4 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - CHG-003
 - CHG-007
 - CHG-027
+- CHG-046
