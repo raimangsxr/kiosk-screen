@@ -12,8 +12,8 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
@@ -59,6 +59,7 @@ import {
     RouterLink,
     MatTableModule,
     MatButtonModule,
+    MatCardModule,
     MatIconModule,
     MatCheckboxModule,
     MatSnackBarModule,
@@ -69,8 +70,7 @@ import {
     CdkDropList,
     CdkDrag,
     AdminListComponent,
-    StatusChipComponent,
-    ContentCardComponent
+    StatusChipComponent
   ],
   template: `
     <app-admin-list
