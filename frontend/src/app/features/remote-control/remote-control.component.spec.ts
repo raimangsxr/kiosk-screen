@@ -137,8 +137,8 @@ describe('RemoteControlComponent', () => {
     expect(fixture.nativeElement.querySelector('mat-toolbar')).toBeNull();
   });
 
-  it('renders the admin page header with the remote control title', () => {
-    const header = fixture.nativeElement.querySelector('app-admin-page');
+  it('renders the page header with the remote control title', () => {
+    const header = fixture.nativeElement.querySelector('.pagehead');
     expect(header).not.toBeNull();
     const text = header.textContent;
     expect(text).toContain('Control remoto');
@@ -150,20 +150,20 @@ describe('RemoteControlComponent', () => {
     const text = pill.textContent;
     expect(text).toContain('Rotación');
     expect(text).toContain('Visible');
-    expect(text).toContain('Fullscreen Off');
+    expect(text).toContain('Pantalla completa Off');
     expect(text).toContain('Display en línea');
-    expect(text).toMatch(/Updated/);
+    expect(text).toMatch(/Actualizado/);
   });
 
-  it('renders the Rotation, Iframe, and Fixed radio buttons with the active mode preselected', () => {
+  it('renders the Rotation, Iframe, and Fixed mode buttons with the active mode preselected', () => {
     const modeGroup = fixture.nativeElement.querySelector(
       '[data-testid="remote-control-mode-group"]'
     );
     expect(modeGroup).not.toBeNull();
-    const radios = modeGroup.querySelectorAll('mat-radio-button');
-    expect(radios.length).toBe(3);
-    expect(radios[0].textContent).toContain('Rotation');
-    expect(radios[1].textContent).toContain('Iframe');
+    const buttons = modeGroup.querySelectorAll('button');
+    expect(buttons.length).toBe(3);
+    expect(buttons[0].textContent).toContain('Rotación');
+    expect(buttons[1].textContent).toContain('Iframe');
 
     expect(fixture.componentInstance['mode']()).toBe('loop');
   });
@@ -189,7 +189,7 @@ describe('RemoteControlComponent', () => {
     expect(iframeRadios.length).toBe(1);
     expect(iframeRadios[0].textContent).toContain('https://example.org/agenda');
     expect(iframeRadios[0].textContent).toContain('https://example.org/agenda');
-    expect(iframeRadios[0].textContent).toContain('Currently showing');
+    expect(iframeRadios[0].textContent).toContain('En emisión ahora');
   });
 
   it('disables the Iframe radio and shows the empty-state CTA when no iframes are configured', async () => {
@@ -206,16 +206,15 @@ describe('RemoteControlComponent', () => {
     const customFixture = TestBed.createComponent(RemoteControlComponent);
     customFixture.detectChanges();
 
-    const iframeRadio = customFixture.nativeElement.querySelector(
+    const iframeButton = customFixture.nativeElement.querySelector(
       '[data-testid="remote-control-iframe-radio"]'
-    ) as HTMLElement;
-    expect(iframeRadio).not.toBeNull();
-    const iframeInput = iframeRadio.querySelector('input[type="radio"]') as HTMLInputElement;
-    expect(iframeInput.disabled).toBeTrue();
+    ) as HTMLButtonElement;
+    expect(iframeButton).not.toBeNull();
+    expect(iframeButton.disabled).toBeTrue();
 
     const empty = customFixture.nativeElement.querySelector('.remote-control__iframe-empty');
     expect(empty).not.toBeNull();
-    expect(empty.textContent).toContain('No iframes configured');
+    expect(empty.textContent).toContain('No hay iframes configurados');
     const cta = empty.querySelector('a[href="/admin/iframes/new"]') as HTMLAnchorElement;
     expect(cta).not.toBeNull();
   });
@@ -266,7 +265,7 @@ describe('RemoteControlComponent', () => {
     const preview = fixedList.querySelector('[data-testid="remote-control-fixed-preview"]') as HTMLImageElement;
     expect(preview).not.toBeNull();
     expect(preview.getAttribute('src')).toBe('/media/fixed-1-thumb.jpg');
-    expect(fixedList.textContent).toContain('Currently showing');
+    expect(fixedList.textContent).toContain('En emisión ahora');
   });
 
   it('does not render mode/ads controls and shows the error block with a retry button when initial load fails', async () => {
@@ -309,13 +308,13 @@ describe('RemoteControlComponent', () => {
     expect(pill.textContent).toContain('Guardando');
   });
 
-  it('emits a snackbar with "Switched to rotation mode." after a successful setLoopMode', fakeAsync(() => {
+  it('emits a snackbar with "Cambiado a modo rotación." after a successful setLoopMode', fakeAsync(() => {
     fixture.componentInstance.selectLoopMode();
     tick();
 
     expect(facade.setLoopMode).toHaveBeenCalled();
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Switched to rotation mode.',
+      'Cambiado a modo rotación.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
@@ -327,31 +326,31 @@ describe('RemoteControlComponent', () => {
 
     expect(facade.setIframeMode).toHaveBeenCalledWith('content-1');
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Now showing: https://example.org/agenda.',
+      'Ahora mostrando: https://example.org/agenda.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
 
-  it('emits a snackbar with "Ads are now visible." after enabling ads', fakeAsync(() => {
+  it('emits a snackbar with "Los anuncios ahora están visibles." after enabling ads', fakeAsync(() => {
     fixture.componentInstance.setAdsVisible(true);
     tick();
 
     expect(facade.setAdsVisible).toHaveBeenCalledWith(true);
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Ads are now visible.',
+      'Los anuncios ahora están visibles.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
   }));
 
-  it('emits a snackbar with "Ads are now hidden." after disabling ads', fakeAsync(() => {
+  it('emits a snackbar with "Los anuncios ahora están ocultos." after disabling ads', fakeAsync(() => {
     fixture.componentInstance.setAdsVisible(false);
     tick();
 
     expect(facade.setAdsVisible).toHaveBeenCalledWith(false);
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Ads are now hidden.',
+      'Los anuncios ahora están ocultos.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
@@ -363,7 +362,7 @@ describe('RemoteControlComponent', () => {
 
     expect(facade.setFullscreenRequested).toHaveBeenCalledWith(true);
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Fullscreen requested.',
+      'Pantalla completa solicitada.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
@@ -395,7 +394,7 @@ describe('RemoteControlComponent', () => {
     tick();
     expect(facade.navigate).toHaveBeenCalledWith('next');
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Skipped to next content.',
+      'Saltado al contenido siguiente.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );
@@ -404,7 +403,7 @@ describe('RemoteControlComponent', () => {
     tick();
     expect(facade.navigate).toHaveBeenCalledWith('previous');
     expect(snackBar.open).toHaveBeenCalledWith(
-      'Returned to previous content.',
+      'Vuelto al contenido anterior.',
       'Cerrar',
       jasmine.objectContaining({ duration: 3000 })
     );

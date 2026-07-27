@@ -12,7 +12,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -61,9 +60,7 @@ import {
     MatTableModule,
     MatButtonModule,
     MatIconModule,
-    MatCardModule,
     MatCheckboxModule,
-    MatChipsModule,
     MatSnackBarModule,
     MatSlideToggleModule,
     MatTooltipModule,
@@ -72,7 +69,8 @@ import {
     CdkDropList,
     CdkDrag,
     AdminListComponent,
-    StatusChipComponent
+    StatusChipComponent,
+    ContentCardComponent
   ],
   template: `
     <app-admin-list
@@ -144,7 +142,7 @@ import {
           (cdkDragStarted)="onDragStarted()"
           aria-label="Drag to reorder content items"
         >
-          <table mat-table [dataSource]="visibleItems()" [trackBy]="trackById" aria-label="Top content items" class="app-table content-list__table">
+          <table mat-table [dataSource]="visibleItems()" [trackBy]="trackById" aria-label="Contenido de la zona superior" class="app-table content-list__table">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef class="content-list__select-cell">
                 <mat-checkbox

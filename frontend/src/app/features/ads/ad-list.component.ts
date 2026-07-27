@@ -70,16 +70,16 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
           cdkDropList
           class="ad-list__drop"
           (cdkDropListDropped)="onDrop($event)"
-          aria-label="Drag to reorder ads"
+          aria-label="Arrastra para reordenar anuncios"
         >
-          <table mat-table [dataSource]="facade.ads()" [trackBy]="trackById" aria-label="Ads" class="app-table ad-list__table">
+          <table mat-table [dataSource]="facade.ads()" [trackBy]="trackById" aria-label="Anuncios" class="app-table ad-list__table">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef class="ad-list__select-cell">
                 <mat-checkbox
                   [checked]="allChecked()"
                   [indeterminate]="someChecked()"
                   (change)="toggleAll($event.checked)"
-                  aria-label="Select all ads"
+                  aria-label="Seleccionar todos los anuncios"
                   data-testid="ad-select-all"
                 />
               </th>
@@ -87,14 +87,14 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 <mat-checkbox
                   [checked]="isSelected(ad.id)"
                   (change)="toggleSelection(ad.id, $event.checked)"
-                  [attr.aria-label]="'Select ad ' + ad.id + ' for bulk actions'"
+                  [attr.aria-label]="'Seleccionar anuncio ' + ad.id + ' para acciones en lote'"
                   data-testid="ad-select"
                 />
               </td>
             </ng-container>
 
             <ng-container matColumnDef="thumbnail">
-              <th mat-header-cell *matHeaderCellDef class="ad-list__thumb-cell" scope="col">Preview</th>
+              <th mat-header-cell *matHeaderCellDef class="ad-list__thumb-cell" scope="col">Vista previa</th>
               <td mat-cell *matCellDef="let ad" class="ad-list__thumb-cell">
                 @if (ad.mediaFile?.mediaUrl) {
                   <img
@@ -111,47 +111,47 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
             </ng-container>
 
             <ng-container matColumnDef="order">
-              <th mat-header-cell *matHeaderCellDef>Order</th>
+              <th mat-header-cell *matHeaderCellDef>Orden</th>
               <td mat-cell *matCellDef="let ad">{{ ad.displayOrder }}</td>
             </ng-container>
 
             <ng-container matColumnDef="advertiser">
-              <th mat-header-cell *matHeaderCellDef>Advertiser</th>
+              <th mat-header-cell *matHeaderCellDef>Anunciante</th>
               <td mat-cell *matCellDef="let ad">{{ ad.advertiser || '—' }}</td>
             </ng-container>
 
             <ng-container matColumnDef="media">
-              <th mat-header-cell *matHeaderCellDef>Media</th>
+              <th mat-header-cell *matHeaderCellDef>Medio</th>
               <td mat-cell *matCellDef="let ad">{{ mediaLabel(ad) }}</td>
             </ng-container>
 
             <ng-container matColumnDef="rotation">
-              <th mat-header-cell *matHeaderCellDef>Rotation</th>
+              <th mat-header-cell *matHeaderCellDef>Rotación</th>
               <td mat-cell *matCellDef="let ad">{{ rotationSummary(ad) }}</td>
             </ng-container>
 
             <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <th mat-header-cell *matHeaderCellDef>Estado</th>
               <td mat-cell *matCellDef="let ad">
                 <app-status-chip
-                  [label]="ad.isActive ? 'Active' : 'Inactive'"
+                  [label]="ad.isActive ? 'Activo' : 'Inactivo'"
                   [kind]="ad.isActive ? 'success' : 'neutral'"
                 />
               </td>
             </ng-container>
 
             <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <th mat-header-cell *matHeaderCellDef>Acciones</th>
               <td mat-cell *matCellDef="let ad">
                 <button
                   mat-button
                   color="primary"
                   type="button"
                   [routerLink]="['/admin/ads', ad.id, 'edit']"
-                  [attr.aria-label]="'Edit ad ' + ad.id"
+                  [attr.aria-label]="'Editar anuncio ' + ad.id"
                 >
                   <mat-icon aria-hidden="true">edit</mat-icon>
-                  Edit
+                  Editar
                 </button>
                 <button
                   mat-button
@@ -159,10 +159,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                   type="button"
                   (click)="remove(ad)"
                   [disabled]="facade.saving()"
-                  [attr.aria-label]="'Delete ad ' + ad.id"
+                  [attr.aria-label]="'Eliminar anuncio ' + ad.id"
                 >
                   <mat-icon aria-hidden="true">delete</mat-icon>
-                  Delete
+                  Eliminar
                 </button>
               </td>
             </ng-container>
@@ -179,7 +179,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
         </div>
         @if (selection().size > 0) {
           <p class="ad-list__selection-hint" aria-live="polite">
-            {{ selection().size }} ad(s) selected. Drag any selected row to move the selection as a block.
+            {{ selection().size }} anuncio(s) seleccionado(s). Arrastra cualquier fila seleccionada para mover la selección como un bloque.
           </p>
         }
       </ng-template>
@@ -233,7 +233,7 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
             <p class="ad-list__card-meta">
               <span>{{ ad.advertiser || '—' }}</span>
               <span> · {{ mediaLabel(ad) }}</span>
-              <span> · Order {{ ad.displayOrder }}</span>
+              <span> · Orden {{ ad.displayOrder }}</span>
             </p>
               <p class="ad-list__card-rotation">{{ rotationSummary(ad) }}</p>
             </mat-card-content>
@@ -242,10 +242,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 mat-button
                 color="primary"
                 [routerLink]="['/admin/ads', ad.id, 'edit']"
-                [attr.aria-label]="'Edit ad ' + ad.id"
+                [attr.aria-label]="'Editar anuncio ' + ad.id"
               >
                 <mat-icon aria-hidden="true">edit</mat-icon>
-                Edit
+                Editar
               </a>
               <button
                 mat-button
@@ -253,10 +253,10 @@ import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dia
                 type="button"
                 (click)="remove(ad)"
                 [disabled]="facade.saving()"
-                [attr.aria-label]="'Delete ad ' + ad.id"
+                [attr.aria-label]="'Eliminar anuncio ' + ad.id"
               >
                 <mat-icon aria-hidden="true">delete</mat-icon>
-                Delete
+                Eliminar
               </button>
             </mat-card-actions>
           </mat-card>
@@ -459,10 +459,10 @@ export class AdListComponent implements OnInit {
     const ids = Array.from(this.selection());
     if (ids.length === 0) return;
     const ref = this.dialog.open({
-      title: `Delete ${ids.length} ad${ids.length === 1 ? '' : 's'}?`,
-      message: 'These ads will be removed from rotation. The action cannot be undone.',
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel',
+      title: `¿Eliminar ${ids.length} anuncio${ids.length === 1 ? '' : 's'}?`,
+      message: 'Estos anuncios se eliminarán de la rotación. La acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
       destructive: true
     });
     ref.afterClosed().subscribe((confirmed) => {
@@ -473,8 +473,8 @@ export class AdListComponent implements OnInit {
         this.selection.set(new Set());
         if (this.facade.error() === null) {
           this.snackBar.open(
-            `Deleted ${ids.length} ad${ids.length === 1 ? '' : 's'}.`,
-            'Dismiss',
+            `${ids.length} anuncio${ids.length === 1 ? '' : 's'} eliminado${ids.length === 1 ? '' : 's'}.`,
+            'Cerrar',
             { duration: 3000 }
           );
         }
@@ -514,15 +514,15 @@ export class AdListComponent implements OnInit {
     if (ad.mediaFile) {
       return ad.mediaFile.originalFilename;
     }
-    return ad.sourceReference ? 'External source' : 'No media';
+    return ad.sourceReference ? 'Origen externo' : 'Sin medio';
   }
 
   protected rotationSummary(ad: AdItem): string {
     const duration = ad.effectiveDurationSeconds ?? ad.durationSeconds;
     const animation: RotationAnimation | null | undefined =
       ad.effectiveRotationAnimation ?? ad.rotationAnimation;
-    const durationLabel = duration ? `${duration}s` : 'default';
-    const animationLabel = animation ?? 'default';
+    const durationLabel = duration ? `${duration}s` : 'predeterminado';
+    const animationLabel = animation ?? 'predeterminada';
     return `${durationLabel}, ${animationLabel}`;
   }
 
@@ -551,7 +551,7 @@ export class AdListComponent implements OnInit {
     this.facade.reorder(newOrder).subscribe({
       next: () => {
         if (this.facade.error() === null) {
-          this.snackBar.open('Ads reordered.', 'Dismiss', { duration: 3000 });
+          this.snackBar.open('Anuncios reordenados.', 'Cerrar', { duration: 3000 });
         }
       }
     });
@@ -559,10 +559,10 @@ export class AdListComponent implements OnInit {
 
   protected remove(ad: AdItem): void {
     const ref = this.dialog.open({
-      title: `Delete ad #${ad.displayOrder}?`,
-      message: 'This ad will be removed from rotation. The action cannot be undone.',
-      confirmLabel: 'Delete',
-      cancelLabel: 'Cancel',
+      title: `¿Eliminar el anuncio n.º ${ad.displayOrder}?`,
+      message: 'Este anuncio se eliminará de la rotación. La acción no se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      cancelLabel: 'Cancelar',
       destructive: true
     });
     ref.afterClosed().subscribe((confirmed) => {
@@ -571,7 +571,7 @@ export class AdListComponent implements OnInit {
       }
       this.facade.remove(ad.id).subscribe(() => {
         if (this.facade.error() === null) {
-          this.snackBar.open(`Deleted ad #${ad.displayOrder}.`, 'Dismiss', { duration: 3000 });
+          this.snackBar.open(`Anuncio n.º ${ad.displayOrder} eliminado.`, 'Cerrar', { duration: 3000 });
         }
       });
     });

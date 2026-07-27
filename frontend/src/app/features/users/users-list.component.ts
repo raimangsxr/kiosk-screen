@@ -38,29 +38,29 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
       [empty]="facade.empty()"
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
-      emptyTitle="No users yet"
-      emptyMessage="Create an administrator or operator account."
-      emptyActionLabel="Add user"
+      emptyTitle="Aún no hay usuarios"
+      emptyMessage="Crea una cuenta de administrador u operador."
+      emptyActionLabel="Añadir usuario"
       emptyActionRoute="/admin/users/new"
       emptyIcon="group"
     >
       <ng-template #adminListTable>
-        <table mat-table [dataSource]="facade.users()" aria-label="Users and roles" class="app-table users-list__table">
+        <table mat-table [dataSource]="facade.users()" aria-label="Usuarios y roles" class="app-table users-list__table">
           <ng-container matColumnDef="email">
-            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <th mat-header-cell *matHeaderCellDef>Correo electrónico</th>
             <td mat-cell *matCellDef="let user">{{ user.email }}</td>
           </ng-container>
 
           <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <th mat-header-cell *matHeaderCellDef>Nombre</th>
             <td mat-cell *matCellDef="let user">{{ user.displayName }}</td>
           </ng-container>
 
           <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <th mat-header-cell *matHeaderCellDef>Estado</th>
             <td mat-cell *matCellDef="let user">
               <app-status-chip
-                [label]="user.isActive ? 'Active' : 'Inactive'"
+                [label]="user.isActive ? 'Activo' : 'Inactivo'"
                 [kind]="user.isActive ? 'success' : 'neutral'"
               />
             </td>
@@ -78,7 +78,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
           </ng-container>
 
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <th mat-header-cell *matHeaderCellDef>Acciones</th>
             <td mat-cell *matCellDef="let user">
               <a
                 mat-button
@@ -87,17 +87,17 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                 [attr.aria-label]="'Edit ' + user.email"
               >
                 <mat-icon aria-hidden="true">edit</mat-icon>
-                Edit
+                Editar
               </a>
               <button
                 mat-button
                 type="button"
                 (click)="toggle(user)"
                 [disabled]="facade.saving()"
-                [attr.aria-label]="(user.isActive ? 'Deactivate ' : 'Reactivate ') + user.email"
+                [attr.aria-label]="(user.isActive ? 'Desactivar ' : 'Reactivar ') + user.email"
               >
                 <mat-icon aria-hidden="true">{{ user.isActive ? 'pause' : 'play_arrow' }}</mat-icon>
-                {{ user.isActive ? 'Deactivate' : 'Reactivate' }}
+                {{ user.isActive ? 'Desactivar' : 'Reactivar' }}
               </button>
             </td>
           </ng-container>
@@ -117,7 +117,7 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                   <p class="users-list__card-email">{{ user.email }}</p>
                 </div>
                 <app-status-chip
-                  [label]="user.isActive ? 'Active' : 'Inactive'"
+                  [label]="user.isActive ? 'Activo' : 'Inactivo'"
                   [kind]="user.isActive ? 'success' : 'neutral'"
                 />
               </div>
@@ -135,17 +135,17 @@ import { StatusChipComponent } from '../../shared/ui/status-chip.component';
                 [attr.aria-label]="'Edit ' + user.email"
               >
                 <mat-icon aria-hidden="true">edit</mat-icon>
-                Edit
+                Editar
               </a>
               <button
                 mat-button
                 type="button"
                 (click)="toggle(user)"
                 [disabled]="facade.saving()"
-                [attr.aria-label]="(user.isActive ? 'Deactivate ' : 'Reactivate ') + user.email"
+                [attr.aria-label]="(user.isActive ? 'Desactivar ' : 'Reactivar ') + user.email"
               >
                 <mat-icon aria-hidden="true">{{ user.isActive ? 'pause' : 'play_arrow' }}</mat-icon>
-                {{ user.isActive ? 'Deactivate' : 'Reactivate' }}
+                {{ user.isActive ? 'Desactivar' : 'Reactivar' }}
               </button>
             </mat-card-actions>
           </mat-card>
@@ -201,15 +201,15 @@ export class UsersListComponent implements OnInit {
   protected readonly facade = inject(UsersFacade);
   private readonly snackBar = inject(MatSnackBar);
 
-  protected readonly pageTitle = 'Users and roles';
+  protected readonly pageTitle = 'Usuarios y roles';
   protected readonly pageDescription =
-    'Authorized accounts and their role assignment. Existing role types only.';
+    'Cuentas autorizadas y su asignación de roles. Solo tipos de rol existentes.';
   protected readonly primaryAction = {
-    label: 'Add user',
+    label: 'Añadir usuario',
     route: '/admin/users/new',
     icon: 'person_add'
   };
-  protected readonly refreshAction = { route: '/admin/users', label: 'Refresh' };
+  protected readonly refreshAction = { route: '/admin/users', label: 'Actualizar' };
   protected readonly displayedColumns = ['email', 'name', 'status', 'roles', 'actions'] as const;
 
   ngOnInit(): void {
@@ -221,8 +221,8 @@ export class UsersListComponent implements OnInit {
       if (this.facade.error() === null) {
         const next = !user.isActive;
         this.snackBar.open(
-          `${user.email} ${next ? 'reactivated' : 'deactivated'}.`,
-          'Dismiss',
+          `${user.email} ${next ? 'reactivado' : 'desactivado'}.`,
+          'Cerrar',
           { duration: 3000 }
         );
       }

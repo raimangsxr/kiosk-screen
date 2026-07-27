@@ -15,21 +15,27 @@ export interface ExtendedColorPalette {
 
 export const EXTENDED_COLORS = new InjectionToken<ExtendedColorPalette>('app.extended-colors');
 
+/*
+ * Cada estado apunta ahora a los tokens semánticos definidos en
+ * the control-room tokens in `styles.scss` (verde / ámbar / azul reales, en claro y
+ * oscuro), en lugar de reutilizar `primary`/`secondary` de Material —- con lo
+ * que `success`, `warning` e `info` dejan de ser indistinguibles entre sí.
+ */
 export const DEFAULT_EXTENDED_COLORS: ExtendedColorPalette = {
   success: {
-    container: 'var(--mat-sys-primary-container)',
-    onContainer: 'var(--mat-sys-on-primary-container)',
-    accent: 'var(--mat-sys-primary)'
+    container: 'var(--app-success-container)',
+    onContainer: 'var(--app-on-success-container)',
+    accent: 'var(--app-success)'
   },
   warning: {
-    container: 'var(--mat-sys-secondary-container)',
-    onContainer: 'var(--mat-sys-on-secondary-container)',
-    accent: 'var(--mat-sys-secondary)'
+    container: 'var(--app-warning-container)',
+    onContainer: 'var(--app-on-warning-container)',
+    accent: 'var(--app-warning)'
   },
   info: {
-    container: 'var(--mat-sys-primary-container)',
-    onContainer: 'var(--mat-sys-on-primary-container)',
-    accent: 'var(--mat-sys-primary)'
+    container: 'var(--app-info-container)',
+    onContainer: 'var(--app-on-info-container)',
+    accent: 'var(--app-info)'
   }
 };
 

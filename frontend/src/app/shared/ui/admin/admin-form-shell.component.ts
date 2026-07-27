@@ -45,6 +45,8 @@ import { BreakpointService } from '../../../core/layout/breakpoint.service';
       .admin-form-shell {
         display: block;
         background: var(--mat-sys-surface);
+        border-radius: var(--app-radius-lg);
+        box-shadow: var(--app-shadow-sm);
       }
       .admin-form-shell__header {
         padding: 24px 24px 8px;

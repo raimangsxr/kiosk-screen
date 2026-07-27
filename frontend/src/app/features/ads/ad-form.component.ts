@@ -63,9 +63,8 @@ interface AdFormValue {
   ],
   template: `
     <app-admin-page
-      eyebrow="Administration"
       [title]="formTitle()"
-      description="Upload an image ad for the bottom region. The advertiser field is optional and free-form."
+      description="Sube un anuncio en imagen para la zona inferior. El campo de anunciante es opcional y de texto libre."
     />
 
     @if (form) {
@@ -74,38 +73,38 @@ interface AdFormValue {
         (ngSubmit)="submit()"
         class="ad-form"
         novalidate
-        aria-label="Ad form"
+        aria-label="Formulario de anuncio"
       >
         <app-admin-form-shell [loading]="loading()">
           @if (loadError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not load ad"
+              title="No se pudo cargar el anuncio"
               [message]="error.message"
             />
           }
 
           <div class="ad-form__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Advertiser</mat-label>
+              <mat-label>Anunciante</mat-label>
               <input
                 matInput
                 formControlName="advertiser"
                 maxlength="120"
-                placeholder="Optional advertiser or sponsor name"
+                placeholder="Nombre del anunciante o patrocinador (opcional)"
                 autocomplete="off"
               />
-              <mat-hint>Free-form; shows in the list. Optional.</mat-hint>
+              <mat-hint>Texto libre; se muestra en la lista. Opcional.</mat-hint>
             </mat-form-field>
           </div>
 
           <div class="ad-form__row">
             <div class="ad-form__file">
-              <span class="ad-form__file-label">Upload image</span>
+              <span class="ad-form__file-label">Subir imagen</span>
               <app-file-input
                 accept="image/*"
-                buttonLabel="Choose image"
-                ariaLabel="Choose an image file to upload"
+                buttonLabel="Elegir imagen"
+                ariaLabel="Elige un archivo de imagen para subir"
                 [existingFileName]="existingMediaName()"
                 [multiple]="!adId()"
                 [showPreview]="true"
@@ -115,43 +114,43 @@ interface AdFormValue {
             </div>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>External source URL (optional)</mat-label>
+              <mat-label>URL de origen externa (opcional)</mat-label>
               <input
                 matInput
                 formControlName="sourceReference"
                 placeholder="https://example.com/ad.jpg"
                 autocomplete="off"
               />
-              <mat-hint>Use when you do not upload a file.</mat-hint>
+              <mat-hint>Úsala cuando no subas un archivo.</mat-hint>
             </mat-form-field>
           </div>
 
           @if (adId()) {
             <div class="ad-form__row">
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Display order</mat-label>
+                <mat-label>Orden de visualización</mat-label>
                 <input matInput type="number" formControlName="displayOrder" min="1" />
-                <mat-hint>Reorder by dragging rows in the ads list.</mat-hint>
+                <mat-hint>Reordena arrastrando las filas en la lista de anuncios.</mat-hint>
                 @if (form.controls.displayOrder.hasError('positiveInteger')) {
                   <mat-error>
-                    Order must be a positive integer.
+                    El orden debe ser un número entero positivo.
                   </mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Rotation time (seconds)</mat-label>
+                <mat-label>Tiempo de rotación (segundos)</mat-label>
                 <input matInput type="number" formControlName="durationSeconds" min="1" />
-                <mat-hint>Leave empty to use kiosk default.</mat-hint>
+                <mat-hint>Déjalo vacío para usar el valor por defecto del quiosco.</mat-hint>
               </mat-form-field>
             </div>
           }
 
           <div class="ad-form__row">
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Animation</mat-label>
+              <mat-label>Animación</mat-label>
               <mat-select formControlName="rotationAnimation">
-                <mat-option [value]="null">Default</mat-option>
+                <mat-option [value]="null">Predeterminada</mat-option>
                 @for (animation of animations; track animation) {
                   <mat-option [value]="animation">
                     {{ animation }}
@@ -161,19 +160,19 @@ interface AdFormValue {
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
-              <mat-label>Animation duration (ms)</mat-label>
+              <mat-label>Duración de la animación (ms)</mat-label>
               <input matInput type="number" formControlName="animationDurationMilliseconds" min="1" />
-              <mat-hint>Leave empty to use kiosk default.</mat-hint>
+              <mat-hint>Déjalo vacío para usar el valor por defecto del quiosco.</mat-hint>
             </mat-form-field>
           </div>
 
           <mat-divider />
 
           <div class="ad-form__toggle">
-            <mat-slide-toggle formControlName="isActive">Active</mat-slide-toggle>
+            <mat-slide-toggle formControlName="isActive">Activo</mat-slide-toggle>
             @if (!form.controls.isActive.value) {
               <span class="ad-form__hint">
-                Inactive ads are skipped during rotation.
+                Los anuncios inactivos se omiten durante la rotación.
               </span>
             }
           </div>
@@ -181,13 +180,13 @@ interface AdFormValue {
           @if (saveError(); as error) {
             <app-admin-state
               kind="error"
-              title="Could not save ad"
+              title="No se pudo guardar el anuncio"
               [message]="error.message"
             />
           }
 
           <div formShellActions>
-            <a mat-button routerLink="/admin/ads">Cancel</a>
+            <a mat-button routerLink="/admin/ads">Cancelar</a>
             <button
               mat-flat-button
               color="primary"
@@ -195,7 +194,7 @@ interface AdFormValue {
               [disabled]="form.invalid || facade.saving() || loading()"
             >
               <mat-icon aria-hidden="true">save</mat-icon>
-              {{ facade.saving() ? 'Saving…' : 'Save' }}
+              {{ facade.saving() ? 'Guardando…' : 'Guardar' }}
             </button>
           </div>
         </app-admin-form-shell>
@@ -306,7 +305,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
   }
 
   protected formTitle(): string {
-    return this.adId() ? 'Edit ad' : 'New ad';
+    return this.adId() ? 'Editar anuncio' : 'Nuevo anuncio';
   }
 
   protected existingMediaName(): string | null {
@@ -336,7 +335,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
     if (isCreate && !hasFile && !hasSource) {
       this.saveError.set({
         code: 'validation_missing_file',
-        message: 'Choose an image or external source URL before saving.',
+        message: 'Elige una imagen o una URL de origen externa antes de guardar.',
         category: 'validation'
       });
       return;
@@ -364,7 +363,7 @@ export class AdFormComponent implements OnInit, OnDestroy, DirtyFormAware {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.snackBar.open(`Saved ad.`, 'Dismiss', { duration: 3000 });
+          this.snackBar.open(`Anuncio guardado.`, 'Cerrar', { duration: 3000 });
           this.markPristine();
           this.router.navigate(['/admin/ads']);
         },

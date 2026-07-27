@@ -37,7 +37,7 @@ import { MatIconModule } from '@angular/material/icon';
         </div>
         @if (showPreview() && previewUrl(); as url) {
           <mat-card appearance="outlined" class="file-input__preview">
-            <img mat-card-image [src]="url" alt="Selected file preview" />
+            <img mat-card-image [src]="url" alt="Vista previa del archivo seleccionado" />
           </mat-card>
         }
       } @else if (existingFileName(); as name) {
