@@ -26,17 +26,26 @@ export class ContentFacade {
   readonly empty = computed(() => !this.loadingState() && this.itemsState().length === 0 && !this.errorState());
   readonly ready = computed(() => !this.loadingState() && this.itemsState().length > 0 && !this.errorState());
 
-  refresh() {
-    this.loadingState.set(true);
+  refresh(options?: { silent?: boolean }) {
+    if (options?.silent && this.savingState()) {
+      return of(this.itemsState());
+    }
+    if (!options?.silent) {
+      this.loadingState.set(true);
+    }
     this.errorState.set(null);
     return this.api.list().pipe(
       tap((items) => {
         this.itemsState.set(items);
-        this.loadingState.set(false);
+        if (!options?.silent) {
+          this.loadingState.set(false);
+        }
       }),
       catchError((error: unknown) => {
         this.errorState.set(adaptApiError(error));
-        this.loadingState.set(false);
+        if (!options?.silent) {
+          this.loadingState.set(false);
+        }
         return throwError(() => error);
       })
     );

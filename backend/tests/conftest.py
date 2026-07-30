@@ -28,11 +28,13 @@ def api_client() -> Iterator[TestClient]:
 
     from app.application.display_orchestrator import redis_state
     from app.application.display_orchestrator.registry import OrchestratorRegistry
+    from app.application.admin_content.sse_hub import reset_admin_content_sse_hub
     from app.application.display_orchestrator.sse_hub import reset_display_sse_hub
 
     fake = fakeredis.FakeRedis(decode_responses=True)
     redis_state.reset_redis_client(fake)
     reset_display_sse_hub()
+    reset_admin_content_sse_hub()
     OrchestratorRegistry.reset()
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -59,5 +61,6 @@ def api_client() -> Iterator[TestClient]:
     app.dependency_overrides.clear()
     app.state.skip_bootstrap = False
     OrchestratorRegistry.reset()
+    reset_admin_content_sse_hub()
     reset_display_sse_hub()
     redis_state.reset_redis_client(None)

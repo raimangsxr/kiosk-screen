@@ -1,14 +1,16 @@
 import { TestBed, ComponentFixture, fakeAsync, tick } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { BreakpointObserver, BreakpointState, Breakpoints } from '@angular/cdk/layout';
 import { BehaviorSubject } from 'rxjs';
 import { OverlayModule } from '@angular/cdk/overlay';
 
 import { ContentApiService, ContentItem } from '../../core/api/content.api';
+import { AdminContentStreamService } from './admin-content-stream.service';
 import { ContentListComponent } from './content-list.component';
 import { CONTENT_LIST_PAGE_SIZE_STORAGE_KEY } from '../../shared/util/client-pagination-storage';
 
@@ -60,17 +62,38 @@ function buildItems(count: number): ContentItem[] {
 describe('ContentListComponent (Material)', () => {
   let fixture: ComponentFixture<ContentListComponent>;
   let api: jasmine.SpyObj<ContentApiService>;
+  let stream: jasmine.SpyObj<AdminContentStreamService>;
+  let inventoryChanged$: Subject<void>;
+  let staleSignal: ReturnType<typeof signal<boolean>>;
+  let nowPlayingContentId: ReturnType<typeof signal<string | null>>;
+  let nowPlayingTitle: ReturnType<typeof signal<string | null>>;
 
   beforeEach(async () => {
     localStorage.clear();
+    inventoryChanged$ = new Subject<void>();
+    staleSignal = signal(false);
+    nowPlayingContentId = signal<string | null>(null);
+    nowPlayingTitle = signal<string | null>(null);
     api = jasmine.createSpyObj<ContentApiService>('ContentApiService', ['list', 'delete']);
     api.list.and.returnValue(of([buildItem()]));
     api.delete.and.returnValue(of(undefined as void));
+
+    stream = jasmine.createSpyObj<AdminContentStreamService>(
+      'AdminContentStreamService',
+      ['start', 'stop', 'setDragDeferred', 'markFresh'],
+      {
+        inventoryChanged$: inventoryChanged$.asObservable(),
+        stale: staleSignal,
+        nowPlayingContentId,
+        nowPlayingTitle
+      }
+    );
 
     await TestBed.configureTestingModule({
       imports: [ContentListComponent, NoopAnimationsModule, OverlayModule],
       providers: [
         { provide: ContentApiService, useValue: api },
+        { provide: AdminContentStreamService, useValue: stream },
         { provide: BreakpointObserver, useValue: new BreakpointObserverStub() },
         provideRouter([]),
         provideHttpClient(),
@@ -228,5 +251,68 @@ describe('ContentListComponent (Material)', () => {
   it('persists page size in localStorage', () => {
     fixture.componentInstance['onPageSizeChange'](50);
     expect(localStorage.getItem(CONTENT_LIST_PAGE_SIZE_STORAGE_KEY)).toBe('50');
+  });
+
+  it('clicking refresh triggers facade reload', () => {
+    api.list.calls.reset();
+    const button = fixture.nativeElement.querySelector('[data-testid="admin-list-refresh"]') as HTMLButtonElement;
+    expect(button).not.toBeNull();
+    button.click();
+    expect(api.list).toHaveBeenCalled();
+  });
+
+  it('starts admin content stream on init and stops on destroy', () => {
+    expect(stream.start).toHaveBeenCalled();
+    fixture.destroy();
+    expect(stream.stop).toHaveBeenCalled();
+  });
+
+  it('simulated stream event triggers silent list reload without skeleton', fakeAsync(() => {
+    api.list.calls.reset();
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Before' }),
+        buildItem({ id: 'item-2', title: 'After remote', isNovelty: true })
+      ])
+    );
+    inventoryChanged$.next();
+    tick(1000);
+    fixture.detectChanges();
+    expect(api.list).toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('[data-testid="admin-list-skeleton"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('After remote');
+  }));
+
+  it('highlights on-air row when nowPlayingContentId matches', () => {
+    api.list.and.returnValue(
+      of([
+        buildItem({ id: 'item-1', title: 'Regular' }),
+        buildItem({ id: 'item-2', title: 'On Air', isNovelty: true })
+      ])
+    );
+    fixture.componentInstance['pageSize'].set('all');
+    fixture.componentInstance['facade'].refresh().subscribe();
+    nowPlayingContentId.set('item-2');
+    nowPlayingTitle.set('On Air');
+    fixture.detectChanges();
+
+    const onAirRow = fixture.nativeElement.querySelector('.content-list__row--on-air');
+    expect(onAirRow).not.toBeNull();
+    expect(onAirRow?.textContent).toContain('On Air');
+    expect(onAirRow?.classList.contains('content-list__row--novelty')).toBeFalse();
+  });
+
+  it('shows off-page hint when on-air item is not visible', () => {
+    api.list.and.returnValue(of(buildItems(25)));
+    nowPlayingContentId.set('item-15');
+    nowPlayingTitle.set('Item 15');
+    fixture.componentInstance['facade'].refresh().subscribe();
+    fixture.componentInstance['onPageSizeChange'](10);
+    fixture.detectChanges();
+
+    const hint = fixture.nativeElement.querySelector('[data-testid="content-on-air-hint"]');
+    expect(hint).not.toBeNull();
+    expect(hint?.textContent).toContain('En pantalla: Item 15');
+    expect(fixture.nativeElement.querySelectorAll('.content-list__row--on-air').length).toBe(0);
   });
 });

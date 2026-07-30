@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnInit,
   computed,
@@ -21,7 +22,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
+import { AdminContentStreamService } from './admin-content-stream.service';
 import { ContentFacade } from './content.facade';
 import { ContentItem } from '../../core/api/content.api';
 import { injectExtendedColors } from '../../core/theme/extended-colors';
@@ -84,6 +87,7 @@ import {
       [emptyMessage]="emptyMessage()"
       [primaryAction]="primaryAction"
       [refreshAction]="refreshAction"
+      (refresh)="onRefresh()"
       [selectedCount]="selection().size"
       emptyActionLabel="Añadir contenido"
       emptyActionRoute="/admin/content/new"
@@ -125,14 +129,25 @@ import {
           </button>
         </ng-container>
       }
-      <mat-slide-toggle
-        adminListActions
-        [checked]="noveltyFilterOnly()"
-        (change)="onNoveltyFilterChange($event.checked)"
-        data-testid="content-novelty-filter"
-      >
-        Solo novedades
-      </mat-slide-toggle>
+      <div adminListActions class="content-list__actions-slot">
+        <mat-slide-toggle
+          [checked]="noveltyFilterOnly()"
+          (change)="onNoveltyFilterChange($event.checked)"
+          data-testid="content-novelty-filter"
+        >
+          Solo novedades
+        </mat-slide-toggle>
+        @if (streamStale()) {
+          <p class="content-list__stale-hint" data-testid="content-stream-stale-hint">
+            Los datos pueden estar desactualizados
+          </p>
+        }
+        @if (showOffPageHint()) {
+          <p class="content-list__on-air-hint" data-testid="content-on-air-hint">
+            En pantalla: {{ nowPlayingTitle() }}
+          </p>
+        }
+      </div>
       <ng-template #adminListTable>
         <div
           cdkDropList
@@ -315,8 +330,11 @@ import {
               *matRowDef="let row; columns: displayedColumns"
               cdkDrag
               [cdkDragData]="row"
+              (cdkDragEnded)="onDragEnded()"
               class="content-list__row"
-              [class.content-list__row--novelty]="row.isNovelty"
+              [class.content-list__row--novelty]="row.isNovelty && !isNowPlaying(row.id)"
+              [class.content-list__row--on-air]="isNowPlaying(row.id)"
+              [attr.aria-label]="isNowPlaying(row.id) ? 'En pantalla: ' + row.title : null"
             ></tr>
           </table>
         </div>
@@ -344,7 +362,9 @@ import {
           <mat-card
             appearance="outlined"
             class="content-list__card-item"
-            [class.content-list__card-item--novelty]="item.isNovelty"
+            [class.content-list__card-item--novelty]="item.isNovelty && !isNowPlaying(item.id)"
+            [class.content-list__card-item--on-air]="isNowPlaying(item.id)"
+            [attr.aria-label]="isNowPlaying(item.id) ? 'En pantalla: ' + item.title : null"
           >
             @if (item.mediaFile?.mediaUrl) {
               <button
@@ -595,6 +615,12 @@ import {
         vertical-align: middle;
         white-space: nowrap;
       }
+      .content-list__actions-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
       .content-list__actions {
         display: inline-flex;
         align-items: center;
@@ -606,6 +632,12 @@ import {
       .content-list__row--novelty {
         background: color-mix(in srgb, var(--status-warning-container) 35%, transparent);
       }
+      .content-list__row--on-air {
+        background: color-mix(in srgb, #facc15 32%, transparent);
+      }
+      .content-list__row--on-air.content-list__row--novelty {
+        background: color-mix(in srgb, #facc15 32%, transparent);
+      }
       .content-list__row.cdk-drag-preview {
         background: var(--mat-sys-surface-container);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
@@ -614,7 +646,9 @@ import {
         opacity: 0.4;
       }
       .content-list__selection-hint,
-      .content-list__filter-hint {
+      .content-list__filter-hint,
+      .content-list__stale-hint,
+      .content-list__on-air-hint {
         margin: 8px 4px 0;
         color: var(--mat-sys-on-surface-variant);
         font: var(--mat-sys-body-small);
@@ -646,6 +680,14 @@ import {
       .content-list__card-item--novelty {
         border-color: var(--status-warning-container);
         background: color-mix(in srgb, var(--status-warning-container) 20%, var(--mat-sys-surface));
+      }
+      .content-list__card-item--on-air {
+        border-color: #facc15;
+        background: color-mix(in srgb, #facc15 24%, var(--mat-sys-surface));
+      }
+      .content-list__card-item--on-air.content-list__card-item--novelty {
+        border-color: #facc15;
+        background: color-mix(in srgb, #facc15 24%, var(--mat-sys-surface));
       }
       .content-list__card-thumb {
         width: 100%;
@@ -703,6 +745,8 @@ import {
 export class ContentListComponent implements OnInit {
   protected readonly colors = injectExtendedColors();
   protected readonly facade = inject(ContentFacade);
+  private readonly stream = inject(AdminContentStreamService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly previewService = inject(MediaHoverPreviewService);
@@ -729,6 +773,17 @@ export class ContentListComponent implements OnInit {
   ] as const;
   protected readonly pageSizeOptions = CLIENT_PAGE_SIZE_OPTIONS;
   protected readonly pageSizeLabel = pageSizeLabel;
+  protected readonly streamStale = computed(() => this.stream.stale());
+  protected readonly nowPlayingContentId = this.stream.nowPlayingContentId;
+  protected readonly nowPlayingTitle = this.stream.nowPlayingTitle;
+  protected readonly showOffPageHint = computed(() => {
+    const contentId = this.nowPlayingContentId();
+    const title = this.nowPlayingTitle();
+    if (!contentId || !title) {
+      return false;
+    }
+    return !this.visibleItems().some((item) => item.id === contentId);
+  });
 
   protected readonly selection = signal<ReadonlySet<string>>(new Set());
   protected readonly noveltyFilterOnly = signal(false);
@@ -799,6 +854,29 @@ export class ContentListComponent implements OnInit {
 
   ngOnInit(): void {
     this.facade.refresh().subscribe();
+    this.stream.start();
+    this.stream.inventoryChanged$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.reconcileFromServer());
+    this.destroyRef.onDestroy(() => this.stream.stop());
+  }
+
+  protected onRefresh(): void {
+    this.stream.markFresh();
+    this.facade.refresh().subscribe();
+  }
+
+  private reconcileFromServer(): void {
+    const previousSelection = this.selection();
+    this.facade.refresh({ silent: true }).subscribe({
+      next: () => {
+        const itemIds = new Set(this.facade.items().map((item) => item.id));
+        const pruned = new Set([...previousSelection].filter((id) => itemIds.has(id)));
+        if (pruned.size !== previousSelection.size) {
+          this.selection.set(pruned);
+        }
+      }
+    });
   }
 
   @HostListener('document:keydown.escape')
@@ -873,6 +951,11 @@ export class ContentListComponent implements OnInit {
 
   protected onDragStarted(): void {
     this.previewService.hideImmediate();
+    this.stream.setDragDeferred(true);
+  }
+
+  protected onDragEnded(): void {
+    this.stream.setDragDeferred(false);
   }
 
   protected isSelected(id: string): boolean {
@@ -974,6 +1057,10 @@ export class ContentListComponent implements OnInit {
 
   protected trackById(_index: number, item: ContentItem): string {
     return item.id;
+  }
+
+  protected isNowPlaying(id: string): boolean {
+    return this.nowPlayingContentId() === id;
   }
 
   protected canMove(item: ContentItem, direction: -1 | 1): boolean {

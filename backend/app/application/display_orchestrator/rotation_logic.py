@@ -5,6 +5,11 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from app.application.admin_content.hooks import (
+    get_now_playing_for_org,
+    notify_admin_content_inventory_changed,
+    notify_now_playing_changed,
+)
 from app.application.display_orchestrator.command_builder import build_show_content_payload, next_command_id
 from app.application.display_orchestrator.sse_hub import get_display_sse_hub
 from app.repositories.models.content import TopContentItem
@@ -182,6 +187,32 @@ def consume_novelty(session: Session, organization_id: str, content_id: str) -> 
         .values(is_novelty=False)
     )
     session.commit()
+    notify_admin_content_inventory_changed(organization_id, reason="novelty_consumed")
+
+
+def _after_emit_top_content(
+    orchestrator: DisplayOrchestrator,
+    session: Session,
+    item: TopContentItem,
+    *,
+    reason: str,
+) -> None:
+    notify_now_playing_changed(
+        orchestrator.organization_id,
+        content_id=str(item.id),
+        title=item.title,
+    )
+    from app.application.display_orchestrator.rotation_logging import log_rotation_plan
+    from app.application.display_orchestrator.rotation_plan import compute_rotation_plan_snapshot
+
+    snapshot = compute_rotation_plan_snapshot(orchestrator, session, reason=reason)
+    log_rotation_plan(
+        snapshot,
+        organization_id=orchestrator.organization_id,
+        operator_session_id=orchestrator.operator_session_id,
+        reason=reason,
+    )
+    orchestrator._last_replan_signature = None  # noqa: SLF001
 
 
 def emit_top_content(
@@ -235,6 +266,7 @@ def emit_top_content(
         content_id=str(item.id),
     )
     orchestrator._arm_top_timer(payload)  # noqa: SLF001
+    _after_emit_top_content(orchestrator, session, item, reason=reason)
     return payload
 
 
