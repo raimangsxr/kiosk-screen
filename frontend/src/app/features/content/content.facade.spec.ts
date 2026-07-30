@@ -236,4 +236,25 @@ describe('ContentFacade', () => {
     expect(error?.code).toBe('unexpected_error');
     expect(error?.category).toBe('unexpected');
   });
+
+  it('refresh with silent true does not set loading', () => {
+    facade.refresh({ silent: true }).subscribe();
+    const req = httpController.expectOne('/api/content');
+    expect(req.request.method).toBe('GET');
+    expect(facade.loading()).toBeFalse();
+    req.flush([buildItem()]);
+    expect(facade.loading()).toBeFalse();
+    expect(facade.items().length).toBe(1);
+  });
+
+  it('silent refresh is skipped while saving', () => {
+    const internal = facade as unknown as { savingState: { set: (value: boolean) => void }; itemsState: () => readonly ContentItem[] };
+    internal.savingState.set(true);
+    let completed = false;
+    facade.refresh({ silent: true }).subscribe(() => {
+      completed = true;
+    });
+    httpController.expectNone('/api/content');
+    expect(completed).toBeTrue();
+  });
 });

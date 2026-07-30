@@ -140,6 +140,7 @@ contracts:
       - CHG-027
       - CHG-039
       - CHG-041
+      - CHG-048
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -168,6 +169,8 @@ contracts:
       - backend/app/api/v1/content/**
       - backend/app/api/v1/ads/**
       - backend/app/application/content/**
+      - backend/app/application/admin_content/**
+      - backend/app/api/content_stream.py
       - backend/app/application/ads/**
       - frontend/src/app/features/content/**
       - frontend/src/app/features/ads/**
@@ -177,6 +180,8 @@ contracts:
       - CHG-007
       - CHG-027
       - CHG-046
+      - CHG-047
+      - CHG-048
 
   - id: USERS.ROLES.ADMIN
     path: specs/contracts/users-roles-admin/contract.md
@@ -736,6 +741,28 @@ changes:
     modifies:
       - CONTENT.ADS.ADMIN
     depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-047
+    path: specs/changes/047-admin-content-sse/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ADS.ADMIN
+    depends_on:
+      - CHG-041
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-048
+    path: specs/changes/048-content-now-playing/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ADS.ADMIN
+      - CONTENT.ROTATION
+    depends_on:
+      - CHG-041
+      - CHG-047
     consolidated_into: []
     read_by_default: true
 

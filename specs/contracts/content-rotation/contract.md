@@ -46,6 +46,10 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Fixed, iframe, and paused loop modes do not intercept novelties.
 
 - `KioskRotationController` is deprecated (CHG-041 Phase 8); rotation timers live in the server orchestrator.
+- After each top-content emit (`show_content` in loop mode), the server logs INFO `rotation_plan` with `showing`, `next`, and ordered `novelties` id list, plus `organizationId` and `operatorSessionId`.
+- When the novelty queue or planned next item changes without an emit (e.g. public upload mid-cycle), the server logs INFO `rotation_replan` with the same fields while `showing` is unchanged.
+- When top content stops (ads mode, pause, iframe), `rotation_plan` may log `showing: null`.
+- `compute_rotation_plan_snapshot()` derives next/novelties using the same rules as `advance_top` without mutating state.
 
 ## Public interfaces
 
@@ -81,3 +85,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-036
 - CHG-039
 - CHG-041
+- CHG-048

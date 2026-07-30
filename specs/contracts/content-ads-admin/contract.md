@@ -9,6 +9,8 @@ owns:
   - backend/app/api/v1/content/**
   - backend/app/api/v1/ads/**
   - backend/app/application/content/**
+  - backend/app/application/admin_content/**
+  - backend/app/api/content_stream.py
   - backend/app/application/ads/**
   - frontend/src/app/features/content/**
   - frontend/src/app/features/ads/**
@@ -21,6 +23,7 @@ related_changes:
   - CHG-007
   - CHG-027
   - CHG-046
+  - CHG-047
 related_adrs:
   []
 ---
@@ -49,10 +52,27 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - Top content list **client-side pagination**: page sizes 10, 20, 50, 100, and **Todas** (default 20); range indicator (e.g. `21–40 de 87`); prev/next navigation; same pagination on desktop table and compact cards; page size persisted in browser local storage.
 - Changing page size or **Solo novedades** resets to page 1; changing page clears bulk selection (current page only).
 - Drag-and-drop reorder is disabled when page size is not **Todas** (in addition to novelty filter); Spanish hint when disabled due to pagination. Mobile up/down reorder follows the same rule.
+- Top content admin list (`/admin/content`) maintains a live Server-Sent Events connection while the page is open (`GET /api/admin/content/stream`, authenticated, any org member with list access — same as `GET /content`).
+- Operators with read access including `event_operator` receive live SSE updates; unauthenticated requests return `401`.
+- On stream connect, the server replays one `now_playing_changed` event with the current orchestrator top-content state (or `contentId: null`).
+- Exactly one row/card at a time uses a soft **yellow** background (`content-list__row--on-air` / `content-list__card-item--on-air`) for the item currently on displays; no new table column.
+- When the on-air item is not on the visible page, a compact hint «En pantalla: [título]» appears below the action bar.
+- When no top content is on displays (ads mode, pause, no active session), no row is highlighted and no «En pantalla» hint is shown.
+- If an item is both on air and `isNovelty`, the yellow emission background wins over the novelty orange tint; the «Nov.» chip remains until consumed.
+- SSE event `now_playing_changed` (`{ contentId, title?, at }`) updates the highlight within ~3 s of orchestrator emit without a full inventory refresh.
+- On `content_inventory_changed`, the list reconciles via existing `GET /content` without full page reload.
+- SSE-triggered reconciliation uses a **silent** background refresh: no list skeleton, toast, or banner on success.
+- Manual **Actualizar** uses the standard refresh path (may show loading skeleton).
+- Rapid events are coalesced (~1 s) into a single silent refresh; refresh is deferred while drag-and-drop reorder is active until the row is dropped.
+- Silent SSE refresh is skipped while a save/reorder/delete batch (`saving()`) is in progress.
+- If the stream is disconnected for more than 30 seconds, a discrete hint «Los datos pueden estar desactualizados» appears below the action bar until reconnect or manual **Actualizar**.
+- Live updates cover: admin mutations, public API uploads, and kiosk novelty consumption (`isNovelty` cleared).
+- Navigating back to the list from the edit form reloads inventory on mount (existing `ngOnInit` + stream connect).
 
 ## Public interfaces
 
 - `GET/POST/PUT/DELETE /content`
+- `GET /admin/content/stream` (SSE, `text/event-stream`)
 - `POST /content/upload`
 - `PUT /content/{id}/upload`
 - `POST /content/reorder`
@@ -87,3 +107,5 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - CHG-007
 - CHG-027
 - CHG-046
+- CHG-047
+- CHG-048

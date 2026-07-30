@@ -16,7 +16,12 @@ from app.application.display_orchestrator.service import (
     _pick_previous_regular,
     _regular_queue,
 )
-from app.application.display_orchestrator.rotation_logic import reset_recurring_counter
+from app.application.admin_content.hooks import (
+    notify_now_playing_changed,
+    sync_now_playing_from_orchestrator,
+)
+from app.application.display_orchestrator.rotation_logging import log_rotation_plan
+from app.application.display_orchestrator.rotation_plan import compute_rotation_plan_snapshot
 from app.application.display_orchestrator.sse_hub import get_display_sse_hub
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.iframe import Iframe
@@ -88,11 +93,31 @@ def apply_remote_state(
     if new_mode == "loop":
         if is_paused:
             orchestrator._scheduler.cancel_top()  # noqa: SLF001
+            _clear_now_playing(orchestrator, session, reason=reason)
             return
         cursor_id = orchestrator._load_state().get("regularCursorId")  # noqa: SLF001
         item = _resolve_loop_item(session, orchestrator.organization_id, cursor_id)
         if item is not None:
             emit_loop_content(orchestrator, session, item, configuration, reason=reason)
+        return
+
+    _clear_now_playing(orchestrator, session, reason=reason)
+
+
+def _clear_now_playing(
+    orchestrator: DisplayOrchestrator,
+    session: Session,
+    *,
+    reason: str,
+) -> None:
+    notify_now_playing_changed(orchestrator.organization_id, content_id=None)
+    snapshot = compute_rotation_plan_snapshot(orchestrator, session, reason=reason)
+    log_rotation_plan(
+        snapshot,
+        organization_id=orchestrator.organization_id,
+        operator_session_id=orchestrator.operator_session_id,
+        reason=reason,
+    )
 
 
 def handle_remote_navigation(
@@ -114,6 +139,7 @@ def handle_remote_navigation(
             selected_fixed_content_id=remote.selected_fixed_content_id,
             reason="remote_pause",
         )
+        _clear_now_playing(orchestrator, session, reason="remote_pause")
         return
 
     if command == "resume":
@@ -130,6 +156,7 @@ def handle_remote_navigation(
         if remote.content_mode == "loop":
             with orchestrator._lock:  # noqa: SLF001
                 rearm_current_loop_content(orchestrator, session)
+            sync_now_playing_from_orchestrator(session, orchestrator.organization_id)
         return
 
     if remote.content_mode != "loop":
@@ -225,6 +252,7 @@ def emit_iframe(
         },
     )
     orchestrator._scheduler.cancel_top()  # noqa: SLF001
+    _clear_now_playing(orchestrator, session, reason=reason)
 
 
 def emit_fixed_content(
@@ -429,6 +457,9 @@ def _emit_show_content(
         event_type="show_content",
         payload=payload,
     )
+    from app.application.display_orchestrator.rotation_logic import _after_emit_top_content
+
+    _after_emit_top_content(orchestrator, session, item, reason=reason)
     return payload
 
 

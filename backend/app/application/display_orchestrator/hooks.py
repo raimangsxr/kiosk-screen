@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.application.admin_content.hooks import notify_admin_content_inventory_changed
 from app.application.display_control.service import DisplayControlService
 from app.application.display_orchestrator import redis_state
 from app.application.display_orchestrator.registry import OrchestratorRegistry
@@ -81,6 +82,39 @@ def notify_content_mutated(organization_id: str) -> None:
     orchestrator_instances = OrchestratorRegistry.instances_for_organization(organization_id)
     for orchestrator in orchestrator_instances:
         orchestrator.mark_content_mutated()
+        with orchestrator._session_factory() as session:  # noqa: SLF001
+            _maybe_log_rotation_replan(orchestrator, session, reason="content_mutation")
+    notify_admin_content_inventory_changed(organization_id, reason="mutation")
+
+
+def _maybe_log_rotation_replan(
+    orchestrator,
+    session: Session,
+    *,
+    reason: str,
+) -> None:
+    from app.application.display_orchestrator.rotation_logging import log_rotation_replan
+    from app.application.display_orchestrator.rotation_plan import compute_rotation_plan_snapshot
+
+    state = orchestrator._load_state()  # noqa: SLF001
+    if state.get("contentMode") != "loop" or state.get("isPaused"):
+        return
+    if not state.get("currentTopContentId"):
+        return
+
+    snapshot = compute_rotation_plan_snapshot(orchestrator, session, reason=reason)
+    showing_id = snapshot.showing.id if snapshot.showing is not None else None
+    next_id = snapshot.next.id if snapshot.next is not None else None
+    signature = (showing_id, next_id, snapshot.novelties)
+    if getattr(orchestrator, "_last_replan_signature", None) == signature:
+        return
+    orchestrator._last_replan_signature = signature  # noqa: SLF001
+    log_rotation_replan(
+        snapshot,
+        organization_id=orchestrator.organization_id,
+        operator_session_id=orchestrator.operator_session_id,
+        reason=reason,
+    )
 
 
 def notify_remote_state_changed(session: Session, organization_id: str) -> None:
