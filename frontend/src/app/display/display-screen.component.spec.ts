@@ -417,6 +417,15 @@ describe('DisplayScreenComponent', () => {
     expect(el?.getAttribute('data-iframe-url')).toBe(url);
   });
 
+  it('delegates autoplay and fullscreen to embedded iframe content', () => {
+    const fixture = createComponent(readyState);
+    driveIframe(fixture, 'https://example.org/jukebox?token=abc');
+
+    const el = fixture.nativeElement.querySelector('[data-testid="display-iframe"]') as HTMLIFrameElement | null;
+    expect(el?.getAttribute('allow')).toBe('autoplay; fullscreen');
+    expect(el?.hasAttribute('allowfullscreen')).toBeTrue();
+  });
+
   it('applies inverse-dimension scale CSS vars on the iframe host', () => {
     const fixture = createComponent(readyState);
     driveIframe(fixture, 'https://example.org/live', { scaleX: 1.25, scaleY: 0.8 });

@@ -36,6 +36,7 @@ This active contract is the current source of truth for `IFRAMES.VIDEO_END`. His
 - Deleted selected iframes cause the display control state to revert safely to loop mode.
 - Video end delay is configurable and applied by the runtime before advancing after video end.
 - Iframe rendering hides the branding overlay and uses a sanitized safe resource URL. The configured URL, including any query string, is passed through unchanged to the kiosk iframe `src` (no stripping or rewriting of operator-supplied parameters).
+- The kiosk iframe element sets `allow="autoplay; fullscreen"` (plus `allowfullscreen`) so embedded apps (e.g. amrn-jukebox) can autoplay media with sound when the host browser policy permits it.
 - When an iframe is updated via `PUT /iframes/{id}` and that iframe is the active remote-control selection, the server re-emits `show_iframe` so connected kiosks refresh default scale without reloading `/display`. Kiosks without a per-display override pick up new defaults client-side.
 - `GET /iframes` and `GET /iframes/{id}` include `displayScales[]` with effective scale, `source` (`override` | `default`), and `connected` for every known `display_device`.
 - `PUT /iframes/{id}/display-scales` batch upserts or clears per-display overrides (last-write-wins). Deleting an iframe cascades its override rows.

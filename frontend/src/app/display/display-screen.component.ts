@@ -90,6 +90,7 @@ type DisplayRenderableItem = Pick<
                 class="display-content-media display-content-media--iframe"
                 data-testid="display-iframe"
                 frameborder="0"
+                allow="autoplay; fullscreen"
                 allowfullscreen
               ></iframe>
             }
