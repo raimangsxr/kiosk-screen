@@ -129,6 +129,7 @@ describe('DisplayStreamService', () => {
     await startPromise;
 
     expect(MockEventSource.lastInstance?.url).toContain('kioskId=kiosk-1');
+    expect(MockEventSource.lastInstance?.url).toContain('ngsw-bypass=true');
     expect(MockEventSource.lastInstance?.options?.withCredentials).toBeTrue();
     MockEventSource.lastInstance?.open();
 

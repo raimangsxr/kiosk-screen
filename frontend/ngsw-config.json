@@ -29,19 +29,6 @@
   ],
   "dataGroups": [
     {
-      "name": "kiosk-display-api",
-      "urls": [
-        "/api/display/state",
-        "/api/event-branding"
-      ],
-      "cacheConfig": {
-        "strategy": "freshness",
-        "maxSize": 32,
-        "maxAge": "1h",
-        "timeout": "5s"
-      }
-    },
-    {
       "name": "kiosk-media",
       "urls": [
         "/api/media/**"

@@ -160,7 +160,9 @@ export class DisplayStreamService {
 
   private connect(kioskId: string): void {
     this.disconnect();
-    const url = `/api/display/stream?kioskId=${encodeURIComponent(kioskId)}`;
+    // ngsw-bypass: Angular SW must not intercept long-lived SSE (breaks reconnect + exhausts sockets).
+    const url =
+      `/api/display/stream?kioskId=${encodeURIComponent(kioskId)}&ngsw-bypass=true`;
     const source = new EventSource(url, { withCredentials: true });
     this.eventSource = source;
 

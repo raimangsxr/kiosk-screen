@@ -4,7 +4,8 @@ import { Subject, debounceTime, firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 
-const STREAM_URL = '/api/admin/content/stream';
+// ngsw-bypass: keep admin SSE out of the Angular service worker fetch handler.
+const STREAM_URL = '/api/admin/content/stream?ngsw-bypass=true';
 const DEBOUNCE_MS = 1_000;
 const STALE_AFTER_MS = 30_000;
 
