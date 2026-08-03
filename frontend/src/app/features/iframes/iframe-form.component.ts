@@ -10,8 +10,6 @@ import { MatInputModule } from '@angular/material/input';
 
 import { DisplayScaleEntry } from '../../core/api/iframe.api';
 import { DirtyFormAware } from '../../shared/dirty-form.models';
-import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
-import { ADMIN_COPY } from '../../shared/ui/admin/admin-copy';
 
 import { IframeFacade } from './iframe.facade';
 
@@ -79,24 +77,11 @@ interface ScaleRowDraft {
         <section class="iframe-form__matrix" aria-labelledby="iframe-scale-matrix-title">
           <header class="iframe-form__matrix-header">
             <h2 id="iframe-scale-matrix-title">Escala por pantalla</h2>
-            <div class="iframe-form__matrix-actions">
-              <mat-form-field appearance="outline" class="iframe-form__precreate">
-                <mat-label>Nueva pantalla</mat-label>
-                <input matInput [formControl]="newDeviceLabel" autocomplete="off" />
-              </mat-form-field>
-              <button
-                mat-stroked-button
-                type="button"
-                [disabled]="!newDeviceLabel.value.trim() || facade.scalesSaving()"
-                (click)="precreateDevice()"
-              >
-                Añadir pantalla
-              </button>
-            </div>
+            <a mat-button routerLink="/admin/displays">Gestionar pantallas</a>
           </header>
 
           @if (scaleRows.length === 0) {
-            <p class="iframe-form__empty">No hay pantallas registradas. Añade una o conecta un kiosk con etiqueta.</p>
+            <p class="iframe-form__empty">No hay pantallas registradas. <a routerLink="/admin/displays">Gestionar pantallas</a> o conecta un kiosk con etiqueta.</p>
           } @else {
             <div class="iframe-form__rows">
               @for (row of scaleRows; track row.displayDeviceId) {
@@ -137,17 +122,6 @@ interface ScaleRowDraft {
                     />
                   </mat-form-field>
                   <button mat-button type="button" (click)="clearRow(row.displayDeviceId)">Restablecer</button>
-                  <button
-                    mat-button
-                    color="warn"
-                    type="button"
-                    [disabled]="facade.scalesSaving()"
-                    (click)="deleteDevice(row)"
-                    [attr.aria-label]="'Eliminar pantalla ' + row.displayLabel"
-                  >
-                    <mat-icon aria-hidden="true">delete</mat-icon>
-                    Eliminar
-                  </button>
                 </div>
               }
             </div>
@@ -179,16 +153,7 @@ interface ScaleRowDraft {
         flex-wrap: wrap;
         justify-content: space-between;
         gap: 1rem;
-        align-items: end;
-      }
-      .iframe-form__matrix-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
         align-items: center;
-      }
-      .iframe-form__precreate {
-        min-width: 12rem;
       }
       .iframe-form__rows {
         display: grid;
@@ -197,7 +162,7 @@ interface ScaleRowDraft {
       .iframe-form__row {
         display: grid;
         gap: 0.75rem;
-        grid-template-columns: minmax(10rem, 1.5fr) repeat(2, minmax(6rem, 1fr)) auto auto;
+        grid-template-columns: minmax(10rem, 1.5fr) repeat(2, minmax(6rem, 1fr)) auto;
         align-items: center;
       }
       .iframe-form__row-label {
@@ -217,17 +182,14 @@ interface ScaleRowDraft {
   ],
 })
 export class IframeFormComponent implements OnInit, DirtyFormAware {
-  protected readonly ADMIN_COPY = ADMIN_COPY;
   protected readonly facade = inject(IframeFacade);
   private readonly cdr = inject(ChangeDetectorRef);
-  private readonly confirm = inject(ConfirmDialogService);
   private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   protected iframeId: string | null = null;
   private initialSnapshot = '';
   protected scaleRows: ScaleRowDraft[] = [];
-  protected readonly newDeviceLabel = this.fb.nonNullable.control('');
 
   protected readonly form = this.fb.nonNullable.group({
     url: ['', [Validators.required, Validators.pattern(/^https?:\/\/\S+$/)]],
@@ -270,19 +232,6 @@ export class IframeFormComponent implements OnInit, DirtyFormAware {
     });
   }
 
-  protected precreateDevice(): void {
-    const label = this.newDeviceLabel.value.trim();
-    if (!label) {
-      return;
-    }
-    this.facade.precreateDisplayDevice(label).subscribe((item) => {
-      this.newDeviceLabel.setValue('');
-      const scales = 'displayScales' in item ? item.displayScales ?? [] : this.facade.displayScales();
-      this.syncScaleRows(scales);
-      this.cdr.markForCheck();
-    });
-  }
-
   protected updateRowScale(displayDeviceId: string, field: 'scaleX' | 'scaleY', event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     this.scaleRows = this.scaleRows.map((row) => {
@@ -296,28 +245,6 @@ export class IframeFormComponent implements OnInit, DirtyFormAware {
         cleared: false,
       };
     });
-  }
-
-  protected deleteDevice(row: ScaleRowDraft): void {
-    this.confirm
-      .confirm({
-        title: 'Eliminar pantalla',
-        message: `¿Eliminar "${row.displayLabel}"? Se borrarán también sus escalas personalizadas para todos los iframes.`,
-        confirmLabel: ADMIN_COPY.delete,
-        cancelLabel: ADMIN_COPY.cancel,
-        destructive: true,
-      })
-      .afterClosed()
-      .subscribe((confirmed) => {
-        if (!confirmed) {
-          return;
-        }
-        this.facade.deleteDisplayDevice(row.displayDeviceId).subscribe((item) => {
-          const scales = 'displayScales' in item ? item.displayScales ?? [] : this.facade.displayScales();
-          this.syncScaleRows(scales);
-          this.cdr.markForCheck();
-        });
-      });
   }
 
   protected clearRow(displayDeviceId: string): void {

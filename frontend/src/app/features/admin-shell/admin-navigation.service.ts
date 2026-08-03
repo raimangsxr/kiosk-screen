@@ -10,6 +10,7 @@ const ICONS: Record<string, string> = {
   '/admin/event': 'event',
   '/admin/iframes': 'web_asset',
   '/admin/configuration': 'tune',
+  '/admin/displays': 'connected_tv',
   '/admin/readiness': 'fact_check',
   '/admin/remote-control': 'cast_connected',
   '/admin/users': 'group',
@@ -43,6 +44,7 @@ export class AdminNavigationService {
       items: withIcons([
         { label: 'Evento', route: '/admin/event', summary: 'Organizador, nombre, logo y duración' },
         { label: 'Pantalla', route: '/admin/configuration', summary: 'Rotación, animación y valores por defecto' },
+        { label: 'Pantallas', route: '/admin/displays', summary: 'Inventario y etiquetas de quioscos' },
         { label: 'Iframes', route: '/admin/iframes', summary: 'Vistas web para control remoto' }
       ])
     },
