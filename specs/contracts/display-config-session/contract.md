@@ -18,6 +18,7 @@ owns:
   - frontend/src/app/core/api/display.api.ts
   - frontend/src/app/core/api/live-kiosks.api.ts
   - frontend/src/app/core/api/display-device.api.ts
+  - frontend/src/app/features/display-devices/**
 tests:
   - backend/tests/**/*
   - frontend/src/app/**/*.spec.ts
@@ -30,6 +31,7 @@ related_changes:
   - CHG-041
   - CHG-044
   - CHG-045
+  - CHG-049
 related_adrs:
   - ADR-0009
   - ADR-0012
@@ -52,7 +54,9 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - Readiness blockers prevent opening the kiosk when the setup is not safe for a live event.
 - Polling cadence configuration is deprecated. `GET /display/state` is retained as a degraded fallback only when SSE is unavailable for more than 60 seconds.
 - Displays register via `POST /api/display/kiosk/register` with a required non-empty `label`. Registration upserts `display_devices` by `(organization_id, label)`, links `kiosk_connections.display_device_id`, and returns `displayDeviceId` in the response. Connection lifecycle is persisted in `kiosk_connections` for ops visibility (hot path remains Redis). Registration does not return embed-layout data.
-- Known display devices are listed and managed via `GET/POST/PATCH/DELETE /api/admin/display-devices`. Manual pre-creation is supported; label rename updates metadata only (overrides stay on device id).
+- Admin route **`/admin/displays`** (nav **Pantallas**) lists organization display devices with label, connection status (conectada / desconectada), and last activity; connection status refreshes every **~30 s** while the view is open (client merge of device list + live kiosks by label).
+- Operators pre-create, rename (modal), and delete (confirmation with connected warning) devices from `/admin/displays` only.
+- Iframe edit **scale matrix** retains scale editing and a **Gestionar pantallas** link to `/admin/displays`; it does not expose create/delete display device actions.
 - `POST /display/open` bootstraps the server orchestrator and emits an initial `snapshot` to connected displays.
 - Session supersede sends `session_ended` SSE to prior connections.
 - Admin ops dashboard lists connected kiosks via `GET /api/admin/display/kiosks/live` (`kioskId`, `displayLabel` only).
@@ -87,6 +91,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `frontend/src/app/core/api/display.api.ts`
 - `frontend/src/app/core/api/live-kiosks.api.ts`
 - `frontend/src/app/core/api/display-device.api.ts`
+- `frontend/src/app/features/display-devices/**`
 
 ## Quality gates
 
@@ -109,3 +114,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-041
 - CHG-044 — removes CHG-042/043 layout REST, `layout_updated` SSE, and `embed_density_defaults`; adds live kiosks admin endpoint.
 - CHG-045 — restores slim `display_devices` registry, required register label, and admin display-device CRUD.
+- CHG-049 — dedicated `/admin/displays` admin UI; iframe scale matrix lifecycle controls removed; ~30 s connection status refresh on device list.

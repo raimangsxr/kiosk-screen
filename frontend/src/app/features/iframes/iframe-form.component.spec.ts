@@ -5,7 +5,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
-import { ConfirmDialogService } from '../../shared/ui/confirm-dialog/confirm-dialog.service';
 import { IframeFormComponent } from './iframe-form.component';
 import { IframeFacade } from './iframe.facade';
 
@@ -56,28 +55,6 @@ describe('IframeFormComponent', () => {
         ],
       }),
     ),
-    precreateDisplayDevice: jasmine.createSpy('precreateDisplayDevice').and.callFake(() =>
-      of({
-        ...currentItem,
-        displayScales: [
-          ...currentItem.displayScales,
-          {
-            displayDeviceId: 'device-2',
-            displayLabel: 'Pantalla B',
-            connected: false,
-            scaleX: 1,
-            scaleY: 1,
-            source: 'default' as const,
-          },
-        ],
-      }),
-    ),
-    deleteDisplayDevice: jasmine.createSpy('deleteDisplayDevice').and.returnValue(
-      of({
-        ...currentItem,
-        displayScales: [],
-      }),
-    ),
   };
 
   beforeEach(async () => {
@@ -94,14 +71,6 @@ describe('IframeFormComponent', () => {
           },
         },
         { provide: IframeFacade, useValue: facadeStub },
-        {
-          provide: ConfirmDialogService,
-          useValue: {
-            confirm: () => ({
-              afterClosed: () => of(true),
-            }),
-          },
-        },
       ],
     }).compileComponents();
 
@@ -120,6 +89,16 @@ describe('IframeFormComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('predeterminada');
   });
 
+  it('links to display device management instead of inline lifecycle controls', () => {
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a[routerLink="/admin/displays"]') as HTMLAnchorElement;
+    expect(link).toBeTruthy();
+    expect(link.textContent).toContain('Gestionar pantallas');
+    expect(fixture.nativeElement.textContent).not.toContain('Añadir pantalla');
+    expect(fixture.nativeElement.textContent).not.toContain('Eliminar');
+  });
+
   it('saves dirty matrix rows via facade', () => {
     fixture.detectChanges();
     const component = fixture.componentInstance as IframeFormComponent & {
@@ -135,40 +114,6 @@ describe('IframeFormComponent', () => {
     expect(facadeStub.saveDisplayScales).toHaveBeenCalledWith('iframe-1', [
       { displayDeviceId: 'device-1', scaleX: 1.25, scaleY: 1 },
     ]);
-  });
-
-  it('adds a new display row immediately after pre-create', () => {
-    fixture.detectChanges();
-    const component = fixture.componentInstance as IframeFormComponent & {
-      precreateDevice(): void;
-      newDeviceLabel: { setValue(value: string): void };
-      scaleRows: { displayLabel: string }[];
-    };
-
-    component.newDeviceLabel.setValue('Pantalla B');
-    component.precreateDevice();
-    fixture.detectChanges();
-
-    expect(facadeStub.precreateDisplayDevice).toHaveBeenCalledWith('Pantalla B');
-    expect(component.scaleRows.map((row) => row.displayLabel)).toEqual(['Pantalla A', 'Pantalla B']);
-    expect(fixture.nativeElement.textContent).toContain('Pantalla B');
-  });
-
-  it('removes a display row after delete confirmation', () => {
-    fixture.detectChanges();
-    const component = fixture.componentInstance as IframeFormComponent & {
-      deleteDevice(row: { displayDeviceId: string; displayLabel: string }): void;
-      scaleRows: { displayLabel: string }[];
-    };
-
-    component.deleteDevice({
-      displayDeviceId: 'device-1',
-      displayLabel: 'Pantalla A',
-    });
-    fixture.detectChanges();
-
-    expect(facadeStub.deleteDisplayDevice).toHaveBeenCalledWith('device-1');
-    expect(component.scaleRows).toEqual([]);
   });
 
   it('marks cleared rows for restablecer save', () => {

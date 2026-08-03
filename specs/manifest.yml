@@ -51,6 +51,7 @@ contracts:
       - frontend/src/app/core/api/display.api.ts
       - frontend/src/app/core/api/live-kiosks.api.ts
       - frontend/src/app/core/api/display-device.api.ts
+      - frontend/src/app/features/display-devices/**
     related_changes:
       - CHG-002
       - CHG-011
@@ -58,6 +59,7 @@ contracts:
       - CHG-041
       - CHG-044
       - CHG-045
+      - CHG-049
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -763,6 +765,16 @@ changes:
     depends_on:
       - CHG-041
       - CHG-047
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-049
+    path: specs/changes/049-display-device-admin/spec.md
+    status: implemented
+    modifies:
+      - DISPLAY.CONFIG_SESSION
+    depends_on:
+      - CHG-045
     consolidated_into: []
     read_by_default: true
 

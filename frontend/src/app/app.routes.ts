@@ -13,6 +13,7 @@ import { AdminShellComponent } from './features/admin-shell/admin-shell.componen
 import { IframeFormComponent } from './features/iframes/iframe-form.component';
 import { IframeListComponent } from './features/iframes/iframe-list.component';
 import { DisplayConfigComponent } from './features/display-config/display-config.component';
+import { DisplayDevicesListComponent } from './features/display-devices/display-devices-list.component';
 import { EventConfigComponent } from './features/event-config/event-config.component';
 import { UsersListComponent, UserFormComponent } from './features/users/users.component';
 import { AdminDashboardComponent } from './features/dashboard/dashboard.component';
@@ -48,6 +49,7 @@ export const routes: Routes = [
       { path: '', component: AdminDashboardComponent, pathMatch: 'full' },
       { path: 'event', component: EventConfigComponent, canDeactivate: [dirtyFormGuard] },
       { path: 'configuration', component: DisplayConfigComponent },
+      { path: 'displays', component: DisplayDevicesListComponent },
       { path: 'remote-control', component: RemoteControlComponent },
       { path: 'users', component: UsersListComponent },
       { path: 'users/new', component: UserFormComponent, canDeactivate: [dirtyFormGuard] },
