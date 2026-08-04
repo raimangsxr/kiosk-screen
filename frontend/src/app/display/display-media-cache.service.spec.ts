@@ -57,7 +57,8 @@ describe('DisplayMediaCacheService', () => {
   it('limits warm concurrency to three active downloads', () => {
     const urls = Array.from({ length: 5 }, (_, index) => `/api/media/q${index}`);
     service.warm(urls);
-    http.match(() => true);
-    expect(http.match(() => true)?.length).toBe(3);
+    const pending = http.match(() => true);
+    expect(pending.length).toBe(3);
+    pending.forEach((req) => req.flush(new Blob(['x'])));
   });
 });
