@@ -132,6 +132,9 @@ class DisplayOrchestrator:
         self._show_initial_content(session, display_state.configuration)
         self._show_initial_ads(session, display_state.configuration)
         self._emit_snapshot(session, display_state.configuration)
+        from app.application.display_orchestrator.preload import emit_novelty_preload
+
+        emit_novelty_preload(self, session)
         self._scheduler.arm_availability(30)
 
     def mark_content_mutated(self) -> None:
@@ -210,6 +213,20 @@ class DisplayOrchestrator:
             )
         )
         session.commit()
+
+        state = self._load_state()
+        if state.get("isPaused"):
+            return
+        if command_id != state.get("currentTopCommandId"):
+            return
+        processed = list(state.get("processedKioskEvents") or [])
+        if command_id in processed:
+            return
+        processed.append(command_id)
+        if len(processed) > PROCESSED_EVENT_LIMIT:
+            processed = processed[-PROCESSED_EVENT_LIMIT:]
+        self._update_state({"processedKioskEvents": processed})
+        self.advance_top(session, reason="media_error")
 
     def advance_top(self, session: Session, *, reason: str = "rotation_advance") -> bool:
         from app.application.display_orchestrator.rotation_logic import advance_loop_top

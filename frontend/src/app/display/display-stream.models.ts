@@ -47,6 +47,7 @@ export interface SnapshotPayload {
   currentTop: ShowContentPayload | null;
   currentAds: ShowAdsPayload | null;
   fallbackActive: boolean;
+  pendingNovelties?: PreloadItem[];
 }
 
 export interface BrandingUpdatedPayload {
@@ -109,13 +110,16 @@ export interface IframeScaleUpdatedPayload {
   source: 'override' | 'default';
 }
 
+export interface PreloadItem {
+  contentId: string;
+  mediaUrl: string;
+  contentType: string;
+  mediaVersion: string;
+  isNovelty: boolean;
+}
+
 export interface PreloadPayload {
-  items: Array<{
-    contentId: string;
-    mediaUrl: string;
-    contentType: string;
-    mediaVersion: string;
-  }>;
+  items: PreloadItem[];
   leadTimeSeconds: number;
 }
 

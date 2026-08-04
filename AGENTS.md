@@ -43,5 +43,5 @@ docker build -f frontend/Dockerfile frontend
 For local setup and troubleshooting, read `docs/dev/local-lab.md` instead of loading this file into every task.
 
 <!-- SPECKIT START -->
-**Active plan**: none — CHG-049 implemented (`specs/changes/049-display-device-admin/`)
+**Active plan**: CHG-050 implemented — novelty media preload (`specs/changes/050-novelty-media-preload/`)
 <!-- SPECKIT END -->

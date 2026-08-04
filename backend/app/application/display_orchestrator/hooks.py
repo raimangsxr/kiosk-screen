@@ -115,6 +115,9 @@ def _maybe_log_rotation_replan(
         operator_session_id=orchestrator.operator_session_id,
         reason=reason,
     )
+    from app.application.display_orchestrator.preload import emit_novelty_preload
+
+    emit_novelty_preload(orchestrator, session)
 
 
 def notify_remote_state_changed(session: Session, organization_id: str) -> None:

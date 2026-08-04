@@ -27,7 +27,7 @@ describe('DisplayMediaCacheService', () => {
 
   it('returns blob url on second resolve without a second HTTP GET', async () => {
     const url = '/api/media/file-1';
-    expect(service.getDisplayUrl(url)).toBe(url);
+    expect(service.getDisplayUrl(url)).toBe('');
 
     const pending = service.ensure(url);
     const req = http.expectOne(url);
@@ -52,5 +52,12 @@ describe('DisplayMediaCacheService', () => {
     expect(service.getDisplayUrl('/api/media/b')).toMatch(/^blob:/);
     http.expectNone('/api/media/a');
     http.expectNone('/api/media/b');
+  });
+
+  it('limits warm concurrency to three active downloads', () => {
+    const urls = Array.from({ length: 5 }, (_, index) => `/api/media/q${index}`);
+    service.warm(urls);
+    http.match(() => true);
+    expect(http.match(() => true)?.length).toBe(3);
   });
 });
