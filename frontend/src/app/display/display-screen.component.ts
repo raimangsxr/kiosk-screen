@@ -17,6 +17,9 @@ import { CursorService } from './cursor.service';
 import { DisplayLabelService } from './display-label.service';
 import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
+import { DisplayContentGateService } from './display-content-gate.service';
+import { NoveltyQueueTrackerService } from './novelty-queue-tracker.service';
+import { NoveltyQueueIndicatorComponent } from './novelty-queue-indicator.component';
 import { DisplayStreamService } from './display-stream.service';
 import { IframeScaleService } from './iframe-scale.service';
 import type { ShowAdsPayload, ShowContentPayload, SnapshotPayload } from './display-stream.models';
@@ -53,12 +56,15 @@ type DisplayRenderableItem = Pick<
     MatInputModule,
     KioskBrandingOverlayComponent,
     KioskFullscreenPromptComponent,
+    NoveltyQueueIndicatorComponent,
   ],
   providers: [
     CursorService,
     DisplayPollingService,
     DisplayViewerController,
     DisplayMediaCacheService,
+    DisplayContentGateService,
+    NoveltyQueueTrackerService,
   ],
   template: `
     <main
@@ -156,6 +162,9 @@ type DisplayRenderableItem = Pick<
           [visible]="!activeIframeUrl()"
           (logoBroken)="hideBrokenLogo($event)"
         />
+        @if (noveltyIndicatorVisible()) {
+          <app-novelty-queue-indicator />
+        }
       </section>
 
       @if (adsVisible) {
@@ -274,6 +283,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly displayViewer = inject(DisplayViewerController);
   private readonly iframeScales = inject(IframeScaleService);
   private readonly mediaCache = inject(DisplayMediaCacheService);
+  private readonly contentGate = inject(DisplayContentGateService);
+  private readonly noveltyTracker = inject(NoveltyQueueTrackerService);
   private readonly displayApi = inject(DisplayApiService);
   private readonly displayLabel = inject(DisplayLabelService);
   private readonly router = inject(Router);
@@ -300,7 +311,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     effect(() => {
       const payload = this.displayStream.showContent();
       if (payload) {
-        this.displayViewer.applyShowContent(payload);
+        this.contentGate.enqueueShowContent(payload);
         this.syncContentRenderItems();
       }
     });
@@ -309,7 +320,43 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (event?.type !== 'snapshot') {
         return;
       }
-      this.displayViewer.applySnapshot(event.payload as SnapshotPayload);
+      const snapshot = event.payload as SnapshotPayload;
+      this.displayViewer.applyModeChanged({
+        contentMode: snapshot.contentMode,
+        isPaused: snapshot.isPaused,
+        adsVisible: snapshot.adsVisible,
+        selectedFixedContentId: null,
+        reason: 'snapshot',
+      });
+
+      if (snapshot.contentMode === 'iframe' && snapshot.selectedIframe) {
+        this.displayViewer.applyShowIframe({
+          commandId: 'snapshot',
+          iframe: {
+            id: snapshot.selectedIframe.id,
+            title: snapshot.selectedIframe.url,
+            url: snapshot.selectedIframe.url,
+            scaleX: snapshot.selectedIframe.scaleX ?? 1,
+            scaleY: snapshot.selectedIframe.scaleY ?? 1,
+          },
+          reason: 'snapshot',
+        });
+        if (snapshot.currentAds) {
+          this.displayViewer.applyShowAds(snapshot.currentAds);
+        }
+      } else {
+        if (snapshot.currentTop) {
+          this.contentGate.applySnapshotContent(snapshot.currentTop);
+        }
+        if (snapshot.currentAds) {
+          this.displayViewer.applyShowAds(snapshot.currentAds);
+        }
+      }
+
+      if (this.isPreloadAllowed()) {
+        this.mediaCache.warmItems(snapshot.pendingNovelties ?? []);
+        this.noveltyTracker.syncFromSnapshot(snapshot.pendingNovelties);
+      }
       this.syncContentRenderItems();
     });
     effect(() => {
@@ -333,9 +380,10 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     });
     effect(() => {
       const payload = this.displayStream.preload();
-      if (payload) {
+      if (payload && this.isPreloadAllowed()) {
         this.displayViewer.applyPreload(payload);
-        this.mediaCache.warm(payload.items.map((item) => item.mediaUrl));
+        this.mediaCache.warmItems(payload.items);
+        this.noveltyTracker.syncFromPreload(payload.items);
       }
     });
 
@@ -349,8 +397,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
     effect(() => {
       this.mediaCache.revision();
+      this.contentGate.retryPendingCommit();
       this.cdr.markForCheck();
     });
+
+    this.contentGate.onCommitted
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((contentId) => {
+        this.noveltyTracker.removeOnCommit(contentId);
+      });
 
     effect(() => {
       const content = this.displayViewer.currentContent();
@@ -432,6 +487,16 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe();
     });
+  }
+
+  protected readonly noveltyIndicatorVisible = computed(
+    () => this.isPreloadAllowed() && this.noveltyTracker.hasEntries(),
+  );
+
+  private isPreloadAllowed(): boolean {
+    return this.displayViewer.contentMode() === 'loop'
+      && !this.displayViewer.isPaused()
+      && !this.displayViewer.iframeActive();
   }
 
   private syncContentRenderItems(): void {

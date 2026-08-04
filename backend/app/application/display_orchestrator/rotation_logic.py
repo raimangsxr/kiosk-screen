@@ -138,7 +138,6 @@ def advance_loop_top(
         if next_item is None:
             orchestrator.schedule_empty_queue_audit()
             return False
-        emit_preload(orchestrator, session, regular, next_item)
         counters = increment_recurring_counters(counters, recurring_items)
         emit_top_content(
             orchestrator,
@@ -212,6 +211,9 @@ def _after_emit_top_content(
         operator_session_id=orchestrator.operator_session_id,
         reason=reason,
     )
+    from app.application.display_orchestrator.preload import emit_next_regular_preload
+
+    emit_next_regular_preload(orchestrator, session, after_item=item)
     orchestrator._last_replan_signature = None  # noqa: SLF001
 
 
@@ -276,30 +278,15 @@ def emit_preload(
     regular_queue: list[TopContentItem],
     current_item: TopContentItem,
 ) -> None:
+    from app.application.display_orchestrator.preload import build_preload_item, publish_preload
     from app.application.display_orchestrator.service import _pick_next_regular
 
     upcoming = _pick_next_regular(regular_queue, str(current_item.id))
     if upcoming is None or upcoming.id == current_item.id:
         return
-    media_url = _media_url(upcoming)
-    if media_url is None:
-        return
-    get_display_sse_hub().publish(
-        organization_id=orchestrator.organization_id,
-        operator_session_id=orchestrator.operator_session_id,
-        event_type="preload",
-        payload={
-            "items": [
-                {
-                    "contentId": str(upcoming.id),
-                    "mediaUrl": media_url,
-                    "contentType": upcoming.content_type,
-                    "mediaVersion": str(upcoming.id),
-                }
-            ],
-            "leadTimeSeconds": 5,
-        },
-    )
+    built = build_preload_item(upcoming, is_novelty=False)
+    if built is not None:
+        publish_preload(orchestrator, [built])
 
 
 def run_availability_tick(orchestrator: DisplayOrchestrator, session: Session) -> None:
@@ -315,9 +302,6 @@ def run_availability_tick(orchestrator: DisplayOrchestrator, session: Session) -
 
 
 def _media_url(item: TopContentItem) -> str | None:
-    media_file = getattr(item, "media_file", None)
-    if media_file is not None and getattr(media_file, "public_reference", None):
-        return media_file.public_reference
-    if item.source_reference:
-        return item.source_reference
-    return None
+    from app.application.display_orchestrator.preload import media_url
+
+    return media_url(item)

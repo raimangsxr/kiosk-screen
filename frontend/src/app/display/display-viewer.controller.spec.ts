@@ -120,7 +120,7 @@ describe('DisplayViewerController', () => {
 
   it('stores preload urls for prefetch hints', () => {
     controller.applyPreload({
-      items: [{ contentId: 'next-1', mediaUrl: 'https://example.com/next.jpg', contentType: 'photo', mediaVersion: 'v1' }],
+      items: [{ contentId: 'next-1', mediaUrl: 'https://example.com/next.jpg', contentType: 'photo', mediaVersion: 'v1', isNovelty: false }],
       leadTimeSeconds: 5,
     });
     expect(controller.preloadUrls()).toEqual(['https://example.com/next.jpg']);

@@ -56,7 +56,7 @@ def build_snapshot_payload(
                     start_index=max(0, int(start_index) - (state.configuration.inline_ad_count or 1)),
                     reason="snapshot",
                 )
-    return {
+    payload = {
         "configuration": configuration,
         "contentMode": content_mode,
         "isPaused": is_paused,
@@ -66,6 +66,9 @@ def build_snapshot_payload(
         "currentAds": current_ads,
         "fallbackActive": state.fallback_active,
     }
+    if orchestrator is not None:
+        payload["pendingNovelties"] = pending_novelty_items(orchestrator, session)
+    return payload
 
 
 from app.application.display_orchestrator.config_mutation import (  # noqa: E402
@@ -74,6 +77,7 @@ from app.application.display_orchestrator.config_mutation import (  # noqa: E402
     build_config_updated_payload,
     diff_configuration_fields,
 )
+from app.application.display_orchestrator.preload import pending_novelty_items
 
 __all__ = [
     "DEFERRED_BOUNDARY_FIELDS",

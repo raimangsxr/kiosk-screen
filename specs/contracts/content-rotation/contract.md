@@ -21,6 +21,8 @@ related_changes:
   - CHG-036
   - CHG-039
   - CHG-041
+  - CHG-048
+  - CHG-050
 related_adrs:
   []
 ---
@@ -50,16 +52,21 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - When the novelty queue or planned next item changes without an emit (e.g. public upload mid-cycle), the server logs INFO `rotation_replan` with the same fields while `showing` is unchanged.
 - When top content stops (ads mode, pause, iframe), `rotation_plan` may log `showing: null`.
 - `compute_rotation_plan_snapshot()` derives next/novelties using the same rules as `advance_top` without mutating state.
+- On novelty queue change in active loop, server emits SSE `preload` with all pending novelty items (`isNovelty: true`) plus the next regular item when applicable. No `preload` while loop is paused, in fixed content mode, or iframe mode.
+- After each top-content emit in loop, server emits `preload` for the next regular item at the start of that item's period.
+- SSE `snapshot` includes `pendingNovelties` for reconnect backfill. Preload items require `isNovelty: boolean`.
+- First `media_error` per `commandId` advances orchestrator top rotation for all displays (deduped via `processedKioskEvents`).
 
 ## Public interfaces
 
-- SSE `show_content`, `show_ads`, `show_iframe`, `mode_changed`
-- `POST /api/display/kiosk/events` (`video_ended`, `media_error`)
+- SSE `show_content`, `show_ads`, `show_iframe`, `mode_changed`, `preload`
+- `POST /api/display/kiosk/events` (`video_ended`, `media_error` — `media_error` advances rotation when deduped first report)
 - `POST /api/display/content/{contentId}/consume-novelty` (deprecated; orchestrator consumes internally)
 
 ## Owned code paths
 
 - `backend/app/application/display_orchestrator/service.py`
+- `backend/app/application/display_orchestrator/preload.py`
 - `backend/app/domain/rotation.py`
 - `backend/app/api/mappers.py`
 - `frontend/src/app/display/display-rotation.service.ts`
@@ -86,3 +93,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-039
 - CHG-041
 - CHG-048
+- CHG-050
