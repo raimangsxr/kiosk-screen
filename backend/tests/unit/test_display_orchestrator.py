@@ -190,7 +190,7 @@ def test_remote_previous_while_paused_keeps_pause_and_skips_timer(
     after = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
     assert after["isPaused"] is True
     assert after["currentTopContentId"] != before_previous_id
-    assert orchestrator._scheduler._top_timer is None  # noqa: SLF001
+    assert orchestrator._scheduler.has_top_timer() is False  # noqa: SLF001
 
 
 def test_arm_top_timer_skips_when_paused(
@@ -211,7 +211,7 @@ def test_arm_top_timer_skips_when_paused(
             }
         }
     )
-    assert orchestrator._scheduler._top_timer is None  # noqa: SLF001
+    assert orchestrator._scheduler.has_top_timer() is False  # noqa: SLF001
 
 
 def test_jump_to_shows_target_content(

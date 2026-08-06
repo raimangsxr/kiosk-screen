@@ -393,7 +393,7 @@ class DisplayOrchestrator:
             if self._empty_queue_timer is not None:
                 self._empty_queue_timer.cancel()
                 self._empty_queue_timer = None
-        self._scheduler.cancel_all()
+        self._scheduler.shutdown()
 
     def current_snapshot_extras(self) -> dict[str, Any]:
         state = self._load_state()
