@@ -23,6 +23,8 @@ import type { ShowAdsPayload, ShowContentPayload, SnapshotPayload } from './disp
 import { DisplayViewerController } from './display-viewer.controller';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
 import { KioskFullscreenPromptComponent } from './kiosk-fullscreen-prompt.component';
+import { VideoTeardownDirective } from './video-teardown.directive';
+import { environment } from '../../environments/environment';
 
 const IMMEDIATE_CONFIG_FIELDS = new Set([
   'topRegionRatio',
@@ -54,6 +56,7 @@ type DisplayRenderableItem = Pick<
     MatInputModule,
     KioskBrandingOverlayComponent,
     KioskFullscreenPromptComponent,
+    VideoTeardownDirective,
   ],
   providers: [
     CursorService,
@@ -127,6 +130,7 @@ type DisplayRenderableItem = Pick<
                   ></div>
                   <video
                     #fixedVideo
+                    appVideoTeardown
                     [src]="mediaSource(currentItem)"
                     muted
                     autoplay
@@ -471,18 +475,24 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     return url ? `url("${url}")` : null;
   }
 
+  /** Backdrop is a blurred fill; a small capture is plenty and avoids a
+   *  full-resolution canvas + multi-MB data URL on every rotation (CHG-051). */
+  private static readonly BACKDROP_MAX_WIDTH = 320;
+  private backdropCanvas: HTMLCanvasElement | null = null;
+
   protected onVideoBackdropCapture(item: DisplayContentItem, video: HTMLVideoElement): void {
     if (this.prefersReducedMotion || !video.videoWidth || !video.videoHeight) {
       return;
     }
     const key = this.contentRenderKey(item);
     try {
-      const canvas = globalThis.document?.createElement('canvas');
+      const canvas = this.backdropCanvas ??= globalThis.document?.createElement('canvas') ?? null;
       if (!canvas) {
         return;
       }
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      const scale = Math.min(1, DisplayScreenComponent.BACKDROP_MAX_WIDTH / video.videoWidth);
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
       const context = canvas.getContext('2d');
       if (!context) {
         return;
@@ -566,8 +576,14 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     const commandId = this.displayViewer.currentCommandId() ?? 'bootstrap';
     const iframeId = this.displayViewer.currentIframe()?.id ?? 'iframe';
-    return `${iframeId}|${commandId}|${url}`;
+    // The reload nonce lets an optional preventive reload (CHG-051) remount the
+    // iframe without any change to id/commandId/url.
+    return `${iframeId}|${commandId}|${url}|${this.iframeReloadNonce()}`;
   });
+
+  /** Bumped by the optional preventive-reload timer to force an iframe remount. */
+  private readonly iframeReloadNonce = signal(0);
+  private iframeReloadTimer: ReturnType<typeof setInterval> | null = null;
 
   /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
   protected readonly sponsorStripAds = computed(() => {
@@ -674,12 +690,32 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
+    this.armIframePreventiveReload();
+  }
+
+  private armIframePreventiveReload(): void {
+    const seconds = environment.iframePreventiveReloadSeconds ?? 0;
+    if (!seconds || seconds <= 0 || typeof globalThis.setInterval !== 'function') {
+      return;
+    }
+    this.iframeReloadTimer = globalThis.setInterval(() => {
+      // Only reclaim while an iframe is actually on screen; reloading resets
+      // the embedded app, so we never do it needlessly.
+      if (this.displayViewer.iframeActive()) {
+        this.iframeReloadNonce.update((value) => value + 1);
+        this.cdr.markForCheck();
+      }
+    }, seconds * 1000);
   }
 
   ngOnDestroy(): void {
     globalThis.removeEventListener?.('keydown', this.escapeHandler);
     this.portraitQuery?.removeEventListener?.('change', this.portraitListener);
     this.portraitQuery = null;
+    if (this.iframeReloadTimer !== null) {
+      globalThis.clearInterval?.(this.iframeReloadTimer);
+      this.iframeReloadTimer = null;
+    }
     this.clearTimers();
     this.polling.stop();
     this.displayStream.stop();
