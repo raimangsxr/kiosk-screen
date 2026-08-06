@@ -35,6 +35,7 @@ export interface KioskConfiguration {
   inlineAdItemBorderColor: string;
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
+  iframePreventiveReloadSeconds?: number;
   isEnabled: boolean;
 }
 

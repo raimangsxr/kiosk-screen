@@ -24,7 +24,6 @@ import { DisplayViewerController } from './display-viewer.controller';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
 import { KioskFullscreenPromptComponent } from './kiosk-fullscreen-prompt.component';
 import { VideoTeardownDirective } from './video-teardown.directive';
-import { environment } from '../../environments/environment';
 
 const IMMEDIATE_CONFIG_FIELDS = new Set([
   'topRegionRatio',
@@ -389,6 +388,14 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     });
 
     effect(() => {
+      // Re-read the operator-configured preventive-reload cadence whenever the
+      // display state changes, so admin edits take effect without a reload.
+      this.stateVersion();
+      const seconds = untracked(() => this.state?.configuration?.iframePreventiveReloadSeconds ?? 0);
+      this.reconfigureIframePreventiveReload(seconds);
+    });
+
+    effect(() => {
       if (!this.displayActive) {
         return;
       }
@@ -584,6 +591,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   /** Bumped by the optional preventive-reload timer to force an iframe remount. */
   private readonly iframeReloadNonce = signal(0);
   private iframeReloadTimer: ReturnType<typeof setInterval> | null = null;
+  private armedIframeReloadSeconds = -1;
 
   /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
   protected readonly sponsorStripAds = computed(() => {
@@ -690,11 +698,22 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.eventBranding.refresh()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe();
-    this.armIframePreventiveReload();
   }
 
-  private armIframePreventiveReload(): void {
-    const seconds = environment.iframePreventiveReloadSeconds ?? 0;
+  /**
+   * (Re)arms the optional preventive iframe reload from the operator-configured
+   * `iframePreventiveReloadSeconds`. 0 (default) disables it. Driven by config
+   * so it can be changed per event from the admin without redeploying.
+   */
+  private reconfigureIframePreventiveReload(seconds: number): void {
+    if (seconds === this.armedIframeReloadSeconds) {
+      return;
+    }
+    this.armedIframeReloadSeconds = seconds;
+    if (this.iframeReloadTimer !== null) {
+      globalThis.clearInterval?.(this.iframeReloadTimer);
+      this.iframeReloadTimer = null;
+    }
     if (!seconds || seconds <= 0 || typeof globalThis.setInterval !== 'function') {
       return;
     }

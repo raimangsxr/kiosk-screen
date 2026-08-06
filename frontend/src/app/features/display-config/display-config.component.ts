@@ -44,6 +44,7 @@ interface DisplayConfigFormValue {
   inlineAdItemBorderColor: string;
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
+  iframePreventiveReloadSeconds: number;
   isEnabled: boolean;
 }
 
@@ -271,6 +272,18 @@ interface DisplayConfigFormValue {
                 </mat-error>
               }
             </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Recarga preventiva del iframe (s, 0 = desactivada)</mat-label>
+              <input matInput type="number" formControlName="iframePreventiveReloadSeconds" min="0" max="86400" required />
+              @if (form.controls.iframePreventiveReloadSeconds.hasError('min') || form.controls.iframePreventiveReloadSeconds.hasError('max')) {
+                <mat-error>
+                  Debe estar entre 0 y 86400.
+                </mat-error>
+              } @else {
+                <mat-hint>Red de seguridad para apps embebidas que consumen memoria; 0 la desactiva.</mat-hint>
+              }
+            </mat-form-field>
           </div>
 
           <mat-divider />
@@ -369,6 +382,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     inlineAdItemBorderColor: FormControl<string>;
     remoteControlPollingSeconds: FormControl<number>;
     videoEndDelaySeconds: FormControl<number>;
+    iframePreventiveReloadSeconds: FormControl<number>;
     isEnabled: FormControl<boolean>;
   }> | null = null;
 
@@ -425,6 +439,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       inlineAdItemBorderColor: value.inlineAdItemBorderColor.trim(),
       remoteControlPollingSeconds: value.remoteControlPollingSeconds,
       videoEndDelaySeconds: value.videoEndDelaySeconds,
+      iframePreventiveReloadSeconds: value.iframePreventiveReloadSeconds,
       isEnabled: value.isEnabled
     };
     this.saveError.set(null);
@@ -487,6 +502,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       videoEndDelaySeconds: this.fb.nonNullable.control(2, {
         validators: [Validators.required, Validators.min(0), Validators.max(30)]
       }),
+      iframePreventiveReloadSeconds: this.fb.nonNullable.control(0, {
+        validators: [Validators.required, Validators.min(0), Validators.max(86400)]
+      }),
       isEnabled: this.fb.nonNullable.control(true)
     });
   }
@@ -511,6 +529,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       inlineAdItemBorderColor: config.inlineAdItemBorderColor ?? '#ffffff',
       remoteControlPollingSeconds: config.remoteControlPollingSeconds,
       videoEndDelaySeconds: config.videoEndDelaySeconds ?? 2,
+      iframePreventiveReloadSeconds: config.iframePreventiveReloadSeconds ?? 0,
       isEnabled: config.isEnabled
     });
     this.markPristine();

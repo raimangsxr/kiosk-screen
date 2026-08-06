@@ -78,6 +78,7 @@ export function sameDisplayConfiguration(
     prev.inlineAdItemBorderColor === curr.inlineAdItemBorderColor &&
     prev.remoteControlPollingSeconds === curr.remoteControlPollingSeconds &&
     prev.videoEndDelaySeconds === curr.videoEndDelaySeconds &&
+    prev.iframePreventiveReloadSeconds === curr.iframePreventiveReloadSeconds &&
     prev.isEnabled === curr.isEnabled
   );
 }
