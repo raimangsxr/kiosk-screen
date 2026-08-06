@@ -12,7 +12,6 @@ interface TestableLoginComponent {
   form: { setValue: (value: { email: string; password: string; rememberMe: boolean }) => void; invalid: boolean };
   submit: () => void;
   errorMessage: () => string | null;
-  switchView: (view: 'activation' | 'credentials') => void;
 }
 
 function asTestable(component: LoginComponent): TestableLoginComponent {
@@ -56,18 +55,20 @@ describe('LoginComponent', () => {
     localStorage.clear();
   });
 
-  it('shows activation waiting state with user code and mobile hint', () => {
+  it('shows both credential and activation panels side by side', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Correo y contraseña');
+    expect(text).toContain('Acceso por QR');
     expect(text).toContain('Activa desde tu móvil');
     expect(text).toContain('ABCDEF');
     expect(fixture.nativeElement.querySelector('[aria-live="polite"]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.login-panel--credentials')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.login-panel--activation')).not.toBeNull();
   });
 
-  it('posts credentials and navigates to hall from credentials tab', () => {
+  it('posts credentials and navigates to hall', () => {
     const component = asTestable(fixture.componentInstance);
-    component.switchView('credentials');
-    fixture.detectChanges();
     component.form.setValue({ email: 'operator@example.com', password: 'operator', rememberMe: false });
 
     component.submit();
@@ -105,8 +106,6 @@ describe('LoginComponent', () => {
 
   it('surfaces an error message when credentials are rejected', () => {
     const component = asTestable(fixture.componentInstance);
-    component.switchView('credentials');
-    fixture.detectChanges();
     component.form.setValue({ email: 'wrong@example.com', password: 'nope', rememberMe: false });
 
     component.submit();
@@ -120,8 +119,6 @@ describe('LoginComponent', () => {
 
   it('does not submit credentials when the form is invalid', () => {
     const component = asTestable(fixture.componentInstance);
-    component.switchView('credentials');
-    fixture.detectChanges();
     component.submit();
     http.expectNone('/api/auth/login');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
