@@ -258,12 +258,16 @@ export class DisplayMediaCacheService {
       }, PROBE_TIMEOUT_MS);
       const cleanup = (): void => {
         globalThis.clearTimeout(timer);
+        video.oncanplay = null;
+        video.onerror = null;
         video.removeAttribute('src');
         video.load();
-        video.oncanplaythrough = null;
-        video.onerror = null;
       };
-      video.oncanplaythrough = () => {
+      // The Blob is fully downloaded before this probe starts. `canplay` is
+      // therefore sufficient to prove that the browser can decode and begin
+      // playback; `canplaythrough` is only a buffering estimate and may never
+      // fire, which previously caused valid rotation videos to be skipped.
+      video.oncanplay = () => {
         cleanup();
         resolve();
       };

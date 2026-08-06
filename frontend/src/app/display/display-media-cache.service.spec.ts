@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, flushMicrotasks, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 
@@ -189,6 +189,35 @@ describe('DisplayMediaCacheService', () => {
     expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
     expect(service.getDisplayUrl(url)).toBe('');
   });
+
+  it('marks a fully downloaded video ready when it can start without canplaythrough', fakeAsync(() => {
+    const url = '/api/media/rotation-video';
+    const blobUrl = 'blob:rotation-video';
+    const video = document.createElement('video');
+    spyOn(URL, 'createObjectURL').and.returnValue(blobUrl);
+    spyOn(service as unknown as { shouldSkipPresentationProbe: () => boolean }, 'shouldSkipPresentationProbe')
+      .and.returnValue(false);
+    spyOn(document, 'createElement').and.returnValue(video);
+    spyOn(video, 'load');
+
+    let resolved = false;
+    let rejected = false;
+    void service.ensure(url, 'video')
+      .then(() => { resolved = true; })
+      .catch(() => { rejected = true; });
+    http.expectOne(url).flush(new Blob(['video'], { type: 'video/mp4' }));
+    flushMicrotasks();
+
+    video.dispatchEvent(new Event('canplay'));
+    flushMicrotasks();
+    tick(10_000);
+    flushMicrotasks();
+
+    expect(resolved).toBeTrue();
+    expect(rejected).toBeFalse();
+    expect(service.getReadyState(url)).toBe('ready');
+    expect(service.getDisplayUrl(url)).toBe(blobUrl);
+  }));
 
   it('retains visible + one preload and evicts a third top URL', async () => {
     service.retainTop(['https://example.com/a.jpg', 'https://example.com/b.jpg']);
