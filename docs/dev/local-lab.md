@@ -113,6 +113,30 @@ The frontend listens on `http://localhost:4200`. The development server proxies
 `/api` requests to `http://localhost:8000`, so keep the backend running while
 using the UI.
 
+#### Frontend in Docker
+
+To run the frontend container with the rest of the stack:
+
+```sh
+docker compose up backend frontend
+```
+
+The dev entrypoint auto-selects the API proxy target:
+
+- `http://backend:8000` when the `backend` compose service is reachable
+- `http://host.docker.internal:8000` when the backend runs on the host (hybrid lab)
+
+Override manually when needed:
+
+```sh
+API_PROXY_TARGET=http://host.docker.internal:8000 docker compose up frontend
+```
+
+If you see `getaddrinfo ENOTFOUND backend` in the frontend logs, the proxy is still
+pointing at the compose service name. Recreate the frontend container so the
+entrypoint can pick the correct target, or set `API_PROXY_TARGET` explicitly as
+shown above.
+
 Default MVP login:
 
 - Email: `admin@example.com`

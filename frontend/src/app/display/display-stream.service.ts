@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import { AuthService } from '../core/auth/auth.service';
+import { createRandomUuid } from '../shared/util/random-id';
 import { DisplayLabelService } from './display-label.service';
 
 import {
@@ -308,13 +309,13 @@ export class DisplayStreamService {
 
   private clientInstanceId(): string {
     if (typeof globalThis.sessionStorage === 'undefined') {
-      return crypto.randomUUID();
+      return createRandomUuid();
     }
     const existing = globalThis.sessionStorage.getItem(CLIENT_INSTANCE_STORAGE_KEY);
     if (existing) {
       return existing;
     }
-    const created = crypto.randomUUID();
+    const created = createRandomUuid();
     globalThis.sessionStorage.setItem(CLIENT_INSTANCE_STORAGE_KEY, created);
     return created;
   }

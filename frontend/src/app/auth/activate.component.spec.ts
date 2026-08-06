@@ -57,6 +57,7 @@ describe('ActivateComponent', () => {
     };
     component.form.setValue({
       userCode: 'ABCDEF',
+      displayLabel: 'Sala A',
       email: 'operator@example.com',
       password: 'operator',
       rememberMe: false,
@@ -72,7 +73,11 @@ describe('ActivateComponent', () => {
     });
 
     const authorize = http.expectOne('/api/auth/device-activation/authorize');
-    expect(authorize.request.body).toEqual({ userCode: 'ABCDEF', rememberMe: false });
+    expect(authorize.request.body).toEqual({
+      userCode: 'ABCDEF',
+      rememberMe: false,
+      displayLabel: 'Sala A',
+    });
     authorize.flush(null);
 
     fixture.detectChanges();
@@ -86,6 +91,7 @@ describe('ActivateComponent', () => {
     };
     component.form.setValue({
       userCode: 'ZZZZZZ',
+      displayLabel: 'Sala A',
       email: 'operator@example.com',
       password: 'operator',
       rememberMe: false,
@@ -116,6 +122,7 @@ describe('ActivateComponent', () => {
     };
     component.form.setValue({
       userCode: 'abc12',
+      displayLabel: 'Sala A',
       email: 'operator@example.com',
       password: 'operator',
       rememberMe: false,

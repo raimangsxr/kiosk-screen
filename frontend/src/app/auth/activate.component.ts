@@ -78,6 +78,21 @@ type ActivateView = 'form' | 'success';
                 }
               </mat-form-field>
 
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Nombre de pantalla</mat-label>
+                <input
+                  matInput
+                  formControlName="displayLabel"
+                  maxlength="80"
+                  autocomplete="off"
+                  placeholder="Ej. Sala ultrawide"
+                />
+                <mat-hint>Se mostrará en el quiosco y en el panel de control.</mat-hint>
+                @if (form.controls.displayLabel.hasError('required')) {
+                  <mat-error>El nombre de pantalla es obligatorio.</mat-error>
+                }
+              </mat-form-field>
+
               @if (!auth.isAuthenticated()) {
                 <p class="activate-form__login-hint">Inicia sesión para autorizar la pantalla.</p>
                 <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -179,6 +194,9 @@ export class ActivateComponent implements OnInit {
     userCode: this.fb.nonNullable.control('', {
       validators: [Validators.required, Validators.pattern(/^[A-Za-z]{6}$/)],
     }),
+    displayLabel: this.fb.nonNullable.control('', {
+      validators: [Validators.required, Validators.maxLength(80)],
+    }),
     email: this.fb.nonNullable.control(''),
     password: this.fb.nonNullable.control(''),
     rememberMe: this.fb.nonNullable.control(false),
@@ -208,9 +226,10 @@ export class ActivateComponent implements OnInit {
     this.submitting.set(true);
     const userCode = this.activation.normalizeUserCode(this.form.controls.userCode.value);
     const rememberMe = this.form.controls.rememberMe.value;
+    const displayLabel = this.form.controls.displayLabel.value.trim();
 
     const authorize = () =>
-      this.activation.authorize(userCode, rememberMe).subscribe({
+      this.activation.authorize(userCode, rememberMe, displayLabel).subscribe({
         next: () => {
           this.submitting.set(false);
           this.view.set('success');

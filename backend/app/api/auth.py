@@ -151,6 +151,7 @@ def device_activation_authorize(
             user,
             user_code=payload.user_code,
             remember_me=payload.remember_me,
+            display_label=payload.display_label,
         )
         session.commit()
         activation_rate_limiter.reset(client_key)
@@ -186,4 +187,8 @@ def device_activation_poll(
         secure=session_cookie_secure(settings),
         max_age=session_cookie_max_age(remember_me=result.remember_me),
     )
-    return DeviceActivationPollResponse(status="authorized", user=user_schema(result.user))
+    return DeviceActivationPollResponse(
+        status="authorized",
+        user=user_schema(result.user),
+        display_label=result.display_label,
+    )

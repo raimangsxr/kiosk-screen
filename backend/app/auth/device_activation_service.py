@@ -41,6 +41,7 @@ class DeviceActivationPollResult:
     status: str
     user: CurrentUser | None = None
     remember_me: bool = False
+    display_label: str | None = None
 
 
 class DeviceActivationExpiredError(ValidationApplicationError):
@@ -92,11 +93,18 @@ def authorize_activation(
     *,
     user_code: str,
     remember_me: bool,
+    display_label: str,
 ) -> None:
     if not is_valid_user_code(user_code):
         raise ValidationApplicationError(
             "activation_invalid_code",
             "Introduce un código de 6 letras mayúsculas.",
+        )
+    clean_label = display_label.strip()
+    if not clean_label:
+        raise ValidationApplicationError(
+            "activation_display_label_required",
+            "Introduce un nombre para la pantalla.",
         )
     if not can_open_display({Role(role) for role in user.roles}):
         raise DeviceActivationForbiddenError()
@@ -113,6 +121,7 @@ def authorize_activation(
         user_id=str(user.id),
         organization_id=str(user.organization_id),
         remember_me=remember_me,
+        display_label=clean_label,
     )
     if record is None:
         existing = get_by_user_code(user_code)
@@ -153,11 +162,14 @@ def poll_activation(
 
     roles = [role for (role,) in session.query(RoleAssignment.role).filter(RoleAssignment.user_id == db_user.id).all()]
     remember_me = bool(record.get("rememberMe"))
+    display_label = record.get("displayLabel")
+    clean_label = display_label.strip() if isinstance(display_label, str) else ""
     consume(device_code)
     return DeviceActivationPollResult(
         status="authorized",
         user=CurrentUser(db_user, roles),
         remember_me=remember_me,
+        display_label=clean_label or None,
     )
 
 
