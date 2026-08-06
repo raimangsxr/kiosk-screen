@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -45,6 +45,7 @@ type DisplayRenderableItem = Pick<
 @Component({
   selector: 'app-display-screen',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -118,16 +119,12 @@ type DisplayRenderableItem = Pick<
                   />
                 }
                 @case ('video') {
-                  <video
-                    [src]="mediaSource(currentItem)"
-                    muted
-                    autoplay
-                    playsinline
-                    [loop]="isFixedMode"
-                    class="top-region__media-backdrop"
+                  <div
+                    class="top-region__media-backdrop top-region__media-backdrop--css"
+                    [style.background-image]="videoBackdropStyle(currentItem)"
                     aria-hidden="true"
                     data-testid="display-content-backdrop"
-                  ></video>
+                  ></div>
                   <video
                     #fixedVideo
                     [src]="mediaSource(currentItem)"
@@ -135,6 +132,7 @@ type DisplayRenderableItem = Pick<
                     autoplay
                     playsinline
                     [loop]="isFixedMode"
+                    (loadeddata)="onVideoBackdropCapture(currentItem, fixedVideo)"
                     (ended)="onVideoEnded(currentItem)"
                     class="display-content-media"
                     data-testid="display-content"
@@ -335,7 +333,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       const payload = this.displayStream.preload();
       if (payload) {
         this.displayViewer.applyPreload(payload);
-        this.mediaCache.warm(payload.items.map((item) => item.mediaUrl));
+        const preloadUrls = payload.items.map((item) => item.mediaUrl).filter(Boolean);
+        this.syncTopMediaRetention(preloadUrls);
       }
     });
 
@@ -354,15 +353,29 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
     effect(() => {
       const content = this.displayViewer.currentContent();
-      if (content) {
-        this.mediaCache.warm([this.rawMediaUrl(content)]);
+      const preload = this.displayViewer.preloadUrls();
+      if (this.displayViewer.iframeActive()) {
+        this.mediaCache.clearTopRetention();
+        return;
       }
+      const urls: string[] = [];
+      if (content) {
+        urls.push(this.rawMediaUrl(content));
+      }
+      for (const url of preload) {
+        if (url && !urls.includes(url)) {
+          urls.push(url);
+        }
+      }
+      this.mediaCache.retainTop(urls);
     });
 
     effect(() => {
       const ads = this.displayViewer.visibleAds();
       if (ads.length) {
-        this.mediaCache.warm(ads.map((ad) => this.rawMediaUrl(ad)));
+        this.mediaCache.retainAds(ads.map((ad) => this.rawMediaUrl(ad)));
+      } else {
+        this.mediaCache.retainAds([]);
       }
     });
 
@@ -375,16 +388,18 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (!this.displayActive) {
         return;
       }
-      if (this.displayStream.sseFallbackActive()) {
+      const sseConnected = this.displayStream.connected();
+      const fallback = this.displayStream.sseFallbackActive();
+      if (sseConnected && this.fallbackPollingActive) {
+        this.fallbackPollingActive = false;
+        this.polling.stop();
+        return;
+      }
+      if (!sseConnected && fallback) {
         if (!this.fallbackPollingActive) {
           this.fallbackPollingActive = true;
           this.polling.start(this.fallbackPollIntervalMs());
         }
-        return;
-      }
-      if (this.fallbackPollingActive) {
-        this.fallbackPollingActive = false;
-        this.polling.stop();
       }
     });
 
@@ -428,16 +443,73 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (!this.displayStream.brandingUpdated() || !this.displayActive) {
         return;
       }
-      this.eventBranding.refresh()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe();
+      untracked(() => {
+        this.eventBranding.refresh()
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe();
+      });
     });
   }
 
   private syncContentRenderItems(): void {
     const item = this.displayViewer.currentContent();
+    this.revokeVideoBackdropExcept(item ? this.contentRenderKey(item) : null);
     this.contentRenderItems = item ? [item] : [];
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
+  }
+
+  private readonly videoBackdropByKey = new Map<string, string>();
+  private readonly prefersReducedMotion =
+    typeof globalThis.matchMedia === 'function'
+    && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  protected videoBackdropStyle(item: DisplayContentItem): string | null {
+    if (this.prefersReducedMotion) {
+      return null;
+    }
+    const url = this.videoBackdropByKey.get(this.contentRenderKey(item));
+    return url ? `url("${url}")` : null;
+  }
+
+  protected onVideoBackdropCapture(item: DisplayContentItem, video: HTMLVideoElement): void {
+    if (this.prefersReducedMotion || !video.videoWidth || !video.videoHeight) {
+      return;
+    }
+    const key = this.contentRenderKey(item);
+    try {
+      const canvas = globalThis.document?.createElement('canvas');
+      if (!canvas) {
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        return;
+      }
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      const prior = this.videoBackdropByKey.get(key);
+      if (prior && prior.startsWith('blob:')) {
+        URL.revokeObjectURL(prior);
+      }
+      this.videoBackdropByKey.set(key, dataUrl);
+      this.cdr.markForCheck();
+    } catch {
+      // Canvas capture may fail on cross-origin media; backdrop degrades to solid frame color.
+    }
+  }
+
+  private revokeVideoBackdropExcept(activeKey: string | null): void {
+    for (const [key, url] of this.videoBackdropByKey.entries()) {
+      if (key === activeKey) {
+        continue;
+      }
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+      this.videoBackdropByKey.delete(key);
+    }
   }
 
 
@@ -611,6 +683,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.clearTimers();
     this.polling.stop();
     this.displayStream.stop();
+    this.revokeVideoBackdropExcept(null);
     this.mediaCache.releaseAll();
   }
 
@@ -873,5 +946,23 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? 'default',
       item.contentType,
     ].join('|');
+  }
+
+  private syncTopMediaRetention(preloadUrls: string[]): void {
+    if (this.displayViewer.iframeActive()) {
+      this.mediaCache.clearTopRetention();
+      return;
+    }
+    const urls: string[] = [];
+    const content = this.displayViewer.currentContent();
+    if (content) {
+      urls.push(this.rawMediaUrl(content));
+    }
+    for (const url of preloadUrls) {
+      if (url && !urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+    this.mediaCache.retainTop(urls);
   }
 }

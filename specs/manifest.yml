@@ -778,4 +778,17 @@ changes:
     consolidated_into: []
     read_by_default: true
 
-archive: []  
+  - id: CHG-051
+    path: specs/changes/051-kiosk-runtime-performance/spec.md
+    status: implemented
+    modifies:
+      - DISPLAY.RUNTIME
+      - CONTENT.ADS.ADMIN
+    depends_on:
+      - CHG-041
+      - CHG-028
+      - CHG-047
+    consolidated_into: []
+    read_by_default: true
+
+archive: []

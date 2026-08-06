@@ -664,3 +664,25 @@ def test_concurrent_kiosk_registrations(stream_clients: tuple[TestClient, TestCl
             json={"clientInstanceId": f"load-client-{index}", "label": f"Pantalla {index}"},
         )
         assert response.status_code == 201, response.text
+
+
+def test_display_stream_uses_sse_comment_ping_helper() -> None:
+    from pathlib import Path
+
+    from app.sse.ping import build_sse_ping_comment
+
+    assert build_sse_ping_comment() == ": ping\n\n"
+    source = Path(__file__).resolve().parents[2] / "app" / "api" / "display_stream.py"
+    text = source.read_text(encoding="utf-8")
+    assert "build_sse_ping_comment()" in text
+    assert 'event_type="ping"' not in text
+
+
+def test_buffer_push_defaults_unchanged_after_comment_ping(stream_client: TestClient) -> None:
+    import inspect
+
+    from app.application.display_orchestrator import redis_state as rs
+
+    signature = inspect.signature(rs.buffer_push_event)
+    assert signature.parameters["max_events"].default == 100
+    assert signature.parameters["ttl_seconds"].default == 600

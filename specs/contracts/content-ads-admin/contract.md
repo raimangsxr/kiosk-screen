@@ -24,6 +24,7 @@ related_changes:
   - CHG-027
   - CHG-046
   - CHG-047
+  - CHG-051
 related_adrs:
   []
 ---
@@ -64,6 +65,7 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - SSE-triggered reconciliation uses a **silent** background refresh: no list skeleton, toast, or banner on success.
 - Manual **Actualizar** uses the standard refresh path (may show loading skeleton).
 - Rapid events are coalesced (~1 s) into a single silent refresh; refresh is deferred while drag-and-drop reorder is active until the row is dropped.
+- **Reconcile coalescing (CHG-051)**: When multiple `content_inventory_changed` signals arrive within the debounce window, at most one `GET /content` silent refresh runs at a time; a newer signal **cancels** an in-flight refresh (`switchMap` semantics).
 - Silent SSE refresh is skipped while a save/reorder/delete batch (`saving()`) is in progress.
 - If the stream is disconnected for more than 30 seconds, a discrete hint «Los datos pueden estar desactualizados» appears below the action bar until reconnect or manual **Actualizar**.
 - Live updates cover: admin mutations, public API uploads, and kiosk novelty consumption (`isNovelty` cleared).

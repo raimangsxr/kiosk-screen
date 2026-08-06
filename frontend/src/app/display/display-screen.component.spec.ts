@@ -1640,7 +1640,7 @@ describe('DisplayScreenComponent', () => {
       expect(backdrop!.getAttribute('aria-hidden')).toBe('true');
     });
 
-    it('SC-001: renders video foreground with object-fit contain and a backdrop video layer', () => {
+    it('SC-001: renders video foreground with object-fit contain and a CSS backdrop layer (single decoder)', () => {
       const fixture = createComponent({
         ...readyState,
         topContent: [{
@@ -1649,13 +1649,15 @@ describe('DisplayScreenComponent', () => {
           sourceReference: 'https://example.com/welcome.mp4',
         }],
       });
+      const videos = fixture.nativeElement.querySelectorAll('video');
       const foreground = fixture.nativeElement.querySelector(
         'video.display-content-media[data-testid="display-content"]',
       ) as HTMLVideoElement | null;
       const backdrop = fixture.nativeElement.querySelector(
-        'video.top-region__media-backdrop[data-testid="display-content-backdrop"]',
-      ) as HTMLVideoElement | null;
+        'div.top-region__media-backdrop[data-testid="display-content-backdrop"]',
+      ) as HTMLDivElement | null;
 
+      expect(videos.length).toBe(1);
       expect(foreground).not.toBeNull();
       expect(backdrop).not.toBeNull();
       expect(globalThis.getComputedStyle(foreground!).objectFit).toBe('contain');

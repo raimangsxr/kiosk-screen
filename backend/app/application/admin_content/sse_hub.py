@@ -12,6 +12,7 @@ from uuid import uuid4
 import redis
 
 from app.application.display_orchestrator import redis_state
+from app.sse.ping import build_sse_ping_comment
 
 logger = logging.getLogger(__name__)
 
@@ -134,7 +135,7 @@ class AdminContentSseHub:
             logger.exception("Failed to publish admin content SSE event to Redis")
 
     def build_ping_comment(self) -> str:
-        return ": ping\n\n"
+        return build_sse_ping_comment()
 
     def _fanout_local(self, organization_id: str, envelope: dict[str, Any]) -> None:
         with self._lock:

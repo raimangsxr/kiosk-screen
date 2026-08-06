@@ -31,6 +31,8 @@ export class DisplayViewerController {
   readonly currentShowReason = signal<string>('bootstrap');
   readonly preloadUrls = signal<string[]>([]);
 
+  private lastShowAdsFingerprint: string | null = null;
+
   readonly isFixedMode = computed(() => this.contentMode() === 'fixed');
   readonly iframeActive = computed(() => this.contentMode() === 'iframe' && this.currentIframe() !== null);
 
@@ -106,6 +108,12 @@ export class DisplayViewerController {
   }
 
   applyShowAds(payload: ShowAdsPayload): void {
+    const fingerprint = this.showAdsFingerprint(payload);
+    if (fingerprint === this.lastShowAdsFingerprint) {
+      return;
+    }
+    this.lastShowAdsFingerprint = fingerprint;
+
     const count = Math.max(1, payload.inlineAdCount ?? 1);
     const items = payload.items;
     const start = payload.startIndex ?? 0;
@@ -125,6 +133,26 @@ export class DisplayViewerController {
       borderStyle: 'solid',
     });
     this.adAnimationRun.update((value) => value + 1);
+  }
+
+  showAdsFingerprint(payload: ShowAdsPayload): string {
+    const count = Math.max(1, payload.inlineAdCount ?? 1);
+    const items = payload.items;
+    const start = payload.startIndex ?? 0;
+    const visibleIds: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const item = items[(start + index) % items.length];
+      if (item) {
+        visibleIds.push(item.id);
+      }
+    }
+    return JSON.stringify({
+      commandId: payload.commandId,
+      startIndex: start,
+      inlineAdCount: count,
+      visibleIds,
+      border: payload.border,
+    });
   }
 
   onVideoEnded(content: DisplayContentItem): void {

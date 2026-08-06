@@ -20,6 +20,7 @@ from app.application.display_orchestrator.hooks import ensure_display_orchestrat
 from app.application.display_orchestrator.registry import OrchestratorRegistry
 from app.application.display_orchestrator.snapshot_builder import build_snapshot_payload
 from app.application.display_orchestrator.sse_hub import PING_INTERVAL_SECONDS, get_display_sse_hub
+from app.sse.ping import build_sse_ping_comment
 from app.application.iframe_runtime import list_live_kiosks
 from app.services.display_device_service import DisplayDeviceService
 from app.services.iframe_service import IframeService
@@ -235,13 +236,7 @@ async def open_display_stream(
                 if time.monotonic() - last_ping_at < PING_INTERVAL_SECONDS:
                     continue
 
-                ping = hub.publish(
-                    organization_id=registration.organization_id,
-                    operator_session_id=registration.operator_session_id,
-                    event_type="ping",
-                    payload={"serverTime": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
-                )
-                yield _format_sse_event(ping)
+                yield build_sse_ping_comment()
                 last_ping_at = time.monotonic()
         except asyncio.CancelledError:
             pass

@@ -195,4 +195,95 @@ describe('DisplayStreamService', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/login');
     expect(service.reconnecting()).toBeFalse();
   });
+
+  it('does not update lastEvent for SSE comment ping payloads', async () => {
+    const startPromise = service.start();
+    await flushRegistrationAndScales('kiosk-ping');
+    await startPromise;
+    MockEventSource.lastInstance?.open();
+
+    MockEventSource.lastInstance?.emit('show_content', JSON.stringify({
+      v: 1,
+      type: 'show_content',
+      sequence: 3,
+      emittedAt: '2026-07-08T12:00:00.000Z',
+      operatorSessionId: 'session-1',
+      organizationId: 'org-1',
+      payload: { commandId: 'cmd-1', content: { id: 'c1' }, playback: {}, transition: {}, reason: 'test' },
+    }));
+    const before = service.lastEvent();
+
+    MockEventSource.lastInstance?.onmessage?.({ data: ': ping' } as MessageEvent<string>);
+    expect(service.lastEvent()).toBe(before);
+  });
+
+  it('debounces auth refresh to one call per 5 s on repeated onerror', async () => {
+    const startPromise = service.start();
+    await flushRegistrationAndScales('kiosk-debounce');
+    await startPromise;
+    MockEventSource.lastInstance?.open();
+    auth.refresh.calls.reset();
+
+    MockEventSource.lastInstance?.onerror?.();
+    MockEventSource.lastInstance?.onerror?.();
+    MockEventSource.lastInstance?.onerror?.();
+    await Promise.resolve();
+    expect(auth.refresh).toHaveBeenCalledTimes(1);
+
+    (service as unknown as { lastAuthVerifyAt: number }).lastAuthVerifyAt = Date.now() - 6000;
+    MockEventSource.lastInstance?.onerror?.();
+    await Promise.resolve();
+    expect(auth.refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips duplicate snapshot payloads on reconnect', async () => {
+    const startPromise = service.start();
+    await flushRegistrationAndScales('kiosk-snapshot');
+    await startPromise;
+    MockEventSource.lastInstance?.open();
+
+    const snapshot = JSON.stringify({
+      v: 1,
+      type: 'snapshot',
+      sequence: 1,
+      emittedAt: '2026-07-08T12:00:00.000Z',
+      operatorSessionId: 'session-1',
+      organizationId: 'org-1',
+      payload: { contentMode: 'loop', isPaused: false, adsVisible: true, configuration: { id: 'cfg' } },
+    });
+    MockEventSource.lastInstance?.emit('snapshot', snapshot);
+    expect(service.lastEvent()?.type).toBe('snapshot');
+
+    MockEventSource.lastInstance?.emit('snapshot', snapshot);
+    expect(service.lastSequence()).toBe(1);
+  });
+
+  it('recovers application events after reconnect simulation (SC-003 harness)', async () => {
+    const startPromise = service.start();
+    await flushRegistrationAndScales('kiosk-sc3');
+    await startPromise;
+    MockEventSource.lastInstance?.open();
+    MockEventSource.lastInstance?.onerror?.();
+    expect(service.reconnecting()).toBeTrue();
+
+    MockEventSource.lastInstance?.open();
+    MockEventSource.lastInstance?.emit('show_content', JSON.stringify({
+      v: 1,
+      type: 'show_content',
+      sequence: 10,
+      emittedAt: '2026-07-08T12:00:00.000Z',
+      operatorSessionId: 'session-1',
+      organizationId: 'org-1',
+      payload: {
+        commandId: 'cmd-remote',
+        content: { id: 'remote-1', title: 'Remote', contentType: 'photo', sourceReference: 'x' },
+        playback: { mode: 'photo' },
+        transition: { animation: 'none' },
+        reason: 'remote_jump',
+      },
+    }));
+
+    expect(service.showContent()?.commandId).toBe('cmd-remote');
+    expect(service.connected()).toBeTrue();
+  });
 });

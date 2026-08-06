@@ -25,3 +25,7 @@ This supersedes FR-009 of CHG-019 (`object-fit: cover` for top-region media).
 - Photo and video playback may use two decoders for the backdrop + foreground video pair; kiosk hardware should be validated at 4K.
 - FR-009 in CHG-019 is historical; the active contract and this ADR own current fit behavior.
 - No API or configuration changes; presentation-only frontend update.
+
+## Amendment (CHG-051, 2026-08-06)
+
+**Video backdrop without a second decoder**: For top-region **video**, the runtime uses a **single** `<video>` for playback. The blurred backdrop is rendered via CSS `background-image` (poster or captured frame with blur), not a second `<video>` element. Photo content keeps the dual-`<img>` blur-fill pattern. This reduces RAM and decode pressure during multi-hour kiosk rotation while preserving the visual intent of blur-fill.

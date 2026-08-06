@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 PROTOCOL_VERSION = 1
 PING_INTERVAL_SECONDS = 30
 BUFFER_TTL_SECONDS = 600
+DISPLAY_SSE_QUEUE_MAXSIZE = 64
 
 
 @dataclass(frozen=True)
@@ -229,7 +230,21 @@ class DisplaySseHub:
                 if subscriber.kiosk_id == kiosk_id
             ]
         for subscriber in subscribers:
-            subscriber.events.put(envelope)
+            self._enqueue_bounded(subscriber, envelope)
+
+    def _enqueue_bounded(self, subscriber: StreamSubscriber, envelope: dict[str, Any]) -> None:
+        event_queue = subscriber.events
+        try:
+            event_queue.put_nowait(envelope)
+        except queue.Full:
+            try:
+                event_queue.get_nowait()
+            except queue.Empty:
+                pass
+            try:
+                event_queue.put_nowait(envelope)
+            except queue.Full:
+                pass
 
     def get_kiosk(self, kiosk_id: str) -> KioskRegistration | None:
         with self._lock:
@@ -254,7 +269,7 @@ class DisplaySseHub:
             kiosk_id=registration.kiosk_id,
             organization_id=registration.organization_id,
             operator_session_id=registration.operator_session_id,
-            events=queue.Queue(),
+            events=queue.Queue(maxsize=DISPLAY_SSE_QUEUE_MAXSIZE),
         )
         with self._lock:
             self._subscribers[connection_id] = subscriber
@@ -414,7 +429,7 @@ class DisplaySseHub:
                 and subscriber.operator_session_id == operator_session_id
             ]
         for subscriber in subscribers:
-            subscriber.events.put(envelope)
+            self._enqueue_bounded(subscriber, envelope)
 
     def _disconnect_kiosk_locked(self, kiosk_id: str, *, reason: str) -> None:
         registration = self._kiosks.pop(kiosk_id, None)

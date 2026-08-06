@@ -177,3 +177,35 @@ def test_list_registrations_excludes_kiosks_without_active_stream() -> None:
 
     reset_display_sse_hub()
     redis_state.reset_redis_client(None)
+
+
+def test_subscriber_queue_bounded_drop_oldest() -> None:
+    fake = fakeredis.FakeRedis(decode_responses=True)
+    redis_state.reset_redis_client(fake)
+    reset_display_sse_hub()
+    hub = DisplaySseHub()
+
+    org_id = str(uuid4())
+    session_id = str(uuid4())
+    registration = hub.register_kiosk(
+        organization_id=org_id,
+        operator_session_id=session_id,
+        client_instance_id="a",
+        label=None,
+    )
+    subscriber = hub.subscribe(registration)
+
+    for index in range(100):
+        hub.publish(
+            organization_id=org_id,
+            operator_session_id=session_id,
+            event_type="show_content",
+            payload={"commandId": f"cmd-{index}", "content": {"id": f"content-{index}"}},
+        )
+
+    assert subscriber.events.qsize() <= 64
+    first = subscriber.events.get_nowait()
+    assert first["payload"]["commandId"] == "cmd-36"
+
+    reset_display_sse_hub()
+    redis_state.reset_redis_client(None)
