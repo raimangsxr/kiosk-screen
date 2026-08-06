@@ -100,6 +100,33 @@ describe('DisplayStreamService', () => {
     await expectAsync(registerPromise).toBeResolvedTo(null);
   });
 
+  it('registers when crypto.randomUUID is unavailable', async () => {
+    const originalCrypto = globalThis.crypto;
+    Object.defineProperty(globalThis, 'crypto', {
+      configurable: true,
+      value: {
+        getRandomValues: (bytes: Uint8Array) => {
+          bytes.fill(0x11);
+          return bytes;
+        },
+      },
+    });
+
+    try {
+      const registerPromise = service.tryRegister();
+      const register = http.expectOne('/api/display/kiosk/register');
+      expect(typeof register.request.body.clientInstanceId).toBe('string');
+      expect(register.request.body.clientInstanceId.length).toBeGreaterThan(0);
+      register.flush('No active display session', { status: 404, statusText: 'Not Found' });
+      await registerPromise;
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', {
+        configurable: true,
+        value: originalCrypto,
+      });
+    }
+  });
+
   function registrationResponse(kioskId: string) {
     return {
       kioskId,

@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { toDataURL } from 'qrcode';
 import { Observable, defer, of, throwError, timer } from 'rxjs';
 import { catchError, filter, map, switchMap, take } from 'rxjs/operators';
 
@@ -14,6 +15,11 @@ export interface DeviceActivationStartResult {
   readonly activateUrl: string;
 }
 
+export interface DeviceActivationAuthorizedResult {
+  readonly user: AuthenticatedUser;
+  readonly displayLabel: string;
+}
+
 interface DeviceActivationStartResponse {
   readonly userCode: string;
   readonly deviceCode: string;
@@ -24,6 +30,7 @@ interface DeviceActivationStartResponse {
 
 interface DeviceActivationPollResponse {
   readonly status: 'pending' | 'authorized';
+  readonly displayLabel?: string;
   readonly user?: {
     readonly id: string;
     readonly email: string;
@@ -48,10 +55,10 @@ export class DeviceActivationService {
     );
   }
 
-  authorize(userCode: string, rememberMe: boolean): Observable<void> {
+  authorize(userCode: string, rememberMe: boolean, displayLabel: string): Observable<void> {
     return this.http.post<void>(
       '/api/auth/device-activation/authorize',
-      { userCode, rememberMe },
+      { userCode, rememberMe, displayLabel: displayLabel.trim() },
       { withCredentials: true },
     );
   }
@@ -64,7 +71,7 @@ export class DeviceActivationService {
     );
   }
 
-  pollUntilAuthorized(deviceCode: string, intervalSeconds: number): Observable<AuthenticatedUser> {
+  pollUntilAuthorized(deviceCode: string, intervalSeconds: number): Observable<DeviceActivationAuthorizedResult> {
     const intervalMs = Math.max(intervalSeconds, 1) * 1000;
     return timer(0, intervalMs).pipe(
       switchMap(() =>
@@ -82,14 +89,21 @@ export class DeviceActivationService {
       take(1),
       map((response) => {
         const user = response.user;
+        const displayLabel = response.displayLabel?.trim();
         if (!user) {
           throw new Error('authorized_without_user');
         }
+        if (!displayLabel) {
+          throw new Error('authorized_without_display_label');
+        }
         return {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          roles: user.roles ?? [],
+          user: {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            roles: user.roles ?? [],
+          },
+          displayLabel,
         };
       }),
     );
@@ -101,10 +115,7 @@ export class DeviceActivationService {
   }
 
   buildQrDataUrl(userCode: string): Observable<string> {
-    return defer(async () => {
-      const { toDataURL } = await import('qrcode');
-      return toDataURL(this.buildActivateUrl(userCode), { margin: 1, width: 256 });
-    });
+    return defer(() => toDataURL(this.buildActivateUrl(userCode), { margin: 1, width: 256 }));
   }
 
   isExpiredActivationError(error: unknown): boolean {

@@ -55,16 +55,19 @@ describe('LoginComponent', () => {
     localStorage.clear();
   });
 
-  it('shows both credential and activation panels side by side', () => {
+  it('shows centered header and both credential and activation panels side by side', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Acceso al quiosco');
     expect(text).toContain('Correo y contraseña');
     expect(text).toContain('Acceso por QR');
     expect(text).toContain('Activa desde tu móvil');
     expect(text).toContain('ABCDEF');
+    expect(fixture.nativeElement.querySelector('.login-header')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[aria-live="polite"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.login-panel--credentials')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.login-panel--activation')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.login-panels mat-card')).not.toBeNull();
   });
 
   it('posts credentials and navigates to hall', () => {
@@ -92,6 +95,7 @@ describe('LoginComponent', () => {
     const poll = http.expectOne('/api/auth/device-activation/poll');
     poll.flush({
       status: 'authorized',
+      displayLabel: 'Sala A',
       user: {
         id: 'user-1',
         email: 'operator@example.com',
@@ -101,6 +105,7 @@ describe('LoginComponent', () => {
     });
 
     expect(localStorage.getItem('kiosk_authenticated')).toBe('true');
+    expect(localStorage.getItem('kiosk_display_label')).toBe('Sala A');
     expect(router.navigateByUrl).toHaveBeenCalledWith('/display');
   });
 

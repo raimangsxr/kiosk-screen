@@ -82,6 +82,7 @@ def test_authorize_requires_can_open_display(db_session: Session, seeded_session
             _current_user(viewer, ["display_viewer"]),
             user_code=user_code,
             remember_me=False,
+            display_label="Sala A",
         )
 
 
@@ -96,6 +97,7 @@ def test_authorize_rejects_inactive_user(db_session: Session, seeded_session) ->
             _current_user(operator, ["event_operator"]),
             user_code=user_code,
             remember_me=False,
+            display_label="Sala A",
         )
     assert exc_info.value.code == "not_authenticated"
 
@@ -113,6 +115,7 @@ def test_poll_pending_then_authorized_single_use(db_session: Session, seeded_ses
         user_id=operator.id,
         organization_id=operator.organization_id,
         remember_me=True,
+        display_label="Sala ultrawide",
     )
 
     authorized = poll_activation(db_session, device_code=device_code)
@@ -120,6 +123,7 @@ def test_poll_pending_then_authorized_single_use(db_session: Session, seeded_ses
     assert authorized.user is not None
     assert authorized.user.id == operator.id
     assert authorized.remember_me is True
+    assert authorized.display_label == "Sala ultrawide"
 
     with pytest.raises(DeviceActivationNotFoundError):
         poll_activation(db_session, device_code=device_code)
@@ -139,6 +143,7 @@ def test_expired_code_on_authorize(db_session: Session, seeded_session) -> None:
             _current_user(operator, ["event_operator"]),
             user_code=user_code,
             remember_me=False,
+            display_label="Sala A",
         )
 
 
@@ -150,6 +155,7 @@ def test_reused_code_after_consume(db_session: Session, seeded_session) -> None:
         user_id=operator.id,
         organization_id=operator.organization_id,
         remember_me=False,
+        display_label="Sala A",
     )
     poll_activation(db_session, device_code=device_code)
     with pytest.raises(DeviceActivationNotFoundError):
@@ -158,6 +164,7 @@ def test_reused_code_after_consume(db_session: Session, seeded_session) -> None:
             _current_user(operator, ["event_operator"]),
             user_code=user_code,
             remember_me=False,
+            display_label="Sala A",
         )
 
 
@@ -171,12 +178,14 @@ def test_concurrent_authorize_first_wins(db_session: Session, seeded_session) ->
         user_id=admin.id,
         organization_id=admin.organization_id,
         remember_me=False,
+        display_label="Sala A",
     )
     second = try_authorize(
         user_code,
         user_id=operator.id,
         organization_id=operator.organization_id,
         remember_me=False,
+        display_label="Sala B",
     )
     assert first is not None
     assert second is None

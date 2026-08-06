@@ -39,9 +39,9 @@ describe('DeviceActivationService', () => {
   });
 
   it('poll loop stops on authorized and returns user', fakeAsync(() => {
-    let authorizedUser: { email: string } | undefined;
-    service.pollUntilAuthorized('device-123', 2).subscribe((user) => {
-      authorizedUser = user;
+    let authorizedResult: { user: { email: string }; displayLabel: string } | undefined;
+    service.pollUntilAuthorized('device-123', 2).subscribe((result) => {
+      authorizedResult = result;
     });
     tick(0);
 
@@ -53,6 +53,7 @@ describe('DeviceActivationService', () => {
     const authorized = http.expectOne('/api/auth/device-activation/poll');
     authorized.flush({
       status: 'authorized',
+      displayLabel: 'Sala A',
       user: {
         id: 'user-1',
         email: 'operator@example.com',
@@ -61,7 +62,8 @@ describe('DeviceActivationService', () => {
       },
     });
 
-    expect(authorizedUser?.email).toBe('operator@example.com');
+    expect(authorizedResult?.user.email).toBe('operator@example.com');
+    expect(authorizedResult?.displayLabel).toBe('Sala A');
   }));
 
   it('retries poll on transient network errors', fakeAsync(() => {

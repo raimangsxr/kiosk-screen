@@ -70,6 +70,7 @@ class DeviceActivationStartResponse(CamelModel):
 class DeviceActivationAuthorizeRequest(CamelModel):
     user_code: str = Field(alias="userCode", min_length=6, max_length=6)
     remember_me: bool = Field(default=False, alias="rememberMe")
+    display_label: str = Field(alias="displayLabel", min_length=1, max_length=80)
 
 
 class DeviceActivationPollRequest(CamelModel):
@@ -79,6 +80,7 @@ class DeviceActivationPollRequest(CamelModel):
 class DeviceActivationPollResponse(CamelModel):
     status: Literal["pending", "authorized"]
     user: UserSchema | None = None
+    display_label: str | None = Field(default=None, alias="displayLabel")
 
 
 class KioskConfigurationSchema(CamelModel):

@@ -66,6 +66,7 @@ def create_pair() -> tuple[str, str, datetime]:
             "authorizedByUserId": None,
             "organizationId": None,
             "rememberMe": False,
+            "displayLabel": None,
             "pollIntervalSeconds": POLL_INTERVAL_SECONDS,
         }
         client.set(_user_key(user_code), device_code, ex=TTL_SECONDS, nx=True)
@@ -105,6 +106,7 @@ def try_authorize(
     user_id: str,
     organization_id: str,
     remember_me: bool,
+    display_label: str,
 ) -> dict[str, Any] | None:
     normalized = normalize_user_code(user_code)
     client = redis_state.get_redis_client()
@@ -120,6 +122,7 @@ def try_authorize(
     record["authorizedByUserId"] = user_id
     record["organizationId"] = organization_id
     record["rememberMe"] = remember_me
+    record["displayLabel"] = display_label
     redis_state.redis_set_json(_device_key(device_code), record, ex=TTL_SECONDS)
     return record
 

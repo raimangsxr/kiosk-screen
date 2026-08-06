@@ -33,7 +33,7 @@ def test_device_activation_happy_path(api_client: TestClient) -> None:
         login(api_client, "operator@example.com", "operator")
         authorized = api_client.post(
             "/api/auth/device-activation/authorize",
-            json={"userCode": user_code, "rememberMe": True},
+            json={"userCode": user_code, "rememberMe": True, "displayLabel": "Sala principal"},
         )
         assert authorized.status_code == 204
 
@@ -45,6 +45,7 @@ def test_device_activation_happy_path(api_client: TestClient) -> None:
         body = polled.json()
         assert body["status"] == "authorized"
         assert body["user"]["email"] == "operator@example.com"
+        assert body["displayLabel"] == "Sala principal"
 
         me = kiosk.get("/api/auth/me")
         assert me.status_code == 200
@@ -67,7 +68,7 @@ def test_poll_stays_pending_until_authorize(api_client: TestClient) -> None:
         login(api_client, "admin@example.com", "admin")
         api_client.post(
             "/api/auth/device-activation/authorize",
-            json={"userCode": started["userCode"], "rememberMe": False},
+            json={"userCode": started["userCode"], "rememberMe": False, "displayLabel": "Hall A"},
         )
         authorized = kiosk.post(
             "/api/auth/device-activation/poll",
@@ -96,7 +97,7 @@ def test_viewer_cannot_authorize(api_client: TestClient) -> None:
 
         denied = api_client.post(
             "/api/auth/device-activation/authorize",
-            json={"userCode": started["userCode"], "rememberMe": False},
+            json={"userCode": started["userCode"], "rememberMe": False, "displayLabel": "Sala A"},
         )
         assert denied.status_code == 403
 
@@ -113,12 +114,12 @@ def test_authorize_rate_limit_returns_429(api_client: TestClient) -> None:
     for _ in range(10):
         response = api_client.post(
             "/api/auth/device-activation/authorize",
-            json={"userCode": "ZZZZZZ", "rememberMe": False},
+            json={"userCode": "ZZZZZZ", "rememberMe": False, "displayLabel": "Sala A"},
         )
         assert response.status_code in {404, 422}
     blocked = api_client.post(
         "/api/auth/device-activation/authorize",
-        json={"userCode": "ZZZZZZ", "rememberMe": False},
+        json={"userCode": "ZZZZZZ", "rememberMe": False, "displayLabel": "Sala A"},
     )
     assert blocked.status_code == 429
     activation_rate_limiter.reset("testclient")
