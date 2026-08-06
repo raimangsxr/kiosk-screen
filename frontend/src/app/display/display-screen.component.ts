@@ -113,23 +113,24 @@ type DisplayRenderableItem = Pick<
             >
               @switch (currentItem.contentType) {
                 @case ('photo') {
-                  <img
-                    [src]="mediaSource(currentItem)"
-                    alt=""
+                  <div
                     class="top-region__media-backdrop"
+                    [style.background-image]="mediaBackdropStyle(currentItem)"
                     aria-hidden="true"
                     data-testid="display-content-backdrop"
-                  />
+                  ></div>
                   <img
+                    #photoForeground
                     [src]="mediaSource(currentItem)"
+                    (load)="onPhotoBackdropCapture(currentItem, photoForeground)"
                     class="display-content-media"
                     data-testid="display-content"
                   />
                 }
                 @case ('video') {
                   <div
-                    class="top-region__media-backdrop top-region__media-backdrop--css"
-                    [style.background-image]="videoBackdropStyle(currentItem)"
+                    class="top-region__media-backdrop"
+                    [style.background-image]="mediaBackdropStyle(currentItem)"
                     aria-hidden="true"
                     data-testid="display-content-backdrop"
                   ></div>
@@ -293,11 +294,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
 
-  private displayActive = false;
-  private fallbackPollingActive = false;
+  private readonly displayActive = signal(false);
+  private readonly fallbackPollingActive = signal(false);
 
   protected readonly reconnecting = computed(
-    () => this.displayStream.reconnecting() || (this.fallbackPollingActive && this.polling.reconnecting()),
+    () => this.displayStream.reconnecting() || (this.fallbackPollingActive() && this.polling.reconnecting()),
   );
   protected readonly sseFallbackActive = this.displayStream.sseFallbackActive;
   protected readonly openError = this.polling.openError;
@@ -312,8 +313,19 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     effect(() => {
       const payload = this.displayStream.showContent();
       if (payload) {
-        this.contentGate.enqueueShowContent(payload);
-        this.syncContentRenderItems();
+        untracked(() => {
+          this.mediaCache.warmItems([{
+            mediaUrl: this.rawMediaUrl(payload.content),
+            contentType: payload.content.contentType,
+          }]);
+          this.contentGate.enqueueShowContent(payload);
+          const current = this.displayViewer.currentContent();
+          this.mediaCache.retainTop([
+            current ? this.rawMediaUrl(current) : null,
+            this.rawMediaUrl(payload.content),
+          ]);
+          this.syncContentRenderItems();
+        });
       }
     });
     effect(() => {
@@ -322,72 +334,84 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
         return;
       }
       const snapshot = event.payload as SnapshotPayload;
-      this.displayViewer.applyModeChanged({
-        contentMode: snapshot.contentMode,
-        isPaused: snapshot.isPaused,
-        adsVisible: snapshot.adsVisible,
-        selectedFixedContentId: null,
-        reason: 'snapshot',
-      });
-
-      if (snapshot.contentMode === 'iframe' && snapshot.selectedIframe) {
-        this.displayViewer.applyShowIframe({
-          commandId: 'snapshot',
-          iframe: {
-            id: snapshot.selectedIframe.id,
-            title: snapshot.selectedIframe.url,
-            url: snapshot.selectedIframe.url,
-            scaleX: snapshot.selectedIframe.scaleX ?? 1,
-            scaleY: snapshot.selectedIframe.scaleY ?? 1,
-          },
+      untracked(() => {
+        this.displayViewer.applyModeChanged({
+          contentMode: snapshot.contentMode,
+          isPaused: snapshot.isPaused,
+          adsVisible: snapshot.adsVisible,
+          selectedFixedContentId: null,
           reason: 'snapshot',
         });
-        if (snapshot.currentAds) {
-          this.displayViewer.applyShowAds(snapshot.currentAds);
-        }
-      } else {
-        if (snapshot.currentTop) {
-          this.contentGate.applySnapshotContent(snapshot.currentTop);
-        }
-        if (snapshot.currentAds) {
-          this.displayViewer.applyShowAds(snapshot.currentAds);
-        }
-      }
 
-      if (this.isPreloadAllowed()) {
-        this.mediaCache.warmItems(snapshot.pendingNovelties ?? []);
-        this.noveltyTracker.syncFromSnapshot(snapshot.pendingNovelties);
-      }
-      this.syncContentRenderItems();
+        if (snapshot.contentMode === 'iframe' && snapshot.selectedIframe) {
+          this.displayViewer.applyShowIframe({
+            commandId: 'snapshot',
+            iframe: {
+              id: snapshot.selectedIframe.id,
+              title: snapshot.selectedIframe.url,
+              url: snapshot.selectedIframe.url,
+              scaleX: snapshot.selectedIframe.scaleX ?? 1,
+              scaleY: snapshot.selectedIframe.scaleY ?? 1,
+            },
+            reason: 'snapshot',
+          });
+          if (snapshot.currentAds) {
+            this.displayViewer.applyShowAds(snapshot.currentAds);
+          }
+        } else {
+          if (snapshot.currentTop) {
+            this.mediaCache.warmItems([{
+              mediaUrl: this.rawMediaUrl(snapshot.currentTop.content),
+              contentType: snapshot.currentTop.content.contentType,
+            }]);
+            this.contentGate.applySnapshotContent(snapshot.currentTop);
+          }
+          if (snapshot.currentAds) {
+            this.displayViewer.applyShowAds(snapshot.currentAds);
+          }
+        }
+
+        if (this.isPreloadAllowed()) {
+          const pending = snapshot.pendingNovelties ?? [];
+          this.displayViewer.applyPreload({ items: pending, leadTimeSeconds: 0 });
+          this.mediaCache.warmItems(pending);
+          this.noveltyTracker.syncFromSnapshot(snapshot.pendingNovelties);
+        }
+        this.syncContentRenderItems();
+      });
     });
     effect(() => {
       const payload = this.displayStream.showAds();
       if (payload) {
-        this.displayViewer.applyShowAds(payload);
+        untracked(() => this.displayViewer.applyShowAds(payload));
       }
     });
     effect(() => {
       const payload = this.displayStream.modeChanged();
       if (payload) {
-        this.displayViewer.applyModeChanged(payload);
+        untracked(() => this.displayViewer.applyModeChanged(payload));
       }
     });
     effect(() => {
       const payload = this.displayStream.showIframe();
       if (payload) {
-        this.displayViewer.applyShowIframe(payload);
-        this.cdr.markForCheck();
+        untracked(() => {
+          this.displayViewer.applyShowIframe(payload);
+          this.cdr.markForCheck();
+        });
       }
     });
     effect(() => {
       const payload = this.displayStream.preload();
-      if (payload && this.isPreloadAllowed()) {
-        this.displayViewer.applyPreload(payload);
-        // Warm preload media with correct content types (CHG-050). Retention of
-        // these URLs is handled by the dedicated retention effect below, so the
-        // old syncTopMediaRetention call here (CHG-051) is redundant.
-        this.mediaCache.warmItems(payload.items);
-        this.noveltyTracker.syncFromPreload(payload.items);
+      if (payload) {
+        untracked(() => {
+          if (!this.isPreloadAllowed()) {
+            return;
+          }
+          this.displayViewer.applyPreload(payload);
+          this.mediaCache.warmItems(payload.items);
+          this.noveltyTracker.syncFromPreload(payload.items);
+        });
       }
     });
 
@@ -395,20 +419,25 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (!this.displayStream.sessionEnded()) {
         return;
       }
-      this.displayStream.stop();
-      void this.bootstrapDisplay();
+      untracked(() => {
+        this.displayStream.stop();
+        void this.bootstrapDisplay();
+      });
     });
 
     effect(() => {
       this.mediaCache.revision();
-      this.contentGate.retryPendingCommit();
-      this.cdr.markForCheck();
+      untracked(() => {
+        this.contentGate.retryPendingCommit();
+        this.cdr.markForCheck();
+      });
     });
 
     this.contentGate.onCommitted
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((contentId) => {
         this.noveltyTracker.removeOnCommit(contentId);
+        this.syncContentRenderItems();
       });
 
     effect(() => {
@@ -453,62 +482,67 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     });
 
     effect(() => {
-      if (!this.displayActive) {
+      if (!this.displayActive()) {
         return;
       }
       const sseConnected = this.displayStream.connected();
       const fallback = this.displayStream.sseFallbackActive();
-      if (sseConnected && this.fallbackPollingActive) {
-        this.fallbackPollingActive = false;
-        this.polling.stop();
+      if (sseConnected && this.fallbackPollingActive()) {
+        this.fallbackPollingActive.set(false);
+        untracked(() => this.polling.stop());
         return;
       }
       if (!sseConnected && fallback) {
-        if (!this.fallbackPollingActive) {
-          this.fallbackPollingActive = true;
-          this.polling.start(this.fallbackPollIntervalMs());
+        if (!this.fallbackPollingActive()) {
+          this.fallbackPollingActive.set(true);
+          untracked(() => this.polling.start(this.fallbackPollIntervalMs()));
         }
       }
     });
 
     effect(() => {
-      if (!this.fallbackPollingActive) {
+      if (!this.fallbackPollingActive()) {
         return;
       }
       const polled = this.polling.state();
       if (polled) {
-        this.applyConfigurationState(polled);
+        untracked(() => this.applyConfigurationState(polled));
       }
     });
 
     effect(() => {
       const update = this.displayStream.configUpdated();
-      if (!update?.applyImmediately || !this.state) {
+      if (!update) {
         return;
       }
-      const patch: Partial<DisplayState['configuration']> = {};
-      for (const field of update.changedFields) {
-        if (IMMEDIATE_CONFIG_FIELDS.has(field)) {
-          const value = (update.configuration as Record<string, unknown>)[field];
-          (patch as Record<string, unknown>)[field] = value;
+      untracked(() => {
+        if (!update.applyImmediately || !this.state) {
+          return;
         }
-      }
-      if (Object.keys(patch).length === 0) {
-        return;
-      }
-      this.state = {
-        ...this.state,
-        configuration: {
-          ...this.state.configuration,
-          ...patch,
-        },
-      };
-      this.stateVersion.update((value) => value + 1);
-      this.cdr.markForCheck();
+        const patch: Partial<DisplayState['configuration']> = {};
+        for (const field of update.changedFields) {
+          if (IMMEDIATE_CONFIG_FIELDS.has(field)) {
+            const value = (update.configuration as Record<string, unknown>)[field];
+            (patch as Record<string, unknown>)[field] = value;
+          }
+        }
+        if (Object.keys(patch).length === 0) {
+          return;
+        }
+        this.state = {
+          ...this.state,
+          configuration: {
+            ...this.state.configuration,
+            ...patch,
+          },
+        };
+        this.stateVersion.update((value) => value + 1);
+        this.cdr.markForCheck();
+      });
     });
 
     effect(() => {
-      if (!this.displayStream.brandingUpdated() || !this.displayActive) {
+      if (!this.displayStream.brandingUpdated() || !this.displayActive()) {
         return;
       }
       untracked(() => {
@@ -531,68 +565,93 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   private syncContentRenderItems(): void {
     const item = this.displayViewer.currentContent();
-    this.revokeVideoBackdropExcept(item ? this.contentRenderKey(item) : null);
+    this.releaseBackdropExcept(item ? this.contentRenderKey(item) : null);
     this.contentRenderItems = item ? [item] : [];
     this.cdr.markForCheck();
   }
 
-  private readonly videoBackdropByKey = new Map<string, string>();
+  private readonly mediaBackdropByKey = new Map<string, string>();
   private readonly prefersReducedMotion =
     typeof globalThis.matchMedia === 'function'
     && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  protected videoBackdropStyle(item: DisplayContentItem): string | null {
+  protected mediaBackdropStyle(item: DisplayContentItem): string | null {
     if (this.prefersReducedMotion) {
       return null;
     }
-    const url = this.videoBackdropByKey.get(this.contentRenderKey(item));
+    const url = this.mediaBackdropByKey.get(this.contentRenderKey(item));
     return url ? `url("${url}")` : null;
   }
 
-  /** Backdrop is a blurred fill; a small capture is plenty and avoids a
-   *  full-resolution canvas + multi-MB data URL on every rotation (CHG-051). */
+  /** A small, pre-filtered capture avoids a second original media decoder and
+   *  continuous viewport-sized blur composition (CHG-053 / ADR-0007). */
   private static readonly BACKDROP_MAX_WIDTH = 320;
+  private static readonly BACKDROP_BLUR_PX = 12;
   private backdropCanvas: HTMLCanvasElement | null = null;
 
+  protected onPhotoBackdropCapture(item: DisplayContentItem, image: HTMLImageElement): void {
+    this.captureBackdrop(item, image, image.naturalWidth, image.naturalHeight);
+  }
+
   protected onVideoBackdropCapture(item: DisplayContentItem, video: HTMLVideoElement): void {
-    if (this.prefersReducedMotion || !video.videoWidth || !video.videoHeight) {
+    this.captureBackdrop(item, video, video.videoWidth, video.videoHeight);
+  }
+
+  private captureBackdrop(
+    item: DisplayContentItem,
+    source: CanvasImageSource,
+    sourceWidth: number,
+    sourceHeight: number,
+  ): void {
+    if (this.prefersReducedMotion || !sourceWidth || !sourceHeight) {
       return;
     }
     const key = this.contentRenderKey(item);
+    if (this.mediaBackdropByKey.has(key)) {
+      return;
+    }
     try {
       const canvas = this.backdropCanvas ??= globalThis.document?.createElement('canvas') ?? null;
       if (!canvas) {
         return;
       }
-      const scale = Math.min(1, DisplayScreenComponent.BACKDROP_MAX_WIDTH / video.videoWidth);
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const scale = Math.min(1, DisplayScreenComponent.BACKDROP_MAX_WIDTH / sourceWidth);
+      canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+      canvas.height = Math.max(1, Math.round(sourceHeight * scale));
       const context = canvas.getContext('2d');
       if (!context) {
         return;
       }
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      context.save();
+      context.fillStyle = '#102832';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.filter = `blur(${DisplayScreenComponent.BACKDROP_BLUR_PX}px) saturate(1.1)`;
+      const overscan = Math.max(2, Math.round(canvas.width * 0.04));
+      context.drawImage(
+        source,
+        -overscan,
+        -overscan,
+        canvas.width + (overscan * 2),
+        canvas.height + (overscan * 2),
+      );
+      context.restore();
       const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-      const prior = this.videoBackdropByKey.get(key);
-      if (prior && prior.startsWith('blob:')) {
-        URL.revokeObjectURL(prior);
-      }
-      this.videoBackdropByKey.set(key, dataUrl);
+      this.mediaBackdropByKey.set(key, dataUrl);
       this.cdr.markForCheck();
     } catch {
       // Canvas capture may fail on cross-origin media; backdrop degrades to solid frame color.
     }
   }
 
-  private revokeVideoBackdropExcept(activeKey: string | null): void {
-    for (const [key, url] of this.videoBackdropByKey.entries()) {
+  private releaseBackdropExcept(activeKey: string | null): void {
+    for (const [key, url] of this.mediaBackdropByKey.entries()) {
       if (key === activeKey) {
         continue;
       }
       if (url.startsWith('blob:')) {
         URL.revokeObjectURL(url);
       }
-      this.videoBackdropByKey.delete(key);
+      this.mediaBackdropByKey.delete(key);
     }
   }
 
@@ -795,6 +854,8 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.displayActive.set(false);
+    this.fallbackPollingActive.set(false);
     globalThis.removeEventListener?.('keydown', this.escapeHandler);
     this.portraitQuery?.removeEventListener?.('change', this.portraitListener);
     this.portraitQuery = null;
@@ -805,7 +866,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.clearTimers();
     this.polling.stop();
     this.displayStream.stop();
-    this.revokeVideoBackdropExcept(null);
+    this.releaseBackdropExcept(null);
     this.mediaCache.releaseAll();
   }
 
@@ -827,7 +888,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       try {
         const state = await firstValueFrom(this.displayApi.getState());
         this.applyConfigurationState(state);
-        this.displayActive = true;
+        this.displayActive.set(true);
         await this.displayStream.startWithRegistration(registration);
         return;
       } catch {
@@ -838,7 +899,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.polling.open((state) => {
       if (state) {
         this.applyConfigurationState(state);
-        this.displayActive = true;
+        this.displayActive.set(true);
         void this.displayStream.start();
       }
     });
@@ -893,7 +954,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     params: { duration: number; easing: string; enterTransform: string; leaveTransform: string };
   } {
     const animation = this.contentRotationAnimation(item);
-    const duration = animation === 'none' ? 0 : (this.contentAnimationDurationMs(item) ?? 300);
+    const duration = this.prefersReducedMotion || animation === 'none'
+      ? 0
+      : (this.contentAnimationDurationMs(item) ?? 300);
     return {
       value: this.contentRenderKey(item),
       params: {
@@ -943,6 +1006,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.stateVersion.update((v) => v + 1);
     this.applyFullscreenPreference(state.remoteControl?.fullscreenRequested === true);
     this.seedViewerFromState(state);
+    const current = this.displayViewer.currentContent();
+    if (current) {
+      this.mediaCache.warmItems([{
+        mediaUrl: this.rawMediaUrl(current),
+        contentType: current.contentType,
+      }]);
+    }
     this.syncContentRenderItems();
     this.cdr.markForCheck();
   }

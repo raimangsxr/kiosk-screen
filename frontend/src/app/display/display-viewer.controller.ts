@@ -97,7 +97,7 @@ export class DisplayViewerController {
   }
 
   applyPreload(payload: PreloadPayload): void {
-    this.preloadUrls.set(payload.items.map((item) => item.mediaUrl).filter(Boolean));
+    this.preloadUrls.set(payload.items.slice(0, 1).map((item) => item.mediaUrl).filter(Boolean));
   }
 
   applyShowIframe(payload: ShowIframePayload): void {
@@ -139,19 +139,27 @@ export class DisplayViewerController {
     const count = Math.max(1, payload.inlineAdCount ?? 1);
     const items = payload.items;
     const start = payload.startIndex ?? 0;
-    const visibleIds: string[] = [];
+    const visibleItems: Array<Record<string, unknown>> = [];
     for (let index = 0; index < count; index += 1) {
       const item = items[(start + index) % items.length];
       if (item) {
-        visibleIds.push(item.id);
+        visibleItems.push({
+          id: item.id,
+          mediaUrl: item.mediaFile?.mediaUrl ?? item.sourceReference,
+          animation: item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
+          animationDurationMs:
+            item.effectiveAnimationDurationMilliseconds
+            ?? item.animationDurationMilliseconds
+            ?? null,
+        });
       }
     }
     return JSON.stringify({
-      commandId: payload.commandId,
       startIndex: start,
       inlineAdCount: count,
-      visibleIds,
+      visibleItems,
       border: payload.border,
+      transition: payload.transition,
     });
   }
 

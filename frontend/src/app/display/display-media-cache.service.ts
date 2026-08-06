@@ -20,7 +20,9 @@ export class DisplayMediaCacheService {
   private adRetained = new Set<string>();
   private readonly readyStateByUrl = new Map<string, MediaCacheReadyState>();
   private readonly warmQueue: Array<{ url: string; contentType: string }> = [];
+  private readonly evictedWhileInflight = new Set<string>();
   private activeDownloads = 0;
+  private lifecycleGeneration = 0;
 
   /** Bumped when a blob URL becomes available so templates re-bind [src]. */
   readonly revision = signal(0);
@@ -49,6 +51,7 @@ export class DisplayMediaCacheService {
     const next = new Set(unique.slice(0, MAX_TOP_RETENTION));
     this.evictRetainedUrls(this.topRetained, next);
     this.topRetained = next;
+    this.pruneWarmQueue();
     this.warm([...next]);
   }
 
@@ -57,6 +60,7 @@ export class DisplayMediaCacheService {
     const next = new Set(urls.filter((url): url is string => Boolean(url)));
     this.evictRetainedUrls(this.adRetained, next);
     this.adRetained = next;
+    this.pruneWarmQueue();
     this.warm([...next]);
   }
 
@@ -67,6 +71,7 @@ export class DisplayMediaCacheService {
     for (const url of releasing) {
       this.revokeIfUnreferenced(url);
     }
+    this.pruneWarmQueue();
   }
 
   warm(urls: readonly (string | null | undefined)[]): void {
@@ -78,7 +83,7 @@ export class DisplayMediaCacheService {
   }
 
   warmItems(items: ReadonlyArray<{ mediaUrl: string; contentType?: string }>): void {
-    for (const item of items) {
+    for (const item of items.slice(0, 1)) {
       if (item.mediaUrl) {
         this.enqueueWarm(item.mediaUrl, item.contentType ?? 'photo');
       }
@@ -116,16 +121,41 @@ export class DisplayMediaCacheService {
     }
 
     this.readyStateByUrl.set(url, 'downloading');
-    const promise = this.fetchAndProbe(url, contentType)
+    const generation = this.lifecycleGeneration;
+    let promise!: Promise<string>;
+    promise = this.fetchAndProbe(url, contentType)
       .then((blobUrl) => {
+        const ownsInflightEntry = this.inflight.get(url) === promise;
+        if (ownsInflightEntry) {
+          this.inflight.delete(url);
+        }
+        const evicted = generation === this.lifecycleGeneration
+          ? this.evictedWhileInflight.delete(url)
+          : false;
+        if (generation !== this.lifecycleGeneration || (evicted && !this.isRetained(url))) {
+          URL.revokeObjectURL(blobUrl);
+          if (ownsInflightEntry || (!this.inflight.has(url) && !this.blobByUrl.has(url))) {
+            this.readyStateByUrl.delete(url);
+          }
+          this.revision.update((value) => value + 1);
+          return blobUrl;
+        }
         this.blobByUrl.set(url, blobUrl);
-        this.inflight.delete(url);
         this.readyStateByUrl.set(url, 'ready');
         this.revision.update((value) => value + 1);
         return blobUrl;
       })
       .catch((error: unknown) => {
-        this.inflight.delete(url);
+        const ownsInflightEntry = this.inflight.get(url) === promise;
+        if (ownsInflightEntry) {
+          this.inflight.delete(url);
+        }
+        if (generation !== this.lifecycleGeneration) {
+          if (ownsInflightEntry || (!this.inflight.has(url) && !this.blobByUrl.has(url))) {
+            this.readyStateByUrl.delete(url);
+          }
+          throw error;
+        }
         this.failedUrls.add(url);
         this.readyStateByUrl.set(url, 'failed');
         this.revision.update((value) => value + 1);
@@ -142,6 +172,7 @@ export class DisplayMediaCacheService {
   release(url: string): void {
     this.topRetained.delete(url);
     this.adRetained.delete(url);
+    this.pruneWarmQueue();
     this.revokeIfUnreferenced(url);
   }
 
@@ -155,10 +186,16 @@ export class DisplayMediaCacheService {
         continue;
       }
       this.activeDownloads += 1;
-      void this.ensureReady(entry.url, entry.contentType).finally(() => {
-        this.activeDownloads -= 1;
-        this.drainWarmQueue();
-      });
+      const generation = this.lifecycleGeneration;
+      void this.ensureReady(entry.url, entry.contentType)
+        .catch(() => undefined)
+        .finally(() => {
+          if (generation !== this.lifecycleGeneration) {
+            return;
+          }
+          this.activeDownloads -= 1;
+          this.drainWarmQueue();
+        });
     }
   }
 
@@ -167,12 +204,17 @@ export class DisplayMediaCacheService {
       this.http.get(url, { responseType: 'blob', withCredentials: true }),
     );
     const blobUrl = URL.createObjectURL(blob);
-    if (!this.shouldSkipPresentationProbe()) {
-      if (contentType === 'video') {
-        await this.probeVideo(blobUrl);
-      } else {
-        await this.probeImage(blobUrl);
+    try {
+      if (!this.shouldSkipPresentationProbe()) {
+        if (contentType === 'video') {
+          await this.probeVideo(blobUrl);
+        } else {
+          await this.probeImage(blobUrl);
+        }
       }
+    } catch (error) {
+      URL.revokeObjectURL(blobUrl);
+      throw error;
     }
     return blobUrl;
   }
@@ -235,6 +277,7 @@ export class DisplayMediaCacheService {
   }
 
   releaseAll(): void {
+    this.lifecycleGeneration += 1;
     for (const blobUrl of this.blobByUrl.values()) {
       URL.revokeObjectURL(blobUrl);
     }
@@ -243,6 +286,7 @@ export class DisplayMediaCacheService {
     this.failedUrls.clear();
     this.topRetained.clear();
     this.adRetained.clear();
+    this.evictedWhileInflight.clear();
     this.readyStateByUrl.clear();
     this.warmQueue.length = 0;
     this.activeDownloads = 0;
@@ -262,6 +306,9 @@ export class DisplayMediaCacheService {
     if (this.topRetained.has(url) || this.adRetained.has(url)) {
       return;
     }
+    if (this.inflight.has(url)) {
+      this.evictedWhileInflight.add(url);
+    }
     const blobUrl = this.blobByUrl.get(url);
     if (!blobUrl) {
       return;
@@ -273,5 +320,17 @@ export class DisplayMediaCacheService {
     // re-downloaded instead of being treated as still 'ready' with no blob.
     this.readyStateByUrl.delete(url);
     this.revision.update((value) => value + 1);
+  }
+
+  private pruneWarmQueue(): void {
+    for (let index = this.warmQueue.length - 1; index >= 0; index -= 1) {
+      if (!this.isRetained(this.warmQueue[index].url)) {
+        this.warmQueue.splice(index, 1);
+      }
+    }
+  }
+
+  private isRetained(url: string): boolean {
+    return this.topRetained.has(url) || this.adRetained.has(url);
   }
 }

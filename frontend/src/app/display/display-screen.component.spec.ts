@@ -18,7 +18,7 @@ import { DisplayContentGateService } from './display-content-gate.service';
 import { NoveltyQueueTrackerService } from './novelty-queue-tracker.service';
 import { DisplayLabelService } from './display-label.service';
 import { DisplayStreamService } from './display-stream.service';
-import type { ConfigUpdatedPayload } from './display-stream.models';
+import type { ConfigUpdatedPayload, ShowContentPayload } from './display-stream.models';
 import { DisplayScreenComponent } from './display-screen.component';
 import { DisplayViewerController } from './display-viewer.controller';
 import { IframeScaleService } from './iframe-scale.service';
@@ -94,12 +94,12 @@ describe('DisplayScreenComponent', () => {
       hasState: computed(() => stateSignal() !== null),
       open: (cb: (s: DisplayState | null) => void) => cb(initialState),
       retryOpen: jasmine.createSpy('retryOpen'),
-      start: () => {
+      start: jasmine.createSpy('start').and.callFake(() => {
         pollSub?.unsubscribe();
         if (poll$) {
           pollSub = poll$.subscribe((s) => stateSignal.set(s));
         }
-      },
+      }),
       stop: jasmine.createSpy('stop').and.callFake(() => {
         pollSub?.unsubscribe();
         pollSub = null;
@@ -207,12 +207,12 @@ describe('DisplayScreenComponent', () => {
     const component = fixture.componentInstance as unknown as {
       state: DisplayState | null;
       stateVersion: { update: (fn: (value: number) => number) => void };
-      displayActive: boolean;
+      displayActive: { set: (value: boolean) => void };
       contentRenderItems: DisplayContentItem[];
     };
     component.state = state;
     component.stateVersion.update((value) => value + 1);
-    component.displayActive = true;
+    component.displayActive.set(true);
     const viewer = viewerFor(fixture);
     if (state.topContent[0]) {
       viewer.currentContent.set(state.topContent[0]);
@@ -1626,22 +1626,64 @@ describe('DisplayScreenComponent', () => {
   });
 
   describe('CHG-028 top content blur-fill', () => {
-    it('SC-001: renders photo foreground with object-fit contain and a blurred backdrop', () => {
+    it('SC-001: renders one original photo foreground and a derived CSS backdrop', () => {
       const fixture = createComponent(readyState);
       const foreground = fixture.nativeElement.querySelector(
-        '.display-content-media[data-testid="display-content"]',
-      ) as HTMLElement | null;
+        'img.display-content-media[data-testid="display-content"]',
+      ) as HTMLImageElement | null;
       const backdrop = fixture.nativeElement.querySelector(
-        '.top-region__media-backdrop[data-testid="display-content-backdrop"]',
-      ) as HTMLElement | null;
+        'div.top-region__media-backdrop[data-testid="display-content-backdrop"]',
+      ) as HTMLDivElement | null;
       const frame = fixture.nativeElement.querySelector('.top-region__media-frame') as HTMLElement | null;
 
       expect(frame).not.toBeNull();
       expect(foreground).not.toBeNull();
       expect(backdrop).not.toBeNull();
+      expect(fixture.nativeElement.querySelectorAll('.top-region__media-frame img').length).toBe(1);
       expect(globalThis.getComputedStyle(foreground!).objectFit).toBe('contain');
-      expect(globalThis.getComputedStyle(backdrop!).objectFit).toBe('cover');
+      expect(globalThis.getComputedStyle(backdrop!).filter).toBe('none');
       expect(backdrop!.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('captures a bounded backdrop with blur baked into the raster', () => {
+      const fixture = createComponent(readyState);
+      const component = fixture.componentInstance as unknown as {
+        onPhotoBackdropCapture: (item: DisplayContentItem, image: HTMLImageElement) => void;
+        mediaBackdropStyle: (item: DisplayContentItem) => string | null;
+        backdropCanvas: HTMLCanvasElement | null;
+        mediaBackdropByKey: Map<string, string>;
+        syncContentRenderItems: () => void;
+      };
+      const context = {
+        save: jasmine.createSpy('save'),
+        restore: jasmine.createSpy('restore'),
+        drawImage: jasmine.createSpy('drawImage'),
+        fillRect: jasmine.createSpy('fillRect'),
+        filter: 'none',
+        fillStyle: '',
+      };
+      spyOn(HTMLCanvasElement.prototype, 'getContext').and.returnValue(context as unknown as CanvasRenderingContext2D);
+      spyOn(HTMLCanvasElement.prototype, 'toDataURL').and.returnValue('data:image/jpeg;base64,backdrop');
+      const image = document.createElement('img');
+      Object.defineProperties(image, {
+        naturalWidth: { value: 2304 },
+        naturalHeight: { value: 4096 },
+      });
+
+      component.onPhotoBackdropCapture(readyState.topContent[0], image);
+
+      expect(component.backdropCanvas?.width).toBe(320);
+      expect(component.backdropCanvas?.height).toBeLessThanOrEqual(570);
+      expect(context.filter).toContain('blur(');
+      expect(component.mediaBackdropStyle(readyState.topContent[0])).toContain('data:image/jpeg');
+
+      viewerFor(fixture).currentContent.set({
+        ...readyState.topContent[0],
+        id: 'content-2',
+        sourceReference: 'https://example.com/next.jpg',
+      });
+      component.syncContentRenderItems();
+      expect(component.mediaBackdropByKey.size).toBe(0);
     });
 
     it('SC-001: renders video foreground with object-fit contain and a CSS backdrop layer (single decoder)', () => {
@@ -1714,6 +1756,16 @@ describe('DisplayScreenComponent', () => {
       const frame = fixture.nativeElement.querySelector('.top-region__media-frame') as HTMLElement;
       expect(globalThis.getComputedStyle(frame).backgroundColor).toBe('rgb(16, 40, 50)');
     });
+
+    it('sets content transition duration to zero under reduced motion', () => {
+      const fixture = createComponent(readyState);
+      const component = fixture.componentInstance as unknown as {
+        prefersReducedMotion: boolean;
+        contentTransition: (item: DisplayContentItem) => { params: { duration: number } };
+      };
+      component.prefersReducedMotion = true;
+      expect(component.contentTransition(readyState.topContent[0]).params.duration).toBe(0);
+    });
   });
 
   describe('CHG-029 production quick wins', () => {
@@ -1781,6 +1833,130 @@ describe('DisplayScreenComponent', () => {
   });
 
   describe('CHG-030 kiosk polling resilience', () => {
+    it('starts fallback polling after reactive display activation and stops it on SSE recovery', () => {
+      const streamProvider = displayStreamProvider();
+      const stream = streamProvider.useValue;
+      stream.sseFallbackActive.set(true);
+      const polling = createPollingMock(readyState);
+
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(readyState),
+              watchState: () => of(readyState),
+              getState: () => of(readyState),
+            },
+          },
+          eventBrandingProvider(),
+          streamProvider,
+          {
+            provide: DisplayLabelService,
+            useValue: {
+              label: signal(''),
+              setLabel: jasmine.createSpy('setLabel'),
+              readStoredLabel: () => '',
+            },
+          },
+          provideRouter([]),
+          provideNoopAnimations(),
+        ],
+      });
+      TestBed.overrideComponent(DisplayScreenComponent, {
+        set: {
+          providers: [
+            CursorService,
+            DisplayViewerController,
+            DisplayMediaCacheService,
+            DisplayContentGateService,
+            NoveltyQueueTrackerService,
+            { provide: DisplayPollingService, useValue: polling },
+          ],
+        },
+      });
+
+      const fixture = TestBed.createComponent(DisplayScreenComponent);
+      fixture.detectChanges();
+      TestBed.flushEffects();
+      expect(polling.start).not.toHaveBeenCalled();
+
+      const component = fixture.componentInstance as unknown as {
+        displayActive: { set: (value: boolean) => void };
+      };
+      component.displayActive.set(true);
+      TestBed.flushEffects();
+      expect(polling.start).toHaveBeenCalledTimes(1);
+
+      stream.connected.set(true);
+      TestBed.flushEffects();
+      expect(polling.stop).toHaveBeenCalled();
+    });
+
+    it('does not replay a show_content command when viewer state mutates', () => {
+      const showContent = signal<ShowContentPayload | null>(null);
+      const defaultStreamProvider = displayStreamProvider();
+      const streamProvider = {
+        provide: DisplayStreamService,
+        useValue: {
+          ...defaultStreamProvider.useValue,
+          showContent: showContent.asReadonly(),
+        },
+      };
+
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(readyState),
+              watchState: () => of(readyState),
+              getState: () => of(readyState),
+            },
+          },
+          eventBrandingProvider(),
+          streamProvider,
+          {
+            provide: DisplayLabelService,
+            useValue: {
+              label: signal(''),
+              setLabel: jasmine.createSpy('setLabel'),
+              readStoredLabel: () => '',
+            },
+          },
+          provideRouter([]),
+          provideNoopAnimations(),
+        ],
+      });
+      patchDisplayScreenPolling(readyState);
+      const fixture = TestBed.createComponent(DisplayScreenComponent);
+      fixture.detectChanges();
+      const gate = fixture.debugElement.injector.get(DisplayContentGateService);
+      const enqueueSpy = spyOn(gate, 'enqueueShowContent');
+      const viewer = viewerFor(fixture);
+
+      showContent.set({
+        commandId: 'cmd-isolated',
+        content: readyState.topContent[0],
+        playback: {
+          mode: 'timer',
+          durationSeconds: 3,
+          videoEndDelaySeconds: 0,
+          loopVideo: false,
+        },
+        transition: { animation: 'fade', durationMs: 500 },
+        reason: 'rotation',
+      });
+      TestBed.flushEffects();
+      expect(enqueueSpy).toHaveBeenCalledTimes(1);
+
+      viewer.currentContent.set(readyState.topContent[0]);
+      TestBed.flushEffects();
+      expect(enqueueSpy).toHaveBeenCalledTimes(1);
+    });
+
     xit('shows a reconnecting indicator after transient SSE failures', () => {
       const streamReconnecting = signal(true);
       TestBed.configureTestingModule({

@@ -29,3 +29,9 @@ This supersedes FR-009 of CHG-019 (`object-fit: cover` for top-region media).
 ## Amendment (CHG-051, 2026-08-06)
 
 **Video backdrop without a second decoder**: For top-region **video**, the runtime uses a **single** `<video>` for playback. The blurred backdrop is rendered via CSS `background-image` (poster or captured frame with blur), not a second `<video>` element. Photo content keeps the dual-`<img>` blur-fill pattern. This reduces RAM and decode pressure during multi-hour kiosk rotation while preserving the visual intent of blur-fill.
+
+## Amendment (CHG-053, 2026-08-06)
+
+**Single original media layer and bounded backdrop artifact**: The runtime applies the CHG-051 single-element rule to both photos and videos. Each visible item has one original-resolution foreground element using `object-fit: contain`. A one-time canvas capture produces a small raster with the decorative blur and saturation already baked in; CSS stretches that raster behind the foreground without a continuous viewport-sized filter. The artifact is replaced and released with the visible item. Under `prefers-reduced-motion: reduce`, the artifact is not presented and the solid fallback remains.
+
+This amendment replaces the original dual-decoder consequence and the CHG-051 exception that retained dual `<img>` photo layers. It preserves the visual decision—full uncropped foreground plus diffused band fill—while bounding decode, composition, and memory cost for rapid high-resolution photo rotation.
