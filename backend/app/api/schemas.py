@@ -59,6 +59,28 @@ class ChangePasswordRequest(CamelModel):
     new_password: str = Field(min_length=8, alias="newPassword")
 
 
+class DeviceActivationStartResponse(CamelModel):
+    user_code: str = Field(alias="userCode")
+    device_code: str = Field(alias="deviceCode")
+    expires_at: datetime = Field(alias="expiresAt")
+    poll_interval_seconds: int = Field(alias="pollIntervalSeconds", ge=1)
+    activate_url: str = Field(alias="activateUrl")
+
+
+class DeviceActivationAuthorizeRequest(CamelModel):
+    user_code: str = Field(alias="userCode", min_length=6, max_length=6)
+    remember_me: bool = Field(default=False, alias="rememberMe")
+
+
+class DeviceActivationPollRequest(CamelModel):
+    device_code: str = Field(alias="deviceCode", min_length=1)
+
+
+class DeviceActivationPollResponse(CamelModel):
+    status: Literal["pending", "authorized"]
+    user: UserSchema | None = None
+
+
 class KioskConfigurationSchema(CamelModel):
     id: UUID
     name: str

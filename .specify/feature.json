@@ -1,4 +1,3 @@
 {
-  "feature_directory": "specs/changes/051-kiosk-runtime-performance",
-  "impl_plan": "specs/changes/051-kiosk-runtime-performance/plan.md"
+  "feature_directory": "specs/changes/052-device-qr-login"
 }

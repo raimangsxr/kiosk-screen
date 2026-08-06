@@ -32,6 +32,7 @@ related_changes:
   - CHG-044
   - CHG-045
   - CHG-049
+  - CHG-052
 related_adrs:
   - ADR-0009
   - ADR-0012
@@ -60,6 +61,7 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - `POST /display/open` bootstraps the server orchestrator and emits an initial `snapshot` to connected displays.
 - Session supersede sends `session_ended` SSE to prior connections.
 - Admin ops dashboard lists connected kiosks via `GET /api/admin/display/kiosks/live` (`kioskId`, `displayLabel` only).
+- **Device activation path (CHG-052)**: after QR/code activation, kiosk navigates directly to `/display` (skips `/hall`). `POST /display/open` runs with the same semantics as hall → display, including supersede of prior operator sessions. Pairing code does not bind a `display_devices` label; kiosk registration at `POST /api/display/kiosk/register` still occurs at `/display` entry.
 
 ## Public interfaces
 
@@ -115,3 +117,4 @@ This active contract is the current source of truth for `DISPLAY.CONFIG_SESSION`
 - CHG-044 — removes CHG-042/043 layout REST, `layout_updated` SSE, and `embed_density_defaults`; adds live kiosks admin endpoint.
 - CHG-045 — restores slim `display_devices` registry, required register label, and admin display-device CRUD.
 - CHG-049 — dedicated `/admin/displays` admin UI; iframe scale matrix lifecycle controls removed; ~30 s connection status refresh on device list.
+- CHG-052 — device activation navigates kiosk directly to `/display`; supersedes prior sessions on open.
