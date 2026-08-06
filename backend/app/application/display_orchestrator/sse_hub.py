@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import queue
 import threading
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -26,6 +28,10 @@ PROTOCOL_VERSION = 1
 PING_INTERVAL_SECONDS = 30
 BUFFER_TTL_SECONDS = 600
 DISPLAY_SSE_QUEUE_MAXSIZE = 64
+# Suppress duplicate connect/disconnect audit rows for the same kiosk inside
+# this window so a reconnect storm cannot amplify DB writes (register + stream
+# open already fire twice for a single connect).
+CONNECTION_AUDIT_DEBOUNCE_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,26 @@ class StreamSubscriber:
     organization_id: str
     operator_session_id: str
     events: queue.Queue[dict[str, Any]]
+    # Bound by the async stream endpoint so producer threads (orchestrator
+    # timers, Redis pub/sub) can wake the awaiting generator without blocking
+    # a thread-pool worker per connection.
+    loop: asyncio.AbstractEventLoop | None = field(default=None)
+    wakeup: asyncio.Event | None = field(default=None)
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop, wakeup: asyncio.Event) -> None:
+        self.loop = loop
+        self.wakeup = wakeup
+
+    def signal(self) -> None:
+        loop = self.loop
+        wakeup = self.wakeup
+        if loop is None or wakeup is None:
+            return
+        try:
+            loop.call_soon_threadsafe(wakeup.set)
+        except RuntimeError:
+            # Loop already closed (connection torn down); nothing to wake.
+            pass
 
 
 class DisplaySseHub:
@@ -53,6 +79,7 @@ class DisplaySseHub:
         self._kiosks: dict[str, KioskRegistration] = {}
         self._client_instance_index: dict[tuple[str, str], str] = {}
         self._sequences: dict[tuple[str, str], int] = {}
+        self._conn_audit_at: dict[str, float] = {}
         self._pubsub_thread: threading.Thread | None = None
         self._pubsub_stop = threading.Event()
         self._replica_id = str(uuid4())
@@ -149,6 +176,7 @@ class DisplaySseHub:
                 index_key = (registration.organization_id, registration.client_instance_id)
                 if self._client_instance_index.get(index_key) == kiosk_id:
                     self._client_instance_index.pop(index_key, None)
+                self._conn_audit_at.pop(kiosk_id, None)
                 redis_state.redis_delete(redis_state.sse_kiosk_key(kiosk_id))
             connection_ids = [
                 connection_id
@@ -159,6 +187,22 @@ class DisplaySseHub:
             for connection_id in connection_ids:
                 self._subscribers.pop(connection_id, None)
             self._sequences.pop((organization_id, operator_session_id), None)
+
+    def _should_record_conn_audit(self, kiosk_id: str) -> bool:
+        """Debounce connect/disconnect audit rows per kiosk.
+
+        The live-connection state (``KioskConnection``) is always updated; only
+        the append-only ``DisplayEvent`` audit trail is coalesced so a flapping
+        connection cannot flood it. Register + stream-open fire for a single
+        connect, so this also collapses that redundant pair into one row.
+        """
+        now = time.monotonic()
+        with self._lock:
+            last = self._conn_audit_at.get(kiosk_id)
+            if last is not None and now - last < CONNECTION_AUDIT_DEBOUNCE_SECONDS:
+                return False
+            self._conn_audit_at[kiosk_id] = now
+        return True
 
     def record_kiosk_connected(
         self,
@@ -175,40 +219,42 @@ class DisplaySseHub:
             label=registration.label,
             display_device_id=display_device_id,
         )
-        DisplayEventRepository(session).record(
-            create_display_event(
-                organization_id=registration.organization_id,
-                event_type="kiosk_connected",
-                severity="info",
-                message="Display kiosk connected to SSE stream",
-                entity_type="kiosk",
-                entity_id=registration.kiosk_id,
-                metadata={
-                    "operatorSessionId": registration.operator_session_id,
-                    "clientInstanceId": registration.client_instance_id,
-                    "label": registration.label,
-                },
+        if self._should_record_conn_audit(registration.kiosk_id):
+            DisplayEventRepository(session).record(
+                create_display_event(
+                    organization_id=registration.organization_id,
+                    event_type="kiosk_connected",
+                    severity="info",
+                    message="Display kiosk connected to SSE stream",
+                    entity_type="kiosk",
+                    entity_id=registration.kiosk_id,
+                    metadata={
+                        "operatorSessionId": registration.operator_session_id,
+                        "clientInstanceId": registration.client_instance_id,
+                        "label": registration.label,
+                    },
+                )
             )
-        )
         session.commit()
 
     def record_kiosk_disconnected(self, session: Session, registration: KioskRegistration) -> None:
         KioskConnectionRepository(session).record_disconnected(registration.kiosk_id)
-        DisplayEventRepository(session).record(
-            create_display_event(
-                organization_id=registration.organization_id,
-                event_type="kiosk_disconnected",
-                severity="info",
-                message="Display kiosk disconnected from SSE stream",
-                entity_type="kiosk",
-                entity_id=registration.kiosk_id,
-                metadata={
-                    "operatorSessionId": registration.operator_session_id,
-                    "clientInstanceId": registration.client_instance_id,
-                    "label": registration.label,
-                },
+        if self._should_record_conn_audit(registration.kiosk_id):
+            DisplayEventRepository(session).record(
+                create_display_event(
+                    organization_id=registration.organization_id,
+                    event_type="kiosk_disconnected",
+                    severity="info",
+                    message="Display kiosk disconnected from SSE stream",
+                    entity_type="kiosk",
+                    entity_id=registration.kiosk_id,
+                    metadata={
+                        "operatorSessionId": registration.operator_session_id,
+                        "clientInstanceId": registration.client_instance_id,
+                        "label": registration.label,
+                    },
+                )
             )
-        )
         session.commit()
 
     def list_registrations(self, organization_id: str) -> list[KioskRegistration]:
@@ -245,6 +291,7 @@ class DisplaySseHub:
                 event_queue.put_nowait(envelope)
             except queue.Full:
                 pass
+        subscriber.signal()
 
     def get_kiosk(self, kiosk_id: str) -> KioskRegistration | None:
         with self._lock:
@@ -438,6 +485,7 @@ class DisplaySseHub:
         index_key = (registration.organization_id, registration.client_instance_id)
         if self._client_instance_index.get(index_key) == kiosk_id:
             self._client_instance_index.pop(index_key, None)
+        self._conn_audit_at.pop(kiosk_id, None)
         ended = self.publish(
             organization_id=registration.organization_id,
             operator_session_id=registration.operator_session_id,

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import queue
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -29,6 +30,24 @@ class AdminContentSubscriber:
     connection_id: str
     organization_id: str
     events: queue.Queue[dict[str, Any]]
+    # Bound by the async stream endpoint so producer threads can wake the
+    # awaiting generator without a blocked thread-pool worker per connection.
+    loop: asyncio.AbstractEventLoop | None = field(default=None)
+    wakeup: asyncio.Event | None = field(default=None)
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop, wakeup: asyncio.Event) -> None:
+        self.loop = loop
+        self.wakeup = wakeup
+
+    def signal(self) -> None:
+        loop = self.loop
+        wakeup = self.wakeup
+        if loop is None or wakeup is None:
+            return
+        try:
+            loop.call_soon_threadsafe(wakeup.set)
+        except RuntimeError:
+            pass
 
 
 class AdminContentSseHub:
@@ -146,6 +165,7 @@ class AdminContentSseHub:
             ]
         for subscriber in subscribers:
             subscriber.events.put(envelope)
+            subscriber.signal()
 
     def _pubsub_listener(self) -> None:
         try:
