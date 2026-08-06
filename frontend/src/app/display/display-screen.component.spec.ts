@@ -14,6 +14,8 @@ import { EventConfigSyncService } from '../core/event-config-sync.service';
 import { CursorService } from './cursor.service';
 import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
+import { DisplayContentGateService } from './display-content-gate.service';
+import { NoveltyQueueTrackerService } from './novelty-queue-tracker.service';
 import { DisplayLabelService } from './display-label.service';
 import { DisplayStreamService } from './display-stream.service';
 import type { ConfigUpdatedPayload } from './display-stream.models';
@@ -116,6 +118,8 @@ describe('DisplayScreenComponent', () => {
           CursorService,
           DisplayViewerController,
           DisplayMediaCacheService,
+          DisplayContentGateService,
+          NoveltyQueueTrackerService,
           { provide: DisplayPollingService, useValue: createPollingMock(initialState, poll$) },
         ],
       },

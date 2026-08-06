@@ -130,6 +130,8 @@ contracts:
     path: specs/contracts/content-rotation/contract.md
     status: active
     owns:
+      - backend/app/application/display_orchestrator/**
+      - backend/app/application/display_orchestrator/preload.py
       - backend/app/domain/rotation.py
       - backend/app/api/mappers.py
       - frontend/src/app/display/display-rotation.service.ts
@@ -143,6 +145,7 @@ contracts:
       - CHG-039
       - CHG-041
       - CHG-048
+      - CHG-050
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -282,6 +285,11 @@ contracts:
       - CHG-041
       - CHG-044
       - CHG-045
+      - CHG-050
+      - frontend/src/app/display/display-media-cache.service.ts
+      - frontend/src/app/display/display-content-gate.service.ts
+      - frontend/src/app/display/novelty-queue-tracker.service.ts
+      - frontend/src/app/display/novelty-queue-indicator.component.ts
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -775,6 +783,19 @@ changes:
       - DISPLAY.CONFIG_SESSION
     depends_on:
       - CHG-045
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-050
+    path: specs/changes/050-novelty-media-preload/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ROTATION
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-027
+      - CHG-041
+      - CHG-048
     consolidated_into: []
     read_by_default: true
 

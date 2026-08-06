@@ -173,8 +173,12 @@ export class DisplayViewerController {
     });
   }
 
-  reportMediaError(contentId: string, metadata: Record<string, unknown>): void {
-    const commandId = this.currentCommandId();
+  reportMediaError(
+    contentId: string,
+    metadata: Record<string, unknown>,
+    commandIdOverride?: string,
+  ): void {
+    const commandId = commandIdOverride ?? this.currentCommandId();
     const kioskId = this.stream.kioskId();
     if (!commandId || !kioskId) {
       return;

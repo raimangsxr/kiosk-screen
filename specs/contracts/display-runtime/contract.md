@@ -34,6 +34,7 @@ related_changes:
   - CHG-041
   - CHG-044
   - CHG-045
+  - CHG-050
   - CHG-051
 related_adrs:
   - ADR-0001
@@ -86,6 +87,12 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `DisplayPollingService` provides degraded-fallback lifecycle when SSE is down: exponential backoff, fatal 401/403, `reconnecting` / `openError` signals, and a visible fallback banner after 60 seconds.
 - Transient SSE failures keep rendering the last known frame and show a non-intrusive reconnecting indicator.
 - Leaving `/display` closes the SSE stream and releases timers without subscription leaks.
+- `DisplayContentGateService` (CHG-050) holds pending `show_content` with latest-wins semantics and commits to `DisplayViewerController` only when `DisplayMediaCacheService` reports media ready (image decode / video `canplaythrough`). While pending, the last committed slide stays visible; remote media URLs are not rendered before ready (no black-frame fallback).
+- Gate, novelty preload warm, and novelty queue indicator are inactive when `contentMode` is fixed or iframe, or when loop is paused.
+- On preload/gate failure or `GATE_TIMEOUT_MS` (30 s default in `display-content-gate.service.ts`), kiosk posts `media_error`; committed content remains until the next `show_content`.
+- `DisplayMediaCacheService` downloads media FIFO with max 3 concurrent fetches; dedupes cached and in-flight URLs.
+- **Novelty queue indicator** (CHG-050): discrete always-visible overlay (bottom-right, reduced opacity) with one icon per pending novelty (image/video glyph). Check when ready; error overlay on failed download; max 5 icons + `+N` overflow; hidden when queue empty or gate inactive. Icons removed on gate commit (real visibility), skip, or tracker resync from latest preload/snapshot.
+- `NoveltyQueueTrackerService` syncs from the latest `preload` payload (authoritative ordered ids) and `snapshot.pendingNovelties`; subscribes to gate `onCommitted(contentId)`.
 
 ## Public interfaces
 
@@ -96,6 +103,8 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `POST /api/display/kiosk/events`
 - `DisplayStreamService.connect()`
 - `DisplayViewerController.applyCommand()`
+- `DisplayContentGateService.enqueueShowContent()` / `committedContent` / `onCommitted(contentId)`
+- `NoveltyQueueTrackerService.visibleIcons` / `overflowCount`
 - `DisplayApiService.openDisplay()` (session bootstrap)
 - `GET /api/display/state` (deprecated SSE-down fallback only)
 
@@ -118,6 +127,11 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `frontend/src/app/core/event-config-sync.service.ts`
 - `frontend/src/app/display/display-label.service.ts`
 - `frontend/src/app/display/iframe-scale.service.ts`
+- `frontend/src/app/display/display-media-cache.service.ts`
+- `frontend/src/app/display/display-content-gate.service.ts`
+- `frontend/src/app/display/novelty-queue-tracker.service.ts`
+- `frontend/src/app/display/novelty-queue-indicator.component.ts`
+- `frontend/src/app/display/display-stream.models.ts`
 
 ## Quality gates
 
@@ -145,5 +159,6 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-041
 - CHG-044 — per-iframe CSS scale (`scaleX`/`scaleY`) replaces CHG-042/043 embed-density stack (`DisplayLayoutService`, `embed_app_height_px`, `bull:config`, `layout_updated` SSE).
 - CHG-045 — per-display iframe scale overrides with client-side resolution and `iframe_scale_updated` SSE.
-- CHG-051 — bounded media retention, single-video backdrop, SSE comment pings, auth debounce, OnPush, `show_ads` dedupe, display SSE queue cap.
+- CHG-050 — novelty media preload, display content gate, novelty queue indicator overlay.
+- CHG-051 — bounded media retention, single-video backdrop, SSE comment pings, auth debounce, OnPush, `show_ads` dedupe, display SSE queue cap; ephemeral stream DB sessions + pool tuning, async SSE fan-out, idle-orchestrator reaper, snapshot cache, pub/sub reconnect, admin-configurable iframe preventive reload.
 - CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)
