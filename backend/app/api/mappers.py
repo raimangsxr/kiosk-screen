@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from app.api.schemas import (
     AdItemSchema,
     BrandingLayout,
@@ -17,7 +15,7 @@ from app.repositories.models.ad import ClientAdItem
 from app.repositories.models.content import TopContentItem
 from app.repositories.models.display_event import DisplayEvent
 from app.repositories.models.event_configuration import EventConfiguration
-from app.api.schemas import DisplayDeviceSchema, DisplayScaleEntry, IframeSchema, IframeWithDisplayScalesSchema
+from app.api.schemas import DisplayDeviceSchema, DisplayScaleEntry, IframeWithDisplayScalesSchema
 from app.repositories.models.display_device import DisplayDevice
 from app.repositories.models.iframe import Iframe
 from app.repositories.models.kiosk_configuration import KioskDisplayConfiguration
@@ -56,6 +54,7 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         inlineAdItemBorderColor=configuration.inline_ad_item_border_color,
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         videoEndDelaySeconds=configuration.video_end_delay_seconds,
+        iframePreventiveReloadSeconds=configuration.iframe_preventive_reload_seconds,
         isEnabled=configuration.is_enabled,
     )
 

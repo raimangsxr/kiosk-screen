@@ -29,6 +29,10 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
             "video_end_delay_seconds >= 0 AND video_end_delay_seconds <= 30",
             name="ck_kiosk_video_end_delay_range",
         ),
+        CheckConstraint(
+            "iframe_preventive_reload_seconds >= 0 AND iframe_preventive_reload_seconds <= 86400",
+            name="ck_kiosk_iframe_preventive_reload_range",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), nullable=False)
@@ -48,3 +52,8 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
     inline_ad_item_border_color: Mapped[str] = mapped_column(String(32), nullable=False, default="#ffffff", server_default="#ffffff")
     remote_control_polling_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     video_end_delay_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
+    # Preventive reload of the pinned iframe, in seconds. 0 = OFF (default).
+    # Safety net for embedded apps that leak memory over a multi-hour event.
+    iframe_preventive_reload_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )

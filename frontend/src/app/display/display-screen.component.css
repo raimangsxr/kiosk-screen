@@ -230,6 +230,14 @@
   pointer-events: none;
 }
 
+.top-region__media-backdrop--css {
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: scale(1.08);
+  filter: blur(24px) saturate(1.1);
+}
+
 /**
  * Foreground top-region media uses contain so the full frame is visible.
  * Iframes fill the region edge-to-edge (object-fit does not apply).

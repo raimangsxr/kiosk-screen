@@ -23,6 +23,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { switchMap, tap } from 'rxjs';
 
 import { AdminContentStreamService } from './admin-content-stream.service';
 import { ContentFacade } from './content.facade';
@@ -856,27 +857,25 @@ export class ContentListComponent implements OnInit {
     this.facade.refresh().subscribe();
     this.stream.start();
     this.stream.inventoryChanged$
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.reconcileFromServer());
+      .pipe(
+        switchMap(() => this.facade.refresh({ silent: true })),
+        tap(() => {
+          const previousSelection = this.selection();
+          const itemIds = new Set(this.facade.items().map((item) => item.id));
+          const pruned = new Set([...previousSelection].filter((id) => itemIds.has(id)));
+          if (pruned.size !== previousSelection.size) {
+            this.selection.set(pruned);
+          }
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe();
     this.destroyRef.onDestroy(() => this.stream.stop());
   }
 
   protected onRefresh(): void {
     this.stream.markFresh();
     this.facade.refresh().subscribe();
-  }
-
-  private reconcileFromServer(): void {
-    const previousSelection = this.selection();
-    this.facade.refresh({ silent: true }).subscribe({
-      next: () => {
-        const itemIds = new Set(this.facade.items().map((item) => item.id));
-        const pruned = new Set([...previousSelection].filter((id) => itemIds.has(id)));
-        if (pruned.size !== previousSelection.size) {
-          this.selection.set(pruned);
-        }
-      }
-    });
   }
 
   @HostListener('document:keydown.escape')

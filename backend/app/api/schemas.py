@@ -76,6 +76,9 @@ class KioskConfigurationSchema(CamelModel):
     inline_ad_item_border_color: str = Field(default="#ffffff", alias="inlineAdItemBorderColor", max_length=32)
     remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     video_end_delay_seconds: int = Field(default=2, alias="videoEndDelaySeconds", ge=0, le=30)
+    iframe_preventive_reload_seconds: int = Field(
+        default=0, alias="iframePreventiveReloadSeconds", ge=0, le=86_400
+    )
     is_enabled: bool = Field(alias="isEnabled")
 
 
@@ -95,6 +98,9 @@ class KioskConfigurationRequest(CamelModel):
     inline_ad_item_border_color: str = Field(default="#ffffff", alias="inlineAdItemBorderColor", max_length=32)
     remote_control_polling_seconds: int = Field(default=3, alias="remoteControlPollingSeconds", ge=1, le=60)
     video_end_delay_seconds: int = Field(default=2, alias="videoEndDelaySeconds", ge=0, le=30)
+    iframe_preventive_reload_seconds: int = Field(
+        default=0, alias="iframePreventiveReloadSeconds", ge=0, le=86_400
+    )
     is_enabled: bool = Field(alias="isEnabled")
 
 

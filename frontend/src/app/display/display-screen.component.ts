@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
@@ -26,6 +26,7 @@ import type { ShowAdsPayload, ShowContentPayload, SnapshotPayload } from './disp
 import { DisplayViewerController } from './display-viewer.controller';
 import { KioskBrandingOverlayComponent } from './kiosk-branding-overlay.component';
 import { KioskFullscreenPromptComponent } from './kiosk-fullscreen-prompt.component';
+import { VideoTeardownDirective } from './video-teardown.directive';
 
 const IMMEDIATE_CONFIG_FIELDS = new Set([
   'topRegionRatio',
@@ -48,6 +49,7 @@ type DisplayRenderableItem = Pick<
 @Component({
   selector: 'app-display-screen',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,
@@ -56,6 +58,7 @@ type DisplayRenderableItem = Pick<
     MatInputModule,
     KioskBrandingOverlayComponent,
     KioskFullscreenPromptComponent,
+    VideoTeardownDirective,
     NoveltyQueueIndicatorComponent,
   ],
   providers: [
@@ -124,23 +127,21 @@ type DisplayRenderableItem = Pick<
                   />
                 }
                 @case ('video') {
-                  <video
-                    [src]="mediaSource(currentItem)"
-                    muted
-                    autoplay
-                    playsinline
-                    [loop]="isFixedMode"
-                    class="top-region__media-backdrop"
+                  <div
+                    class="top-region__media-backdrop top-region__media-backdrop--css"
+                    [style.background-image]="videoBackdropStyle(currentItem)"
                     aria-hidden="true"
                     data-testid="display-content-backdrop"
-                  ></video>
+                  ></div>
                   <video
                     #fixedVideo
+                    appVideoTeardown
                     [src]="mediaSource(currentItem)"
                     muted
                     autoplay
                     playsinline
                     [loop]="isFixedMode"
+                    (loadeddata)="onVideoBackdropCapture(currentItem, fixedVideo)"
                     (ended)="onVideoEnded(currentItem)"
                     class="display-content-media"
                     data-testid="display-content"
@@ -382,6 +383,9 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       const payload = this.displayStream.preload();
       if (payload && this.isPreloadAllowed()) {
         this.displayViewer.applyPreload(payload);
+        // Warm preload media with correct content types (CHG-050). Retention of
+        // these URLs is handled by the dedicated retention effect below, so the
+        // old syncTopMediaRetention call here (CHG-051) is redundant.
         this.mediaCache.warmItems(payload.items);
         this.noveltyTracker.syncFromPreload(payload.items);
       }
@@ -409,15 +413,29 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
     effect(() => {
       const content = this.displayViewer.currentContent();
-      if (content) {
-        this.mediaCache.warm([this.rawMediaUrl(content)]);
+      const preload = this.displayViewer.preloadUrls();
+      if (this.displayViewer.iframeActive()) {
+        this.mediaCache.clearTopRetention();
+        return;
       }
+      const urls: string[] = [];
+      if (content) {
+        urls.push(this.rawMediaUrl(content));
+      }
+      for (const url of preload) {
+        if (url && !urls.includes(url)) {
+          urls.push(url);
+        }
+      }
+      this.mediaCache.retainTop(urls);
     });
 
     effect(() => {
       const ads = this.displayViewer.visibleAds();
       if (ads.length) {
-        this.mediaCache.warm(ads.map((ad) => this.rawMediaUrl(ad)));
+        this.mediaCache.retainAds(ads.map((ad) => this.rawMediaUrl(ad)));
+      } else {
+        this.mediaCache.retainAds([]);
       }
     });
 
@@ -427,19 +445,29 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     });
 
     effect(() => {
+      // Re-read the operator-configured preventive-reload cadence whenever the
+      // display state changes, so admin edits take effect without a reload.
+      this.stateVersion();
+      const seconds = untracked(() => this.state?.configuration?.iframePreventiveReloadSeconds ?? 0);
+      this.reconfigureIframePreventiveReload(seconds);
+    });
+
+    effect(() => {
       if (!this.displayActive) {
         return;
       }
-      if (this.displayStream.sseFallbackActive()) {
+      const sseConnected = this.displayStream.connected();
+      const fallback = this.displayStream.sseFallbackActive();
+      if (sseConnected && this.fallbackPollingActive) {
+        this.fallbackPollingActive = false;
+        this.polling.stop();
+        return;
+      }
+      if (!sseConnected && fallback) {
         if (!this.fallbackPollingActive) {
           this.fallbackPollingActive = true;
           this.polling.start(this.fallbackPollIntervalMs());
         }
-        return;
-      }
-      if (this.fallbackPollingActive) {
-        this.fallbackPollingActive = false;
-        this.polling.stop();
       }
     });
 
@@ -483,9 +511,11 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       if (!this.displayStream.brandingUpdated() || !this.displayActive) {
         return;
       }
-      this.eventBranding.refresh()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe();
+      untracked(() => {
+        this.eventBranding.refresh()
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe();
+      });
     });
   }
 
@@ -501,8 +531,69 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
 
   private syncContentRenderItems(): void {
     const item = this.displayViewer.currentContent();
+    this.revokeVideoBackdropExcept(item ? this.contentRenderKey(item) : null);
     this.contentRenderItems = item ? [item] : [];
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
+  }
+
+  private readonly videoBackdropByKey = new Map<string, string>();
+  private readonly prefersReducedMotion =
+    typeof globalThis.matchMedia === 'function'
+    && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  protected videoBackdropStyle(item: DisplayContentItem): string | null {
+    if (this.prefersReducedMotion) {
+      return null;
+    }
+    const url = this.videoBackdropByKey.get(this.contentRenderKey(item));
+    return url ? `url("${url}")` : null;
+  }
+
+  /** Backdrop is a blurred fill; a small capture is plenty and avoids a
+   *  full-resolution canvas + multi-MB data URL on every rotation (CHG-051). */
+  private static readonly BACKDROP_MAX_WIDTH = 320;
+  private backdropCanvas: HTMLCanvasElement | null = null;
+
+  protected onVideoBackdropCapture(item: DisplayContentItem, video: HTMLVideoElement): void {
+    if (this.prefersReducedMotion || !video.videoWidth || !video.videoHeight) {
+      return;
+    }
+    const key = this.contentRenderKey(item);
+    try {
+      const canvas = this.backdropCanvas ??= globalThis.document?.createElement('canvas') ?? null;
+      if (!canvas) {
+        return;
+      }
+      const scale = Math.min(1, DisplayScreenComponent.BACKDROP_MAX_WIDTH / video.videoWidth);
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      const context = canvas.getContext('2d');
+      if (!context) {
+        return;
+      }
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      const prior = this.videoBackdropByKey.get(key);
+      if (prior && prior.startsWith('blob:')) {
+        URL.revokeObjectURL(prior);
+      }
+      this.videoBackdropByKey.set(key, dataUrl);
+      this.cdr.markForCheck();
+    } catch {
+      // Canvas capture may fail on cross-origin media; backdrop degrades to solid frame color.
+    }
+  }
+
+  private revokeVideoBackdropExcept(activeKey: string | null): void {
+    for (const [key, url] of this.videoBackdropByKey.entries()) {
+      if (key === activeKey) {
+        continue;
+      }
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+      this.videoBackdropByKey.delete(key);
+    }
   }
 
 
@@ -559,8 +650,15 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     }
     const commandId = this.displayViewer.currentCommandId() ?? 'bootstrap';
     const iframeId = this.displayViewer.currentIframe()?.id ?? 'iframe';
-    return `${iframeId}|${commandId}|${url}`;
+    // The reload nonce lets an optional preventive reload (CHG-051) remount the
+    // iframe without any change to id/commandId/url.
+    return `${iframeId}|${commandId}|${url}|${this.iframeReloadNonce()}`;
   });
+
+  /** Bumped by the optional preventive-reload timer to force an iframe remount. */
+  private readonly iframeReloadNonce = signal(0);
+  private iframeReloadTimer: ReturnType<typeof setInterval> | null = null;
+  private armedIframeReloadSeconds = -1;
 
   /** Reactive sponsor strip so inline ad count and border config apply without a full reload. */
   protected readonly sponsorStripAds = computed(() => {
@@ -669,13 +767,45 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       .subscribe();
   }
 
+  /**
+   * (Re)arms the optional preventive iframe reload from the operator-configured
+   * `iframePreventiveReloadSeconds`. 0 (default) disables it. Driven by config
+   * so it can be changed per event from the admin without redeploying.
+   */
+  private reconfigureIframePreventiveReload(seconds: number): void {
+    if (seconds === this.armedIframeReloadSeconds) {
+      return;
+    }
+    this.armedIframeReloadSeconds = seconds;
+    if (this.iframeReloadTimer !== null) {
+      globalThis.clearInterval?.(this.iframeReloadTimer);
+      this.iframeReloadTimer = null;
+    }
+    if (!seconds || seconds <= 0 || typeof globalThis.setInterval !== 'function') {
+      return;
+    }
+    this.iframeReloadTimer = globalThis.setInterval(() => {
+      // Only reclaim while an iframe is actually on screen; reloading resets
+      // the embedded app, so we never do it needlessly.
+      if (this.displayViewer.iframeActive()) {
+        this.iframeReloadNonce.update((value) => value + 1);
+        this.cdr.markForCheck();
+      }
+    }, seconds * 1000);
+  }
+
   ngOnDestroy(): void {
     globalThis.removeEventListener?.('keydown', this.escapeHandler);
     this.portraitQuery?.removeEventListener?.('change', this.portraitListener);
     this.portraitQuery = null;
+    if (this.iframeReloadTimer !== null) {
+      globalThis.clearInterval?.(this.iframeReloadTimer);
+      this.iframeReloadTimer = null;
+    }
     this.clearTimers();
     this.polling.stop();
     this.displayStream.stop();
+    this.revokeVideoBackdropExcept(null);
     this.mediaCache.releaseAll();
   }
 

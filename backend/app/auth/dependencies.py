@@ -11,7 +11,7 @@ from app.repositories.api_keys import ApiKeyRepository
 from app.repositories.models.api_key import ApiKey
 from app.repositories.models.role_assignment import RoleAssignment
 from app.repositories.models.user import User
-from app.repositories.session import get_session
+from app.repositories.session import get_session, stream_session_factory
 from app.services.api_key_service import ApiKeyService
 from app.shared.errors.application_errors import (
     AuthenticationApplicationError,
@@ -70,6 +70,41 @@ def get_current_user(
     roles = list(session.query(RoleAssignment.role).filter(RoleAssignment.user_id == db_user.id).all())
     flattened_roles = [role for (role,) in roles]
     return CurrentUser(db_user, flattened_roles)
+
+
+def get_stream_user(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> CurrentUser:
+    """Authenticate a long-lived SSE stream WITHOUT binding a request-scoped
+    DB session.
+
+    ``get_current_user`` depends on ``get_session``, whose generator is only
+    torn down when the response completes. Under a ``StreamingResponse`` that
+    means the pooled DB connection (and its open read transaction) stays
+    checked out for the entire multi-hour stream, exhausting the pool once a
+    handful of displays connect. Here we resolve the user inside an ephemeral
+    session that is closed immediately, returning the pooled connection before
+    streaming begins. ``CurrentUser`` copies the scalar fields it needs in its
+    constructor, so it remains valid after the session is closed.
+    """
+    cached = getattr(request.state, "user", None)
+    if cached is not None:
+        return cached
+
+    with stream_session_factory()() as session:
+        session_user_id = resolve_authenticated_user_id(
+            session,
+            request.cookies.get(SESSION_COOKIE_NAME),
+            settings,
+        )
+        if session_user_id is None:
+            raise AuthenticationApplicationError("not_authenticated", "Authentication is required.")
+        db_user = session.get(User, session_user_id)
+        if db_user is None or not db_user.is_active:
+            raise AuthenticationApplicationError("not_authenticated", "Authentication is required.")
+        roles = list(session.query(RoleAssignment.role).filter(RoleAssignment.user_id == db_user.id).all())
+        return CurrentUser(db_user, [role for (role,) in roles])
 
 
 def _normalize_roles(role_values: list[str]) -> set[Role]:

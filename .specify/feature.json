@@ -1,3 +1,4 @@
 {
-  "feature_directory": "specs/changes/050-novelty-media-preload"
+  "feature_directory": "specs/changes/051-kiosk-runtime-performance",
+  "impl_plan": "specs/changes/051-kiosk-runtime-performance/plan.md"
 }

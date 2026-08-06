@@ -118,6 +118,24 @@ describe('DisplayViewerController', () => {
     expect(controller.visibleAds()[0]?.id).toBe('ad-1');
   });
 
+  it('skips identical consecutive show_ads fingerprints', () => {
+    controller.applyShowAds(showAdsPayload);
+    const runBefore = controller.adAnimationRun();
+    controller.applyShowAds(showAdsPayload);
+    expect(controller.adAnimationRun()).toBe(runBefore);
+  });
+
+  it('applies show_ads when fingerprint changes', () => {
+    controller.applyShowAds(showAdsPayload);
+    const runBefore = controller.adAnimationRun();
+    controller.applyShowAds({
+      ...showAdsPayload,
+      commandId: 'cmd-20260708-000003',
+      startIndex: 0,
+    });
+    expect(controller.adAnimationRun()).toBeGreaterThan(runBefore);
+  });
+
   it('stores preload urls for prefetch hints', () => {
     controller.applyPreload({
       items: [{ contentId: 'next-1', mediaUrl: 'https://example.com/next.jpg', contentType: 'photo', mediaVersion: 'v1', isNovelty: false }],

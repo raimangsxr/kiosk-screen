@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import queue
 import time
 from collections.abc import AsyncIterator
@@ -20,17 +21,30 @@ from app.application.display_orchestrator.hooks import ensure_display_orchestrat
 from app.application.display_orchestrator.registry import OrchestratorRegistry
 from app.application.display_orchestrator.snapshot_builder import build_snapshot_payload
 from app.application.display_orchestrator.sse_hub import PING_INTERVAL_SECONDS, get_display_sse_hub
+from app.sse.ping import build_sse_ping_comment
 from app.application.iframe_runtime import list_live_kiosks
 from app.services.display_device_service import DisplayDeviceService
 from app.services.iframe_service import IframeService
-from app.auth.dependencies import CurrentUser, get_current_user, require_roles
+from app.auth.dependencies import CurrentUser, get_current_user, get_stream_user, require_roles
 from app.domain.roles import OPERATIONS_READ_ROLES
-from app.repositories.session import get_session
+from app.repositories.session import get_session, stream_session_factory
 
 router = APIRouter(prefix="/display", tags=["Display Stream"])
 admin_router = APIRouter(prefix="/admin/display", tags=["Display Admin"])
 
+logger = logging.getLogger(__name__)
+
 STREAM_QUEUE_POLL_SECONDS = 1.0
+
+
+def _record_kiosk_disconnected_sync(registration) -> None:
+    """Record the disconnect off the event loop (R7). Best-effort: a failure
+    here must not surface during stream teardown."""
+    try:
+        with stream_session_factory()() as session:
+            get_display_sse_hub().record_kiosk_disconnected(session, registration)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to record kiosk disconnect")
 
 
 class KioskRegisterRequest(CamelModel):
@@ -162,49 +176,70 @@ def post_kiosk_event(
 async def open_display_stream(
     request: Request,
     kiosk_id: UUID = Query(alias="kioskId"),
-    user: CurrentUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    user: CurrentUser = Depends(get_stream_user),
     last_event_id: int | None = Header(default=None, alias="Last-Event-ID"),
 ) -> StreamingResponse:
-    registration = get_display_sse_hub().get_kiosk(str(kiosk_id))
+    hub = get_display_sse_hub()
+    registration = hub.get_kiosk(str(kiosk_id))
     if registration is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="kiosk_not_found")
     if registration.organization_id != user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
-    hub = get_display_sse_hub()
     subscriber = hub.subscribe(registration)
-    display_device_id: str | None = None
-    if registration.label and registration.label.strip():
-        device = DisplayDeviceService(session).upsert_on_register(
+
+    # All open-time DB work runs in an ephemeral session that is closed before
+    # the (multi-hour) stream loop begins, so a long-lived SSE connection never
+    # pins a pooled connection / open transaction.
+    with stream_session_factory()() as open_session:
+        display_device_id: str | None = None
+        if registration.label and registration.label.strip():
+            device = DisplayDeviceService(open_session).upsert_on_register(
+                registration.organization_id,
+                registration.label.strip(),
+            )
+            display_device_id = device.id
+        hub.record_kiosk_connected(open_session, registration, display_device_id=display_device_id)
+        orchestrator = OrchestratorRegistry.get(
             registration.organization_id,
-            registration.label.strip(),
+            registration.operator_session_id,
         )
-        display_device_id = device.id
-    hub.record_kiosk_connected(session, registration, display_device_id=display_device_id)
-    orchestrator = OrchestratorRegistry.get(
-        registration.organization_id,
-        registration.operator_session_id,
-    )
-    snapshot_payload = build_snapshot_payload(
-        session,
-        user.organization_id,
-        orchestrator=orchestrator,
-    )
-    initial_events = hub.replay_or_snapshot(
-        organization_id=registration.organization_id,
-        operator_session_id=registration.operator_session_id,
-        last_event_id=last_event_id,
-        snapshot_payload=snapshot_payload,
-    )
+        # Reuse a recently-built snapshot (R3): it is invalidated by any
+        # published event, so between events it is always current. Avoids
+        # rebuilding it on every (re)connect — notably a burst of kiosks
+        # connecting at event start.
+        snapshot_payload = hub.get_cached_snapshot(
+            registration.organization_id,
+            registration.operator_session_id,
+        )
+        if snapshot_payload is None:
+            snapshot_payload = build_snapshot_payload(
+                open_session,
+                user.organization_id,
+                orchestrator=orchestrator,
+            )
+            hub.cache_snapshot(
+                registration.organization_id,
+                registration.operator_session_id,
+                snapshot_payload,
+            )
+        initial_events = hub.replay_or_snapshot(
+            organization_id=registration.organization_id,
+            operator_session_id=registration.operator_session_id,
+            last_event_id=last_event_id,
+            snapshot_payload=snapshot_payload,
+        )
 
     async def event_generator() -> AsyncIterator[str]:
         disconnected = asyncio.Event()
+        wakeup = asyncio.Event()
+        subscriber.bind_loop(asyncio.get_running_loop(), wakeup)
 
         async def watch_disconnect() -> None:
             while not await request.is_disconnected():
                 await asyncio.sleep(STREAM_QUEUE_POLL_SECONDS)
             disconnected.set()
+            wakeup.set()
 
         watcher = asyncio.create_task(watch_disconnect())
         try:
@@ -215,42 +250,47 @@ async def open_display_stream(
 
             last_ping_at = time.monotonic()
             while not disconnected.is_set():
+                # Clear before draining so any enqueue that races the drain
+                # re-sets the flag and is not lost.
+                wakeup.clear()
+                drained = False
                 try:
-                    envelope = await asyncio.to_thread(
-                        subscriber.events.get,
-                        True,
-                        STREAM_QUEUE_POLL_SECONDS,
-                    )
+                    while True:
+                        yield _format_sse_event(subscriber.events.get_nowait())
+                        drained = True
+                        last_ping_at = time.monotonic()
                 except queue.Empty:
-                    envelope = None
+                    pass
 
                 if disconnected.is_set():
                     break
+                if drained:
+                    continue
 
-                if envelope is not None:
-                    yield _format_sse_event(envelope)
+                remaining = PING_INTERVAL_SECONDS - (time.monotonic() - last_ping_at)
+                if remaining <= 0:
+                    yield build_sse_ping_comment()
                     last_ping_at = time.monotonic()
                     continue
-
-                if time.monotonic() - last_ping_at < PING_INTERVAL_SECONDS:
-                    continue
-
-                ping = hub.publish(
-                    organization_id=registration.organization_id,
-                    operator_session_id=registration.operator_session_id,
-                    event_type="ping",
-                    payload={"serverTime": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
-                )
-                yield _format_sse_event(ping)
-                last_ping_at = time.monotonic()
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(wakeup.wait(), timeout=remaining)
         except asyncio.CancelledError:
             pass
         finally:
+            subscriber.loop = None
+            subscriber.wakeup = None
             watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await watcher
             hub.unsubscribe(subscriber.connection_id)
-            hub.record_kiosk_disconnected(session, registration)
+            # Record the disconnect off the event loop so a mass simultaneous
+            # teardown (event end) cannot stall the loop with N sync commits.
+            try:
+                asyncio.get_running_loop().run_in_executor(
+                    None, _record_kiosk_disconnected_sync, registration
+                )
+            except RuntimeError:  # pragma: no cover - no running loop
+                _record_kiosk_disconnected_sync(registration)
 
     return StreamingResponse(
         event_generator(),

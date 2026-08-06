@@ -69,6 +69,7 @@ class AdminService:
         configuration.inline_ad_item_border_color = payload.inline_ad_item_border_color
         configuration.remote_control_polling_seconds = payload.remote_control_polling_seconds
         configuration.video_end_delay_seconds = payload.video_end_delay_seconds
+        configuration.iframe_preventive_reload_seconds = payload.iframe_preventive_reload_seconds
         configuration.is_enabled = payload.is_enabled
         self._record(organization_id, user_id, "configuration_changed", "Display configuration changed")
         self.session.commit()

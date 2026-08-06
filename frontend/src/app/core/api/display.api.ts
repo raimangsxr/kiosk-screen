@@ -23,6 +23,7 @@ export interface DisplayKioskConfiguration {
   inlineAdItemBorderColor?: string;
   remoteControlPollingSeconds?: number;
   videoEndDelaySeconds?: number;
+  iframePreventiveReloadSeconds?: number;
   isEnabled: boolean;
 }
 

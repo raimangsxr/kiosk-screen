@@ -99,8 +99,12 @@ export class DisplayStreamService {
   private eventSource: EventSource | null = null;
   private started = false;
   private fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private authVerifyInFlight: Promise<void> | null = null;
+  private lastAuthVerifyAt = 0;
+  private lastAppliedSnapshotKey: string | null = null;
 
   private static readonly SSE_FALLBACK_DELAY_MS = 60_000;
+  private static readonly AUTH_VERIFY_MIN_MS = 5_000;
 
   async start(): Promise<void> {
     if (this.started) {
@@ -143,6 +147,7 @@ export class DisplayStreamService {
     this.connected.set(false);
     this.reconnecting.set(false);
     this.sessionEnded.set(false);
+    this.lastAppliedSnapshotKey = null;
   }
 
   private async register(): Promise<KioskRegisterResponse> {
@@ -194,7 +199,6 @@ export class DisplayStreamService {
       'mode_changed',
       'preload',
       'session_ended',
-      'ping',
     ];
 
     for (const type of eventTypes) {
@@ -211,6 +215,13 @@ export class DisplayStreamService {
   private handleMessage(raw: MessageEvent<string>): void {
     try {
       const envelope = JSON.parse(raw.data) as DisplayStreamEnvelope;
+      if (envelope.type === 'snapshot') {
+        const snapshotKey = this.snapshotFingerprint(envelope);
+        if (snapshotKey === this.lastAppliedSnapshotKey) {
+          return;
+        }
+        this.lastAppliedSnapshotKey = snapshotKey;
+      }
       this.lastEvent.set(envelope);
       if (typeof envelope.sequence === 'number') {
         this.lastSequence.set(envelope.sequence);
@@ -227,6 +238,14 @@ export class DisplayStreamService {
       }
     } catch {
       // Ignore malformed SSE payloads; EventSource will keep the connection alive.
+    }
+  }
+
+  private snapshotFingerprint(envelope: DisplayStreamEnvelope): string {
+    try {
+      return JSON.stringify(envelope.payload);
+    } catch {
+      return String(envelope.sequence ?? '');
     }
   }
 
@@ -258,10 +277,25 @@ export class DisplayStreamService {
   }
 
   private async verifyAuthOrRedirect(): Promise<void> {
-    const user = await firstValueFrom(this.auth.refresh());
-    if (user === null) {
-      this.handleFatalAuthError();
+    const now = Date.now();
+    if (now - this.lastAuthVerifyAt < DisplayStreamService.AUTH_VERIFY_MIN_MS) {
+      return;
     }
+    if (this.authVerifyInFlight) {
+      return;
+    }
+    this.lastAuthVerifyAt = now;
+    this.authVerifyInFlight = (async () => {
+      try {
+        const user = await firstValueFrom(this.auth.refresh());
+        if (user === null) {
+          this.handleFatalAuthError();
+        }
+      } finally {
+        this.authVerifyInFlight = null;
+      }
+    })();
+    await this.authVerifyInFlight;
   }
 
   private handleFatalAuthError(): void {

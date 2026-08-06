@@ -12,6 +12,8 @@ owns:
   - frontend/src/app/display/display-polling.service.ts
   - frontend/src/app/display/display-stream.service.ts
   - frontend/src/app/display/display-viewer.controller.ts
+  - frontend/src/app/display/display-media-cache.service.ts
+  - frontend/src/app/display/display-media-cache.service.spec.ts
   - frontend/src/app/display/kiosk-rotation.controller.ts
   - frontend/src/app/core/display-control-sync.service.ts
   - frontend/src/app/core/event-branding.service.ts
@@ -33,6 +35,7 @@ related_changes:
   - CHG-044
   - CHG-045
   - CHG-050
+  - CHG-051
 related_adrs:
   - ADR-0001
   - ADR-0002
@@ -73,6 +76,14 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Server command handling replaces display-state fingerprint comparison for timer preservation; the orchestrator decides when to emit new `show_content` commands.
 - Empty-queue audit is emitted by the server orchestrator (`orchestrator_empty_queue`); client `content_rotation_empty` posts are deprecated.
 - When the organizer logo URL changes after a prior load failure, the kiosk clears `hiddenLogoUrl` so the new URL is attempted without a full page reload.
+- **Bounded media retention (CHG-051)**: `DisplayMediaCacheService` retains at most one visible top-content blob plus one preload blob; the sponsor strip retains only URLs in the current visible window. Eviction calls `URL.revokeObjectURL`. Iframe mode clears top-content blobs.
+- **Video blur-fill single decoder (CHG-051)**: Top-region **video** uses one `<video>` element; the blurred backdrop is a CSS `background-image` from a captured poster/frame (not a second `<video>`). Photo blur-fill retains dual `<img>` layers per ADR-0007.
+- **SSE heartbeats (CHG-051)**: Display stream keep-alives are SSE **comments** (`: ping`), not application JSON events. They MUST NOT update viewer state, advance sequence, or appear in client `lastEvent`.
+- **Reconnect auth (CHG-051)**: On `EventSource` error, session verification is debounced (minimum 5 s between attempts) and single-flight.
+- **Change detection (CHG-051)**: `DisplayScreenComponent` uses `OnPush`; avoids full `detectChanges()` on every content tick.
+- **`show_ads` dedupe (CHG-051)**: Client ignores consecutive identical `show_ads` fingerprints before state updates and media warm; server payload unchanged.
+- **Polling handoff (CHG-051)**: When SSE reconnects after fallback polling, polling stops within one confirmation cycle; both channels MUST NOT run indefinitely.
+- **Display SSE queue (CHG-051)**: Each display subscriber has a FIFO queue max 64 events with drop-oldest on overflow.
 - `DisplayPollingService` provides degraded-fallback lifecycle when SSE is down: exponential backoff, fatal 401/403, `reconnecting` / `openError` signals, and a visible fallback banner after 60 seconds.
 - Transient SSE failures keep rendering the last known frame and show a non-intrusive reconnecting indicator.
 - Leaving `/display` closes the SSE stream and releases timers without subscription leaks.
@@ -149,4 +160,5 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-044 — per-iframe CSS scale (`scaleX`/`scaleY`) replaces CHG-042/043 embed-density stack (`DisplayLayoutService`, `embed_app_height_px`, `bull:config`, `layout_updated` SSE).
 - CHG-045 — per-display iframe scale overrides with client-side resolution and `iframe_scale_updated` SSE.
 - CHG-050 — novelty media preload, display content gate, novelty queue indicator overlay.
+- CHG-051 — bounded media retention, single-video backdrop, SSE comment pings, auth debounce, OnPush, `show_ads` dedupe, display SSE queue cap; ephemeral stream DB sessions + pool tuning, async SSE fan-out, idle-orchestrator reaper, snapshot cache, pub/sub reconnect, admin-configurable iframe preventive reload.
 - CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)

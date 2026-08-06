@@ -2,6 +2,9 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+/** Max top-region blobs: visible + one preload (FR-001). */
+const MAX_TOP_RETENTION = 2;
+
 export type MediaCacheReadyState = 'idle' | 'downloading' | 'ready' | 'failed';
 
 const MAX_CONCURRENT_DOWNLOADS = 3;
@@ -13,6 +16,8 @@ export class DisplayMediaCacheService {
   private readonly blobByUrl = new Map<string, string>();
   private readonly inflight = new Map<string, Promise<string>>();
   private readonly failedUrls = new Set<string>();
+  private topRetained = new Set<string>();
+  private adRetained = new Set<string>();
   private readonly readyStateByUrl = new Map<string, MediaCacheReadyState>();
   private readonly warmQueue: Array<{ url: string; contentType: string }> = [];
   private activeDownloads = 0;
@@ -36,6 +41,32 @@ export class DisplayMediaCacheService {
       return this.blobByUrl.get(url) ?? '';
     }
     return '';
+  }
+
+  /** Retain at most visible + one preload for the top region. */
+  retainTop(urls: readonly (string | null | undefined)[]): void {
+    const unique = [...new Set(urls.filter((url): url is string => Boolean(url)))];
+    const next = new Set(unique.slice(0, MAX_TOP_RETENTION));
+    this.evictRetainedUrls(this.topRetained, next);
+    this.topRetained = next;
+    this.warm([...next]);
+  }
+
+  /** Retain only sponsor-strip URLs in the current visible window. */
+  retainAds(urls: readonly (string | null | undefined)[]): void {
+    const next = new Set(urls.filter((url): url is string => Boolean(url)));
+    this.evictRetainedUrls(this.adRetained, next);
+    this.adRetained = next;
+    this.warm([...next]);
+  }
+
+  /** Iframe mode: release all top-region blobs (nothing shown in top media layer). */
+  clearTopRetention(): void {
+    const releasing = [...this.topRetained];
+    this.topRetained.clear();
+    for (const url of releasing) {
+      this.revokeIfUnreferenced(url);
+    }
   }
 
   warm(urls: readonly (string | null | undefined)[]): void {
@@ -106,6 +137,12 @@ export class DisplayMediaCacheService {
 
     this.inflight.set(url, promise);
     return promise;
+  }
+
+  release(url: string): void {
+    this.topRetained.delete(url);
+    this.adRetained.delete(url);
+    this.revokeIfUnreferenced(url);
   }
 
   private drainWarmQueue(): void {
@@ -204,8 +241,37 @@ export class DisplayMediaCacheService {
     this.blobByUrl.clear();
     this.inflight.clear();
     this.failedUrls.clear();
+    this.topRetained.clear();
+    this.adRetained.clear();
     this.readyStateByUrl.clear();
     this.warmQueue.length = 0;
     this.activeDownloads = 0;
+    this.revision.update((value) => value + 1);
+  }
+
+  private evictRetainedUrls(current: Set<string>, next: Set<string>): void {
+    for (const url of current) {
+      if (!next.has(url)) {
+        current.delete(url);
+        this.revokeIfUnreferenced(url);
+      }
+    }
+  }
+
+  private revokeIfUnreferenced(url: string): void {
+    if (this.topRetained.has(url) || this.adRetained.has(url)) {
+      return;
+    }
+    const blobUrl = this.blobByUrl.get(url);
+    if (!blobUrl) {
+      return;
+    }
+    URL.revokeObjectURL(blobUrl);
+    this.blobByUrl.delete(url);
+    this.inflight.delete(url);
+    // Also drop the ready-state (CHG-050) so an evicted-then-re-needed URL is
+    // re-downloaded instead of being treated as still 'ready' with no blob.
+    this.readyStateByUrl.delete(url);
+    this.revision.update((value) => value + 1);
   }
 }

@@ -175,4 +175,16 @@ describe('AdminContentStreamService', () => {
     expect(service.nowPlayingContentId()).toBeNull();
     expect(service.nowPlayingTitle()).toBeNull();
   });
+
+  it('inventory SSE debounce yields one reconcile window for coalesced consumers', fakeAsync(() => {
+    let emissionCount = 0;
+    service.inventoryChanged$.subscribe(() => {
+      emissionCount += 1;
+    });
+
+    service.notifyInventoryChangedForTests();
+    service.notifyInventoryChangedForTests();
+    tick(1000);
+    expect(emissionCount).toBe(1);
+  }));
 });

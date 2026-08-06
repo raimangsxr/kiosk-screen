@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import queue
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -12,6 +13,7 @@ from uuid import uuid4
 import redis
 
 from app.application.display_orchestrator import redis_state
+from app.sse.ping import build_sse_ping_comment
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,24 @@ class AdminContentSubscriber:
     connection_id: str
     organization_id: str
     events: queue.Queue[dict[str, Any]]
+    # Bound by the async stream endpoint so producer threads can wake the
+    # awaiting generator without a blocked thread-pool worker per connection.
+    loop: asyncio.AbstractEventLoop | None = field(default=None)
+    wakeup: asyncio.Event | None = field(default=None)
+
+    def bind_loop(self, loop: asyncio.AbstractEventLoop, wakeup: asyncio.Event) -> None:
+        self.loop = loop
+        self.wakeup = wakeup
+
+    def signal(self) -> None:
+        loop = self.loop
+        wakeup = self.wakeup
+        if loop is None or wakeup is None:
+            return
+        try:
+            loop.call_soon_threadsafe(wakeup.set)
+        except RuntimeError:
+            pass
 
 
 class AdminContentSseHub:
@@ -134,7 +154,7 @@ class AdminContentSseHub:
             logger.exception("Failed to publish admin content SSE event to Redis")
 
     def build_ping_comment(self) -> str:
-        return ": ping\n\n"
+        return build_sse_ping_comment()
 
     def _fanout_local(self, organization_id: str, envelope: dict[str, Any]) -> None:
         with self._lock:
@@ -145,44 +165,59 @@ class AdminContentSseHub:
             ]
         for subscriber in subscribers:
             subscriber.events.put(envelope)
+            subscriber.signal()
 
     def _pubsub_listener(self) -> None:
-        try:
-            client = redis_state.get_redis_client()
-            pubsub = client.pubsub(ignore_subscribe_messages=True)
-            pubsub.psubscribe("pubsub:org:*:admin-content")
-        except redis.RedisError:
-            logger.exception("Admin content SSE pub/sub listener failed to start")
-            return
+        # Reconnect with backoff instead of dying on the first Redis hiccup (R5).
+        backoff = 1.0
         while not self._pubsub_stop.is_set():
             try:
-                message = pubsub.get_message(timeout=1.0)
+                client = redis_state.get_redis_client()
+                pubsub = client.pubsub(ignore_subscribe_messages=True)
+                pubsub.psubscribe("pubsub:org:*:admin-content")
             except redis.RedisError:
-                logger.exception("Admin content SSE pub/sub listener error")
-                break
-            if not message or message.get("type") not in {"message", "pmessage"}:
+                logger.exception("Admin content SSE pub/sub subscribe failed; retrying in %.0fs", backoff)
+                if self._pubsub_stop.wait(backoff):
+                    return
+                backoff = min(backoff * 2, 30.0)
                 continue
-            data = message.get("data")
-            if not isinstance(data, str):
-                continue
+
+            backoff = 1.0
             try:
-                parsed = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, dict) and "envelope" in parsed:
-                if parsed.get("sourceReplicaId") == self._replica_id:
-                    continue
-                envelope = parsed["envelope"]
-                organization_id = parsed.get("organizationId")
-            else:
-                envelope = parsed
-                organization_id = envelope.get("organizationId")
-            if organization_id:
-                self._fanout_local(organization_id, envelope)
-        try:
-            pubsub.close()
-        except redis.RedisError:
-            logger.exception("Failed to close admin content SSE pub/sub")
+                while not self._pubsub_stop.is_set():
+                    try:
+                        message = pubsub.get_message(timeout=1.0)
+                    except redis.RedisError:
+                        logger.exception("Admin content SSE pub/sub read error; reconnecting")
+                        break
+                    if not message or message.get("type") not in {"message", "pmessage"}:
+                        continue
+                    data = message.get("data")
+                    if not isinstance(data, str):
+                        continue
+                    try:
+                        parsed = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(parsed, dict) and "envelope" in parsed:
+                        if parsed.get("sourceReplicaId") == self._replica_id:
+                            continue
+                        envelope = parsed["envelope"]
+                        organization_id = parsed.get("organizationId")
+                    else:
+                        envelope = parsed
+                        organization_id = envelope.get("organizationId")
+                    if organization_id:
+                        self._fanout_local(organization_id, envelope)
+            finally:
+                try:
+                    pubsub.close()
+                except redis.RedisError:
+                    logger.exception("Failed to close admin content SSE pub/sub")
+
+            if self._pubsub_stop.wait(backoff):
+                return
+            backoff = min(backoff * 2, 30.0)
 
 
 _hub: AdminContentSseHub | None = None
