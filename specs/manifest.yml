@@ -270,6 +270,10 @@ contracts:
       - frontend/src/app/display/iframe-scale.service.ts
       - frontend/src/app/display/display-stream.service.ts
       - frontend/src/app/display/display-viewer.controller.ts
+      - frontend/src/app/display/display-media-cache.service.ts
+      - frontend/src/app/display/display-content-gate.service.ts
+      - frontend/src/app/display/novelty-queue-tracker.service.ts
+      - frontend/src/app/display/novelty-queue-indicator.component.ts
     related_changes:
       - CHG-014
       - CHG-019
@@ -286,10 +290,8 @@ contracts:
       - CHG-044
       - CHG-045
       - CHG-050
-      - frontend/src/app/display/display-media-cache.service.ts
-      - frontend/src/app/display/display-content-gate.service.ts
-      - frontend/src/app/display/novelty-queue-tracker.service.ts
-      - frontend/src/app/display/novelty-queue-indicator.component.ts
+      - CHG-051
+      - CHG-053
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -819,6 +821,19 @@ changes:
       - AUTH.RBAC
       - DISPLAY.CONFIG_SESSION
     depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-053
+    path: specs/changes/053-fix-kiosk-render-load/spec.md
+    status: in-progress
+    modifies:
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-028
+      - CHG-041
+      - CHG-050
+      - CHG-051
     consolidated_into: []
     read_by_default: true
 

@@ -43,5 +43,5 @@ docker build -f frontend/Dockerfile frontend
 For local setup and troubleshooting, read `docs/dev/local-lab.md` instead of loading this file into every task.
 
 <!-- SPECKIT START -->
-**Active plan**: CHG-052 device QR login (`specs/changes/052-device-qr-login/plan.md`)
+**Active plan**: CHG-053 kiosk render load (`specs/changes/053-fix-kiosk-render-load/plan.md`)
 <!-- SPECKIT END -->

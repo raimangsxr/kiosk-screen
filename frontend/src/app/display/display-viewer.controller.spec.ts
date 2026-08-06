@@ -125,20 +125,33 @@ describe('DisplayViewerController', () => {
     expect(controller.adAnimationRun()).toBe(runBefore);
   });
 
-  it('applies show_ads when fingerprint changes', () => {
+  it('skips an equivalent visible sponsor window when only command identity changes', () => {
     controller.applyShowAds(showAdsPayload);
     const runBefore = controller.adAnimationRun();
     controller.applyShowAds({
       ...showAdsPayload,
       commandId: 'cmd-20260708-000003',
-      startIndex: 0,
+    });
+    expect(controller.adAnimationRun()).toBe(runBefore);
+  });
+
+  it('applies show_ads when visible presentation changes', () => {
+    controller.applyShowAds(showAdsPayload);
+    const runBefore = controller.adAnimationRun();
+    controller.applyShowAds({
+      ...showAdsPayload,
+      commandId: 'cmd-20260708-000003',
+      border: { ...showAdsPayload.border, widthPx: 3 },
     });
     expect(controller.adAnimationRun()).toBeGreaterThan(runBefore);
   });
 
-  it('stores preload urls for prefetch hints', () => {
+  it('stores only the first preload url for the bounded top-media window', () => {
     controller.applyPreload({
-      items: [{ contentId: 'next-1', mediaUrl: 'https://example.com/next.jpg', contentType: 'photo', mediaVersion: 'v1', isNovelty: false }],
+      items: [
+        { contentId: 'next-1', mediaUrl: 'https://example.com/next.jpg', contentType: 'photo', mediaVersion: 'v1', isNovelty: false },
+        { contentId: 'next-2', mediaUrl: 'https://example.com/ignored.jpg', contentType: 'photo', mediaVersion: 'v1', isNovelty: false },
+      ],
       leadTimeSeconds: 5,
     });
     expect(controller.preloadUrls()).toEqual(['https://example.com/next.jpg']);

@@ -36,6 +36,7 @@ related_changes:
   - CHG-045
   - CHG-050
   - CHG-051
+  - CHG-053
 related_adrs:
   - ADR-0001
   - ADR-0002
@@ -65,7 +66,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Ad figures reserve stable 1:1 cells; border radius, width, and color come from `inlineAdItemBorderRadiusPx`, `inlineAdItemBorderWidthPx`, and `inlineAdItemBorderColor` in the active configuration delivered via SSE (defaults: 5px radius, 0px width, `#ffffff`). Ad images fill each cell edge-to-edge via `object-fit: cover` (square sponsor assets are the supported format).
 - Display configuration changes saved in the admin propagate to all connected displays via SSE `config_updated` within one second. Layout fields (ratios, sponsor-strip borders) apply immediately; playlist fields apply at the next content or sponsor boundary.
 - Branding changes propagate via SSE `branding_updated` (see `EVENT.BRANDING`); admin cross-tab `BroadcastChannel` remains optional for admin UI only.
-- Top-region photos and videos render the full frame without cropping (`object-fit: contain` on the foreground). Unused band space is filled with a blurred backdrop copy of the same media (blur-fill). Under `prefers-reduced-motion: reduce`, the backdrop degrades to solid `#102832` instead of blur. See `ADR-0007`.
+- Top-region photos and videos render the full frame without cropping (`object-fit: contain` on the foreground). Unused band space is filled by a bounded, low-resolution backdrop artifact captured once from the visible media; the runtime does not retain a second original-resolution photo/video layer or run a continuous full-screen blur filter. Under `prefers-reduced-motion: reduce`, the backdrop degrades to solid `#102832` and non-essential content/sponsor animations are disabled. See `ADR-0007`.
 - Pinned iframes fill the top region inside an `overflow: hidden` host. The iframe uses inverse dimensions (`width: calc(100% / scaleX)`, `height: calc(100% / scaleY)`), horizontal centering via `margin-inline: auto`, plus `transform: scale(scaleX, scaleY)` with `transform-origin: top center` so the host footprint stays fixed while embedded content is zoomed. Effective scale values are resolved client-side via `IframeScaleService`: per-display override when present, otherwise `show_iframe` / `snapshot` defaults (`scaleX`, `scaleY`; default `1.0`). Resolution applies on `show_iframe`, `iframe_scale_updated`, snapshot bootstrap, and SSE-degraded polling paths. The iframe URL is not augmented with density query parameters and no `bull:config` postMessage is sent.
 - Operators set a stable kiosk display label via `DisplayLabelService` (local storage). A non-empty label is required on `POST /api/display/kiosk/register`; registration returns `displayDeviceId` for override resolution.
 - Ad rotation uses its own cadence and is not reset by faster top-content advances in loop/rotation mode; the same ad cadence continues in fixed, iframe, and paused states while ads remain visible.
@@ -76,13 +77,14 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - Server command handling replaces display-state fingerprint comparison for timer preservation; the orchestrator decides when to emit new `show_content` commands.
 - Empty-queue audit is emitted by the server orchestrator (`orchestrator_empty_queue`); client `content_rotation_empty` posts are deprecated.
 - When the organizer logo URL changes after a prior load failure, the kiosk clears `hiddenLogoUrl` so the new URL is attempted without a full page reload.
-- **Bounded media retention (CHG-051)**: `DisplayMediaCacheService` retains at most one visible top-content blob plus one preload blob; the sponsor strip retains only URLs in the current visible window. Eviction calls `URL.revokeObjectURL`. Iframe mode clears top-content blobs.
-- **Video blur-fill single decoder (CHG-051)**: Top-region **video** uses one `<video>` element; the blurred backdrop is a CSS `background-image` from a captured poster/frame (not a second `<video>`). Photo blur-fill retains dual `<img>` layers per ADR-0007.
+- **Bounded media retention (CHG-051, CHG-053)**: `DisplayMediaCacheService` retains at most one visible top-content blob plus one preload blob; only the first announced top preload may be queued or warmed. Candidates removed from the retained window are pruned from the warm queue, and late in-flight completions are revoked instead of entering the cache. Probe failures revoke their temporary object URLs. The sponsor strip retains only URLs in the current visible window. Iframe mode and component teardown clear top-content resources, including late completions from an earlier lifecycle.
+- **Single-original blur-fill (CHG-051, CHG-053)**: Top-region photo and video each use one original media element. The decorative backdrop is a small captured raster rendered as a CSS `background-image`, not a second original media element; its blur/saturation is baked during one-time capture rather than applied continuously over a viewport-sized layer.
 - **SSE heartbeats (CHG-051)**: Display stream keep-alives are SSE **comments** (`: ping`), not application JSON events. They MUST NOT update viewer state, advance sequence, or appear in client `lastEvent`.
 - **Reconnect auth (CHG-051)**: On `EventSource` error, session verification is debounced (minimum 5 s between attempts) and single-flight.
 - **Change detection (CHG-051)**: `DisplayScreenComponent` uses `OnPush`; avoids full `detectChanges()` on every content tick.
-- **`show_ads` dedupe (CHG-051)**: Client ignores consecutive identical `show_ads` fingerprints before state updates and media warm; server payload unchanged.
-- **Polling handoff (CHG-051)**: When SSE reconnects after fallback polling, polling stops within one confirmation cycle; both channels MUST NOT run indefinitely.
+- **`show_ads` dedupe (CHG-051, CHG-053)**: Client ignores consecutive equivalent visible `show_ads` windows before state updates and media warm. Command identity alone is not part of visible equivalence; ordered items, start index, layout and transition style are. Server payload is unchanged.
+- **Reactive command isolation (CHG-053)**: Each SSE command effect tracks only its source command signal. Reads and mutations performed while applying a command do not become incidental dependencies that can replay it.
+- **Polling handoff (CHG-051, CHG-053)**: Display activation and fallback-polling state are reactive. When SSE reconnects after fallback polling, polling stops within one confirmation cycle; both channels MUST NOT run indefinitely.
 - **Display SSE queue (CHG-051)**: Each display subscriber has a FIFO queue max 64 events with drop-oldest on overflow.
 - `DisplayPollingService` provides degraded-fallback lifecycle when SSE is down: exponential backoff, fatal 401/403, `reconnecting` / `openError` signals, and a visible fallback banner after 60 seconds.
 - Transient SSE failures keep rendering the last known frame and show a non-intrusive reconnecting indicator.
@@ -161,4 +163,5 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-045 — per-display iframe scale overrides with client-side resolution and `iframe_scale_updated` SSE.
 - CHG-050 — novelty media preload, display content gate, novelty queue indicator overlay.
 - CHG-051 — bounded media retention, single-video backdrop, SSE comment pings, auth debounce, OnPush, `show_ads` dedupe, display SSE queue cap; ephemeral stream DB sessions + pool tuning, async SSE fan-out, idle-orchestrator reaper, snapshot cache, pub/sub reconnect, admin-configurable iframe preventive reload.
+- CHG-053 — single-original photo/video backdrop artifacts, one-candidate preload enforcement including late completion cleanup, visible-window sponsor dedupe, isolated SSE command effects, reactive fallback lifecycle, and reduced-motion sponsor/content animation suppression.
 - CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)
