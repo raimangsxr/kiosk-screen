@@ -24,9 +24,9 @@ from app.sse.ping import build_sse_ping_comment
 from app.application.iframe_runtime import list_live_kiosks
 from app.services.display_device_service import DisplayDeviceService
 from app.services.iframe_service import IframeService
-from app.auth.dependencies import CurrentUser, get_current_user, require_roles
+from app.auth.dependencies import CurrentUser, get_current_user, get_stream_user, require_roles
 from app.domain.roles import OPERATIONS_READ_ROLES
-from app.repositories.session import get_session
+from app.repositories.session import create_session_factory, get_session
 
 router = APIRouter(prefix="/display", tags=["Display Stream"])
 admin_router = APIRouter(prefix="/admin/display", tags=["Display Admin"])
@@ -163,49 +163,56 @@ def post_kiosk_event(
 async def open_display_stream(
     request: Request,
     kiosk_id: UUID = Query(alias="kioskId"),
-    user: CurrentUser = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    user: CurrentUser = Depends(get_stream_user),
     last_event_id: int | None = Header(default=None, alias="Last-Event-ID"),
 ) -> StreamingResponse:
-    registration = get_display_sse_hub().get_kiosk(str(kiosk_id))
+    hub = get_display_sse_hub()
+    registration = hub.get_kiosk(str(kiosk_id))
     if registration is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="kiosk_not_found")
     if registration.organization_id != user.organization_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
-    hub = get_display_sse_hub()
     subscriber = hub.subscribe(registration)
-    display_device_id: str | None = None
-    if registration.label and registration.label.strip():
-        device = DisplayDeviceService(session).upsert_on_register(
+
+    # All open-time DB work runs in an ephemeral session that is closed before
+    # the (multi-hour) stream loop begins, so a long-lived SSE connection never
+    # pins a pooled connection / open transaction.
+    with create_session_factory()() as open_session:
+        display_device_id: str | None = None
+        if registration.label and registration.label.strip():
+            device = DisplayDeviceService(open_session).upsert_on_register(
+                registration.organization_id,
+                registration.label.strip(),
+            )
+            display_device_id = device.id
+        hub.record_kiosk_connected(open_session, registration, display_device_id=display_device_id)
+        orchestrator = OrchestratorRegistry.get(
             registration.organization_id,
-            registration.label.strip(),
+            registration.operator_session_id,
         )
-        display_device_id = device.id
-    hub.record_kiosk_connected(session, registration, display_device_id=display_device_id)
-    orchestrator = OrchestratorRegistry.get(
-        registration.organization_id,
-        registration.operator_session_id,
-    )
-    snapshot_payload = build_snapshot_payload(
-        session,
-        user.organization_id,
-        orchestrator=orchestrator,
-    )
-    initial_events = hub.replay_or_snapshot(
-        organization_id=registration.organization_id,
-        operator_session_id=registration.operator_session_id,
-        last_event_id=last_event_id,
-        snapshot_payload=snapshot_payload,
-    )
+        snapshot_payload = build_snapshot_payload(
+            open_session,
+            user.organization_id,
+            orchestrator=orchestrator,
+        )
+        initial_events = hub.replay_or_snapshot(
+            organization_id=registration.organization_id,
+            operator_session_id=registration.operator_session_id,
+            last_event_id=last_event_id,
+            snapshot_payload=snapshot_payload,
+        )
 
     async def event_generator() -> AsyncIterator[str]:
         disconnected = asyncio.Event()
+        wakeup = asyncio.Event()
+        subscriber.bind_loop(asyncio.get_running_loop(), wakeup)
 
         async def watch_disconnect() -> None:
             while not await request.is_disconnected():
                 await asyncio.sleep(STREAM_QUEUE_POLL_SECONDS)
             disconnected.set()
+            wakeup.set()
 
         watcher = asyncio.create_task(watch_disconnect())
         try:
@@ -216,36 +223,41 @@ async def open_display_stream(
 
             last_ping_at = time.monotonic()
             while not disconnected.is_set():
+                # Clear before draining so any enqueue that races the drain
+                # re-sets the flag and is not lost.
+                wakeup.clear()
+                drained = False
                 try:
-                    envelope = await asyncio.to_thread(
-                        subscriber.events.get,
-                        True,
-                        STREAM_QUEUE_POLL_SECONDS,
-                    )
+                    while True:
+                        yield _format_sse_event(subscriber.events.get_nowait())
+                        drained = True
+                        last_ping_at = time.monotonic()
                 except queue.Empty:
-                    envelope = None
+                    pass
 
                 if disconnected.is_set():
                     break
+                if drained:
+                    continue
 
-                if envelope is not None:
-                    yield _format_sse_event(envelope)
+                remaining = PING_INTERVAL_SECONDS - (time.monotonic() - last_ping_at)
+                if remaining <= 0:
+                    yield build_sse_ping_comment()
                     last_ping_at = time.monotonic()
                     continue
-
-                if time.monotonic() - last_ping_at < PING_INTERVAL_SECONDS:
-                    continue
-
-                yield build_sse_ping_comment()
-                last_ping_at = time.monotonic()
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(wakeup.wait(), timeout=remaining)
         except asyncio.CancelledError:
             pass
         finally:
+            subscriber.loop = None
+            subscriber.wakeup = None
             watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await watcher
             hub.unsubscribe(subscriber.connection_id)
-            hub.record_kiosk_disconnected(session, registration)
+            with create_session_factory()() as close_session:
+                hub.record_kiosk_disconnected(close_session, registration)
 
     return StreamingResponse(
         event_generator(),

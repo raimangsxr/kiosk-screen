@@ -41,12 +41,13 @@ def test_unauthenticated_stream_returns_401(api_client: TestClient) -> None:
 
 
 def test_operator_role_not_required_for_stream_route(api_client: TestClient) -> None:
-    """Stream auth uses get_current_user (CHG-048); operators may connect."""
+    """Stream auth uses get_stream_user (CHG-048/051); operators may connect and
+    the auth path never pins a DB connection for the stream's lifetime."""
     from app.api.content_stream import open_admin_content_stream
-    from app.auth.dependencies import get_current_user
+    from app.auth.dependencies import get_stream_user
 
     user_dep = open_admin_content_stream.__defaults__[0]  # type: ignore[index]
-    assert user_dep.dependency is get_current_user
+    assert user_dep.dependency is get_stream_user
 
 
 def test_admin_mutation_publishes_content_inventory_changed(api_client: TestClient) -> None:

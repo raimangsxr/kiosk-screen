@@ -20,6 +20,14 @@ class Settings:
     video_upload_max_bytes: int = 500 * 1024 * 1024
     rotation_animations: tuple[str, ...] = ("none", "fade", "slide")
     public_api_cors_origins: tuple[str, ...] = ()
+    # Database connection pool. Long-lived SSE streams must NOT pin a
+    # connection (see get_stream_user + ephemeral sessions in the stream
+    # endpoints), so a moderate pool comfortably serves short requests.
+    db_pool_size: int = 20
+    db_max_overflow: int = 20
+    db_pool_timeout_seconds: int = 30
+    db_pool_recycle_seconds: int = 1800
+    db_pool_pre_ping: bool = True
 
 
 def get_settings() -> Settings:
@@ -43,7 +51,12 @@ def get_settings() -> Settings:
         ),
         public_api_cors_origins=tuple(
             value.strip() for value in os.getenv("PUBLIC_API_CORS_ORIGINS", "").split(",") if value.strip()
-        )
+        ),
+        db_pool_size=int(os.getenv("DB_POOL_SIZE", "20")),
+        db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
+        db_pool_timeout_seconds=int(os.getenv("DB_POOL_TIMEOUT_SECONDS", "30")),
+        db_pool_recycle_seconds=int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800")),
+        db_pool_pre_ping=os.getenv("DB_POOL_PRE_PING", "true").strip().lower() != "false",
     )
 
 

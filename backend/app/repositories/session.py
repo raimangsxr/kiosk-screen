@@ -9,8 +9,20 @@ from app.config import get_settings
 
 
 def create_database_engine(database_url: str | None = None) -> Engine:
-    url = database_url or get_settings().database_url
-    return create_engine(url, future=True)
+    settings = get_settings()
+    url = database_url or settings.database_url
+    kwargs: dict[str, object] = {
+        "future": True,
+        "pool_pre_ping": settings.db_pool_pre_ping,
+        "pool_recycle": settings.db_pool_recycle_seconds,
+    }
+    # QueuePool sizing only applies to server-backed databases. SQLite (used in
+    # tests and via StaticPool) rejects pool_size/max_overflow.
+    if not url.startswith("sqlite"):
+        kwargs["pool_size"] = settings.db_pool_size
+        kwargs["max_overflow"] = settings.db_max_overflow
+        kwargs["pool_timeout"] = settings.db_pool_timeout_seconds
+    return create_engine(url, **kwargs)
 
 
 @lru_cache
