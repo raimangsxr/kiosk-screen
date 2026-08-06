@@ -33,6 +33,10 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
             "iframe_preventive_reload_seconds >= 0 AND iframe_preventive_reload_seconds <= 86400",
             name="ck_kiosk_iframe_preventive_reload_range",
         ),
+        CheckConstraint(
+            "novelty_max_defer_transitions >= 1 AND novelty_max_defer_transitions <= 10",
+            name="ck_kiosk_novelty_max_defer_range",
+        ),
     )
 
     organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id"), nullable=False)
@@ -56,4 +60,7 @@ class KioskDisplayConfiguration(IdMixin, TimestampMixin, Base):
     # Safety net for embedded apps that leak memory over a multi-hour event.
     iframe_preventive_reload_seconds: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
+    )
+    novelty_max_defer_transitions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=3, server_default="3"
     )

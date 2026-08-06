@@ -118,10 +118,26 @@ describe('DisplayViewerController', () => {
     expect(controller.visibleAds()[0]?.id).toBe('ad-1');
   });
 
-  it('skips identical consecutive show_ads fingerprints', () => {
+  it('still animates identical consecutive show_ads when animation is not none', () => {
     controller.applyShowAds(showAdsPayload);
     const runBefore = controller.adAnimationRun();
     controller.applyShowAds(showAdsPayload);
+    expect(controller.adAnimationRun()).toBeGreaterThan(runBefore);
+  });
+
+  it('does not animate identical consecutive show_ads when animation is none', () => {
+    const staticPayload: ShowAdsPayload = {
+      ...showAdsPayload,
+      transition: { animation: 'none', durationMs: 0 },
+      items: [{
+        ...showAdsPayload.items[0],
+        effectiveRotationAnimation: 'none',
+        rotationAnimation: 'none',
+      }],
+    };
+    controller.applyShowAds(staticPayload);
+    const runBefore = controller.adAnimationRun();
+    controller.applyShowAds(staticPayload);
     expect(controller.adAnimationRun()).toBe(runBefore);
   });
 
@@ -132,7 +148,7 @@ describe('DisplayViewerController', () => {
       ...showAdsPayload,
       commandId: 'cmd-20260708-000003',
     });
-    expect(controller.adAnimationRun()).toBe(runBefore);
+    expect(controller.adAnimationRun()).toBeGreaterThan(runBefore);
   });
 
   it('applies show_ads when visible presentation changes', () => {

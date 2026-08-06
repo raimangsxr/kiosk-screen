@@ -107,7 +107,7 @@ def test_snapshot_novelty_insert_while_showing_unchanged(orchestrator_env) -> No
     assert snapshot.showing is not None
     assert snapshot.showing.id == str(regular[2].id)
     assert snapshot.next is not None
-    assert snapshot.next.id == str(novelty.id)
+    assert snapshot.next.id == str(regular[3].id)
     assert snapshot.novelties == (str(novelty.id),)
 
 

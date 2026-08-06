@@ -68,7 +68,7 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 - **Reconcile coalescing (CHG-051)**: When multiple `content_inventory_changed` signals arrive within the debounce window, at most one `GET /content` silent refresh runs at a time; a newer signal **cancels** an in-flight refresh (`switchMap` semantics).
 - Silent SSE refresh is skipped while a save/reorder/delete batch (`saving()`) is in progress.
 - If the stream is disconnected for more than 30 seconds, a discrete hint «Los datos pueden estar desactualizados» appears below the action bar until reconnect or manual **Actualizar**.
-- Live updates cover: admin mutations, public API uploads, and kiosk novelty consumption (`isNovelty` cleared).
+- Live updates cover: admin mutations, public API uploads, and kiosk novelty consumption (`isNovelty` cleared), including max-defer discard without display (CHG-056).
 - Navigating back to the list from the edit form reloads inventory on mount (existing `ngOnInit` + stream connect).
 
 ## Public interfaces

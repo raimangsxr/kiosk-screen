@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -103,6 +103,9 @@ class KioskConfigurationSchema(CamelModel):
     iframe_preventive_reload_seconds: int = Field(
         default=0, alias="iframePreventiveReloadSeconds", ge=0, le=86_400
     )
+    novelty_max_defer_transitions: int = Field(
+        default=3, alias="noveltyMaxDeferTransitions", ge=1, le=10
+    )
     is_enabled: bool = Field(alias="isEnabled")
 
 
@@ -124,6 +127,9 @@ class KioskConfigurationRequest(CamelModel):
     video_end_delay_seconds: int = Field(default=2, alias="videoEndDelaySeconds", ge=0, le=30)
     iframe_preventive_reload_seconds: int = Field(
         default=0, alias="iframePreventiveReloadSeconds", ge=0, le=86_400
+    )
+    novelty_max_defer_transitions: int = Field(
+        default=3, alias="noveltyMaxDeferTransitions", ge=1, le=10
     )
     is_enabled: bool = Field(alias="isEnabled")
 
@@ -394,6 +400,8 @@ class DisplayStateSchema(CamelModel):
     fixed_eligible_contents: list[FixedEligibleContentItemSchema] = Field(
         default_factory=list, alias="fixedEligibleContents"
     )
+    current_top: dict[str, Any] | None = Field(default=None, alias="currentTop")
+    current_ads: dict[str, Any] | None = Field(default=None, alias="currentAds")
 
 
 class DisplayEventSchema(CamelModel):

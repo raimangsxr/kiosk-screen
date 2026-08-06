@@ -116,6 +116,9 @@ export interface PreloadItem {
   contentType: string;
   mediaVersion: string;
   isNovelty: boolean;
+  deferCount?: number;
+  maxDefer?: number;
+  downloadReady?: boolean;
 }
 
 export interface PreloadPayload {

@@ -34,6 +34,30 @@ def build_preload_item(item: TopContentItem, *, is_novelty: bool) -> dict[str, A
     }
 
 
+def _enrich_novelty_item(
+    orchestrator: DisplayOrchestrator,
+    session: Session,
+    item: dict[str, Any],
+) -> dict[str, Any]:
+    from app.application.display_orchestrator.novelty_defer import (
+        get_connected_kiosk_ids,
+        get_defer_count,
+        is_novelty_ready,
+    )
+
+    state = orchestrator._load_state()  # noqa: SLF001
+    configuration = orchestrator._configuration(session)  # noqa: SLF001
+    content_id = str(item["contentId"])
+    connected_ids = get_connected_kiosk_ids(orchestrator)
+    max_defer = configuration.novelty_max_defer_transitions if configuration is not None else 3
+    return {
+        **item,
+        "deferCount": get_defer_count(state, content_id),
+        "maxDefer": max_defer,
+        "downloadReady": is_novelty_ready(state, content_id, connected_ids),
+    }
+
+
 def build_preload_items_from_snapshot(
     orchestrator: DisplayOrchestrator,
     session: Session,
@@ -45,7 +69,7 @@ def build_preload_items_from_snapshot(
     for novelty in novelty_queue(eligible):
         built = build_preload_item(novelty, is_novelty=True)
         if built is not None:
-            items.append(built)
+            items.append(_enrich_novelty_item(orchestrator, session, built))
 
     state = orchestrator._load_state()  # noqa: SLF001
     if state.get("contentMode") == "loop" and not state.get("isPaused"):
@@ -68,7 +92,7 @@ def pending_novelty_items(
     for novelty in novelty_queue(eligible):
         built = build_preload_item(novelty, is_novelty=True)
         if built is not None:
-            items.append(built)
+            items.append(_enrich_novelty_item(orchestrator, session, built))
     return items
 
 

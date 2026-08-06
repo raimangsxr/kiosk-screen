@@ -22,6 +22,7 @@ DEFERRED_BOUNDARY_FIELDS = frozenset({
     "remoteControlPollingSeconds",
     "name",
     "isEnabled",
+    "noveltyMaxDeferTransitions",
 })
 
 

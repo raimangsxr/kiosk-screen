@@ -10,12 +10,15 @@ export interface NoveltyQueueEntry {
   contentType: 'photo' | 'video';
   downloadStatus: NoveltyDownloadStatus;
   displayOrder: number;
+  deferCount?: number;
+  maxDefer?: number;
 }
 
 @Injectable()
 export class NoveltyQueueTrackerService {
   private readonly mediaCache = inject(DisplayMediaCacheService);
   private readonly entries = signal<NoveltyQueueEntry[]>([]);
+  private deferMetadataByContentId = new Map<string, Pick<NoveltyQueueEntry, 'deferCount' | 'maxDefer'>>();
 
   readonly visibleIcons = computed(() => {
     const sorted = [...this.entries()].sort((a, b) => a.displayOrder - b.displayOrder);
@@ -32,14 +35,16 @@ export class NoveltyQueueTrackerService {
   }
 
   syncFromSnapshot(items: readonly PreloadItem[] | undefined): void {
-    if (!items?.length) {
-      return;
+    const novelties = (items ?? []).filter((item) => item.isNovelty);
+    for (const item of novelties) {
+      this.mergeDeferMetadata(item);
     }
-    this.replaceQueue(items);
+    this.replaceQueue(novelties);
   }
 
   removeOnCommit(contentId: string): void {
     this.entries.update((current) => current.filter((entry) => entry.contentId !== contentId));
+    this.deferMetadataByContentId.delete(contentId);
   }
 
   private replaceQueue(items: readonly PreloadItem[]): void {
@@ -48,9 +53,35 @@ export class NoveltyQueueTrackerService {
       contentType: (item.contentType === 'video' ? 'video' : 'photo') as 'photo' | 'video',
       downloadStatus: this.resolveStatus(item.mediaUrl),
       displayOrder: index,
+      ...this.deferMetadataFor(item),
     }));
     this.entries.set(next);
     this.trackCacheUpdates(items);
+  }
+
+  private mergeDeferMetadata(item: PreloadItem): void {
+    if (item.deferCount === undefined && item.maxDefer === undefined) {
+      return;
+    }
+    this.deferMetadataByContentId.set(item.contentId, {
+      deferCount: item.deferCount,
+      maxDefer: item.maxDefer,
+    });
+  }
+
+  private deferMetadataFor(item: PreloadItem): Pick<NoveltyQueueEntry, 'deferCount' | 'maxDefer'> {
+    const fromItem: Pick<NoveltyQueueEntry, 'deferCount' | 'maxDefer'> = {};
+    if (item.deferCount !== undefined) {
+      fromItem.deferCount = item.deferCount;
+    }
+    if (item.maxDefer !== undefined) {
+      fromItem.maxDefer = item.maxDefer;
+    }
+    if (fromItem.deferCount !== undefined || fromItem.maxDefer !== undefined) {
+      this.deferMetadataByContentId.set(item.contentId, fromItem);
+      return fromItem;
+    }
+    return this.deferMetadataByContentId.get(item.contentId) ?? {};
   }
 
   private trackCacheUpdates(items: readonly PreloadItem[]): void {

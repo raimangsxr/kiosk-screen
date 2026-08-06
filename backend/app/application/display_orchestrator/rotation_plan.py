@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.orm import Session
 
@@ -30,6 +30,8 @@ class RotationPlanSnapshot:
     next: ContentRef | None
     novelties: tuple[str, ...]
     reason: str = ""
+    rescheduled_regular: ContentRef | None = None
+    novelty_defer_counts: dict[str, int] | None = None
 
 
 def _content_ref(item: TopContentItem | None) -> ContentRef | None:
@@ -51,11 +53,32 @@ def _lookup_content(
 
 def _pick_planned_next(
     eligible: list[TopContentItem],
-    state: dict,
+    state: dict[str, Any],
+    *,
+    orchestrator: DisplayOrchestrator | None = None,
+    session: Session | None = None,
 ) -> TopContentItem | None:
+    rescheduled_id = state.get("rescheduledRegularContentId")
+    if rescheduled_id and session is not None and orchestrator is not None:
+        rescheduled = _lookup_content(session, orchestrator.organization_id, str(rescheduled_id))
+        if rescheduled is not None:
+            return rescheduled
+
     pending_novelties = novelty_queue(eligible)
     if pending_novelties:
-        return pending_novelties[0]
+        head = pending_novelties[0]
+        if orchestrator is not None and session is not None:
+            from app.application.display_orchestrator.novelty_defer import (
+                get_connected_kiosk_ids,
+                is_novelty_ready,
+            )
+
+            connected_ids = get_connected_kiosk_ids(orchestrator)
+            current_state = orchestrator._load_state()  # noqa: SLF001
+            if is_novelty_ready(current_state, str(head.id), connected_ids):
+                return head
+        else:
+            return head
 
     counters = dict(state.get("recurringCounters") or {})
     recurring_items = recurring_queue(eligible)
@@ -83,6 +106,14 @@ def compute_rotation_plan_snapshot(
     state = orchestrator._load_state()  # noqa: SLF001
     eligible = eligible_top_content(session, orchestrator.organization_id)
     novelty_ids = tuple(str(item.id) for item in novelty_queue(eligible))
+    defer_counts = dict(state.get("noveltyDeferCounts") or {}) or None
+
+    rescheduled_id = state.get("rescheduledRegularContentId")
+    rescheduled_item = (
+        _lookup_content(session, orchestrator.organization_id, str(rescheduled_id))
+        if rescheduled_id
+        else None
+    )
 
     if state.get("isPaused") or state.get("contentMode") == "iframe":
         return RotationPlanSnapshot(
@@ -90,6 +121,8 @@ def compute_rotation_plan_snapshot(
             next=None,
             novelties=novelty_ids,
             reason=reason,
+            rescheduled_regular=_content_ref(rescheduled_item),
+            novelty_defer_counts=defer_counts,
         )
 
     showing_item = _lookup_content(
@@ -104,12 +137,16 @@ def compute_rotation_plan_snapshot(
             next=None,
             novelties=novelty_ids,
             reason=reason,
+            rescheduled_regular=_content_ref(rescheduled_item),
+            novelty_defer_counts=defer_counts,
         )
 
-    next_item = _pick_planned_next(eligible, state)
+    next_item = _pick_planned_next(eligible, state, orchestrator=orchestrator, session=session)
     return RotationPlanSnapshot(
         showing=_content_ref(showing_item),
         next=_content_ref(next_item),
         novelties=novelty_ids,
         reason=reason,
+        rescheduled_regular=_content_ref(rescheduled_item),
+        novelty_defer_counts=defer_counts,
     )

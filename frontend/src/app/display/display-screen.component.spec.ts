@@ -3,7 +3,7 @@ import { take } from 'rxjs/operators';
 import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
@@ -16,6 +16,7 @@ import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
 import { DisplayContentGateService } from './display-content-gate.service';
 import { NoveltyQueueTrackerService } from './novelty-queue-tracker.service';
+import { NoveltyPreloadReadyService } from './novelty-preload-ready.service';
 import { DisplayLabelService } from './display-label.service';
 import { DisplayStreamService } from './display-stream.service';
 import type { ConfigUpdatedPayload, ShowContentPayload } from './display-stream.models';
@@ -120,6 +121,7 @@ describe('DisplayScreenComponent', () => {
           DisplayMediaCacheService,
           DisplayContentGateService,
           NoveltyQueueTrackerService,
+          NoveltyPreloadReadyService,
           { provide: DisplayPollingService, useValue: createPollingMock(initialState, poll$) },
         ],
       },
@@ -1872,6 +1874,7 @@ describe('DisplayScreenComponent', () => {
             DisplayMediaCacheService,
             DisplayContentGateService,
             NoveltyQueueTrackerService,
+            NoveltyPreloadReadyService,
             { provide: DisplayPollingService, useValue: polling },
           ],
         },
@@ -2000,6 +2003,66 @@ describe('DisplayScreenComponent', () => {
       const fixture = TestBed.createComponent(DisplayScreenComponent);
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('[data-testid="display-reconnecting"]')?.textContent).toContain('Reconectando');
+    });
+
+    it('applies currentAds from polled state during fallback', () => {
+      const poll$ = new Subject<DisplayState>();
+      const polledAdsState: DisplayState = {
+        ...readyState,
+        currentAds: {
+          commandId: 'cmd-ad-polled',
+          items: readyState.ads,
+          startIndex: 0,
+          inlineAdCount: 1,
+          border: { radiusPx: 5, widthPx: 0, color: '#ffffff' },
+          transition: { animation: 'slide', durationMs: 300 },
+          durationSeconds: 10,
+          reason: 'snapshot',
+        },
+      };
+      const streamProvider = displayStreamProvider();
+      const stream = streamProvider.useValue;
+      stream.sseFallbackActive.set(true);
+      stream.connected.set(false);
+
+      TestBed.configureTestingModule({
+        imports: [DisplayScreenComponent],
+        providers: [
+          {
+            provide: DisplayApiService,
+            useValue: {
+              openDisplay: () => of(readyState),
+              watchState: () => poll$.asObservable(),
+              getState: () => of(readyState),
+            },
+          },
+          eventBrandingProvider(),
+          streamProvider,
+          {
+            provide: DisplayLabelService,
+            useValue: {
+              label: signal(''),
+              setLabel: jasmine.createSpy('setLabel'),
+              readStoredLabel: () => '',
+            },
+          },
+          provideRouter([]),
+          provideNoopAnimations(),
+        ],
+      });
+      patchDisplayScreenPolling(readyState, poll$);
+      const fixture = TestBed.createComponent(DisplayScreenComponent);
+      fixture.detectChanges();
+      const component = fixture.componentInstance as unknown as {
+        displayActive: { set: (value: boolean) => void };
+      };
+      component.displayActive.set(true);
+      TestBed.flushEffects();
+
+      const viewer = fixture.debugElement.injector.get(DisplayViewerController);
+      poll$.next(polledAdsState);
+      TestBed.flushEffects();
+      expect(viewer.visibleAds()[0]?.id).toBe('ad-1');
     });
 
     it('shows open error UI with retry when display open fails', () => {
@@ -2135,6 +2198,22 @@ describe('DisplayScreenComponent', () => {
       stream.lastEvent.set({ type: 'branding_updated', payload: { eventName: 'Updated Gala' } });
       TestBed.flushEffects();
       expect(refresh).toHaveBeenCalled();
+    });
+
+    it('applies noveltyMaxDeferTransitions from config_updated without applyImmediately', () => {
+      const stream = createStreamMock();
+      const fixture = createComponentWithStream(readyState, stream);
+      stream.lastEvent.set({
+        type: 'config_updated',
+        payload: {
+          configuration: { id: 'config-1', noveltyMaxDeferTransitions: 7 },
+          applyImmediately: false,
+          changedFields: ['noveltyMaxDeferTransitions'],
+        },
+      });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance['state']?.configuration.noveltyMaxDeferTransitions).toBe(7);
     });
   });
 });

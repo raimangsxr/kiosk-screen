@@ -60,6 +60,8 @@ contracts:
       - CHG-044
       - CHG-045
       - CHG-049
+      - CHG-056
+      - CHG-057
 
   - id: MEDIA.UPLOADS
     path: specs/contracts/media-uploads/contract.md
@@ -146,6 +148,8 @@ contracts:
       - CHG-041
       - CHG-048
       - CHG-050
+      - CHG-056
+      - CHG-057
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -187,6 +191,8 @@ contracts:
       - CHG-046
       - CHG-047
       - CHG-048
+      - CHG-056
+      - CHG-057
 
   - id: USERS.ROLES.ADMIN
     path: specs/contracts/users-roles-admin/contract.md
@@ -272,6 +278,7 @@ contracts:
       - frontend/src/app/display/display-viewer.controller.ts
       - frontend/src/app/display/display-media-cache.service.ts
       - frontend/src/app/display/display-content-gate.service.ts
+      - frontend/src/app/display/novelty-preload-ready.service.ts
       - frontend/src/app/display/novelty-queue-tracker.service.ts
       - frontend/src/app/display/novelty-queue-indicator.component.ts
     related_changes:
@@ -290,6 +297,8 @@ contracts:
       - CHG-044
       - CHG-045
       - CHG-050
+      - CHG-056
+      - CHG-057
       - CHG-051
       - CHG-053
 
@@ -834,6 +843,33 @@ changes:
       - CHG-041
       - CHG-050
       - CHG-051
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-056
+    path: specs/changes/056-novelty-defer-rotation/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ROTATION
+      - DISPLAY.RUNTIME
+      - DISPLAY.CONFIG_SESSION
+      - CONTENT.ADS.ADMIN
+    depends_on:
+      - CHG-041
+      - CHG-050
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-057
+    path: specs/changes/057-fix-ad-rotation-recovery/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ROTATION
+      - DISPLAY.RUNTIME
+    depends_on:
+      - CHG-041
+      - CHG-051
+      - CHG-053
     consolidated_into: []
     read_by_default: true
 

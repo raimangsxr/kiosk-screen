@@ -258,6 +258,26 @@ class DisplaySseHub:
                 )
             )
         session.commit()
+        from app.application.display_orchestrator.registry import OrchestratorRegistry
+
+        orchestrator = OrchestratorRegistry.get(
+            registration.organization_id,
+            registration.operator_session_id,
+        )
+        if orchestrator is not None:
+            orchestrator.on_kiosk_disconnected(registration.kiosk_id)
+
+    def list_connected_kiosk_ids(self, organization_id: str, operator_session_id: str) -> list[str]:
+        """Return kiosk IDs with an active SSE subscriber for this operator session."""
+        with self._lock:
+            return sorted(
+                {
+                    subscriber.kiosk_id
+                    for subscriber in self._subscribers.values()
+                    if subscriber.organization_id == organization_id
+                    and subscriber.operator_session_id == operator_session_id
+                }
+            )
 
     def list_registrations(self, organization_id: str) -> list[KioskRegistration]:
         """Return kiosks with an active SSE subscriber (stream open)."""

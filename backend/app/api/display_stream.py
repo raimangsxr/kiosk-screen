@@ -62,8 +62,8 @@ class KioskRegisterResponse(CamelModel):
 
 class KioskEventRequest(CamelModel):
     kiosk_id: UUID = Field(alias="kioskId")
-    type: Literal["video_ended", "media_error"]
-    command_id: str = Field(min_length=1, alias="commandId")
+    type: Literal["video_ended", "media_error", "novelty_preload_ready"]
+    command_id: str | None = Field(default=None, min_length=1, alias="commandId")
     content_id: UUID | None = Field(default=None, alias="contentId")
     at: str | None = None
     metadata: dict[str, Any] | None = None
@@ -160,6 +160,25 @@ def post_kiosk_event(
     if orchestrator is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="orchestrator_not_active")
 
+    if payload.type == "novelty_preload_ready":
+        if payload.content_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="content_id_required",
+            )
+        orchestrator.handle_novelty_preload_ready(
+            session,
+            kiosk_id=str(payload.kiosk_id),
+            content_id=str(payload.content_id),
+        )
+        return
+
+    if payload.command_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="command_id_required",
+        )
+
     if payload.type == "video_ended":
         orchestrator.handle_video_ended(session, command_id=payload.command_id)
         return
@@ -200,6 +219,7 @@ async def open_display_stream(
             )
             display_device_id = device.id
         hub.record_kiosk_connected(open_session, registration, display_device_id=display_device_id)
+        ensure_display_orchestrator(open_session, registration.organization_id)
         orchestrator = OrchestratorRegistry.get(
             registration.organization_id,
             registration.operator_session_id,

@@ -23,6 +23,8 @@ related_changes:
   - CHG-041
   - CHG-048
   - CHG-050
+  - CHG-056
+  - CHG-057
 related_adrs:
   []
 ---
@@ -43,7 +45,7 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
 - Recurring content cadence rules (CHG-039) run in the orchestrator with per-item counters in Redis. Only **regular** (non-recurring) content transitions increment those counters; showing due or filler recurring content does not increment them.
 - Empty content queues are debounced on the server; `orchestrator_empty_queue` audit events replace client `content_rotation_empty` posts.
-- Public API uploads mark content with `isNovelty`; the orchestrator queues and shows novelties on the next loop boundary, consumes on emit (all displays receive the same command). First-kiosk-wins `consume-novelty` is deprecated.
+- Public API uploads mark content with `isNovelty`; the orchestrator queues novelties with **defer-first emission** (CHG-056): at each loop boundary, if the head novelty is not ready on all connected kiosks, the orchestrator emits the next regular/recurring item and increments a per-novelty defer counter (max from `noveltyMaxDeferTransitions` configuration). When ready, the novelty emits in place of the next regular slot and the displaced regular is **rescheduled** for the following boundary. Max-defer discard calls `consume_novelty` without `show_content`. Kiosks report readiness via `novelty_preload_ready` on `POST /api/display/kiosk/events`.
 - Admin content and ad write paths trigger orchestrator `content_mutated` refresh; playlist changes apply at the next content boundary.
 - Fixed, iframe, and paused loop modes do not intercept novelties.
 
@@ -54,13 +56,15 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - `compute_rotation_plan_snapshot()` derives next/novelties using the same rules as `advance_top` without mutating state.
 - On novelty queue change in active loop, server emits SSE `preload` with all pending novelty items (`isNovelty: true`) plus the next regular item when applicable. No `preload` while loop is paused, in fixed content mode, or iframe mode.
 - After each top-content emit in loop, server emits `preload` for the next regular item at the start of that item's period.
-- SSE `snapshot` includes `pendingNovelties` for reconnect backfill. Preload items require `isNovelty: boolean`.
-- First `media_error` per `commandId` advances orchestrator top rotation for all displays (deduped via `processedKioskEvents`).
+- SSE `snapshot` includes `pendingNovelties` for reconnect backfill with `deferCount`, `maxDefer`, `downloadReady` per item. Preload items require `isNovelty: boolean`.
+- First `media_error` per `commandId` advances orchestrator top rotation for all displays (deduped via `processedKioskEvents`); novelty gate timeout path removed (CHG-056).
+- Orchestrator Redis state tracks `noveltyDeferCounts`, `noveltyReadyKiosks`, and `rescheduledRegularContentId`.
+- **Rotation recovery (CHG-057)**: `GET /api/display/stream` open and `GET /api/display/state` call `ensure_display_orchestrator` when the engine is inactive (idempotent). Remote `adsVisible` false→true re-arms ad rotation via `ensure_ad_rotation`; hidden ads cancel the ad timer. Polled `GET /api/display/state` may include `currentTop` and `currentAds` (same shapes as SSE snapshot) reflecting live orchestrator position.
 
 ## Public interfaces
 
 - SSE `show_content`, `show_ads`, `show_iframe`, `mode_changed`, `preload`
-- `POST /api/display/kiosk/events` (`video_ended`, `media_error` — `media_error` advances rotation when deduped first report)
+- `POST /api/display/kiosk/events` (`video_ended`, `media_error`, `novelty_preload_ready` — `media_error` advances rotation when deduped first report)
 - `POST /api/display/content/{contentId}/consume-novelty` (deprecated; orchestrator consumes internally)
 
 ## Owned code paths

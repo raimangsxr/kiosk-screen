@@ -76,4 +76,43 @@ describe('NoveltyQueueTrackerService', () => {
     await Promise.resolve();
     expect(tracker.visibleIcons()[0].downloadStatus).toBe('error');
   });
+
+  it('merges defer metadata from snapshot pending novelties', () => {
+    tracker.syncFromSnapshot([
+      {
+        ...items[0],
+        deferCount: 2,
+        maxDefer: 5,
+      },
+    ]);
+    expect(tracker.visibleIcons()[0].deferCount).toBe(2);
+    expect(tracker.visibleIcons()[0].maxDefer).toBe(5);
+  });
+
+  it('removes entries when server drops them from pending set', () => {
+    tracker.syncFromPreload(items);
+    expect(tracker.visibleIcons().length).toBe(2);
+    tracker.syncFromPreload([items[0]]);
+    expect(tracker.visibleIcons().length).toBe(1);
+    expect(tracker.visibleIcons()[0].contentId).toBe('n1');
+  });
+
+  it('clears queue when snapshot pending novelties is empty', () => {
+    tracker.syncFromPreload(items);
+    tracker.syncFromSnapshot([]);
+    expect(tracker.hasEntries()).toBeFalse();
+  });
+
+  it('preserves defer metadata across preload without defer fields', () => {
+    tracker.syncFromSnapshot([
+      {
+        ...items[0],
+        deferCount: 1,
+        maxDefer: 3,
+      },
+    ]);
+    tracker.syncFromPreload([items[0]]);
+    expect(tracker.visibleIcons()[0].deferCount).toBe(1);
+    expect(tracker.visibleIcons()[0].maxDefer).toBe(3);
+  });
 });

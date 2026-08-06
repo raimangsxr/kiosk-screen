@@ -36,6 +36,7 @@ export interface KioskConfiguration {
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
   iframePreventiveReloadSeconds?: number;
+  noveltyMaxDeferTransitions: number;
   isEnabled: boolean;
 }
 

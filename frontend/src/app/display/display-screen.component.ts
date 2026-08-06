@@ -19,6 +19,7 @@ import { DisplayPollingService } from './display-polling.service';
 import { DisplayMediaCacheService } from './display-media-cache.service';
 import { DisplayContentGateService } from './display-content-gate.service';
 import { NoveltyQueueTrackerService } from './novelty-queue-tracker.service';
+import { NoveltyPreloadReadyService } from './novelty-preload-ready.service';
 import { NoveltyQueueIndicatorComponent } from './novelty-queue-indicator.component';
 import { DisplayStreamService } from './display-stream.service';
 import { IframeScaleService } from './iframe-scale.service';
@@ -34,6 +35,7 @@ const IMMEDIATE_CONFIG_FIELDS = new Set([
   'inlineAdItemBorderRadiusPx',
   'inlineAdItemBorderWidthPx',
   'inlineAdItemBorderColor',
+  'noveltyMaxDeferTransitions',
 ]);
 
 type DisplayRenderableItem = Pick<
@@ -68,6 +70,7 @@ type DisplayRenderableItem = Pick<
     DisplayMediaCacheService,
     DisplayContentGateService,
     NoveltyQueueTrackerService,
+    NoveltyPreloadReadyService,
   ],
   template: `
     <main
@@ -287,6 +290,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   private readonly mediaCache = inject(DisplayMediaCacheService);
   private readonly contentGate = inject(DisplayContentGateService);
   private readonly noveltyTracker = inject(NoveltyQueueTrackerService);
+  private readonly noveltyPreloadReady = inject(NoveltyPreloadReadyService);
   private readonly displayApi = inject(DisplayApiService);
   private readonly displayLabel = inject(DisplayLabelService);
   private readonly router = inject(Router);
@@ -376,6 +380,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
           this.displayViewer.applyPreload({ items: pending, leadTimeSeconds: 0 });
           this.mediaCache.warmItems(pending);
           this.noveltyTracker.syncFromSnapshot(snapshot.pendingNovelties);
+          this.noveltyPreloadReady.observeNovelties(pending, { reconnect: true });
         }
         this.syncContentRenderItems();
       });
@@ -411,6 +416,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
           this.displayViewer.applyPreload(payload);
           this.mediaCache.warmItems(payload.items);
           this.noveltyTracker.syncFromPreload(payload.items);
+          this.noveltyPreloadReady.observeNovelties(payload.items);
         });
       }
     });
@@ -516,12 +522,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
         return;
       }
       untracked(() => {
-        if (!update.applyImmediately || !this.state) {
+        if (!this.state) {
           return;
         }
         const patch: Partial<DisplayState['configuration']> = {};
         for (const field of update.changedFields) {
-          if (IMMEDIATE_CONFIG_FIELDS.has(field)) {
+          const applyField = update.applyImmediately || field === 'noveltyMaxDeferTransitions';
+          if (applyField && IMMEDIATE_CONFIG_FIELDS.has(field)) {
             const value = (update.configuration as Record<string, unknown>)[field];
             (patch as Record<string, unknown>)[field] = value;
           }
@@ -1050,7 +1057,12 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       this.displayViewer.currentContent.set(state.topContent[0]);
     }
 
-    if (!this.displayViewer.visibleAds().length && state.ads.length) {
+    if (state.currentTop) {
+      this.displayViewer.applyShowContent(state.currentTop);
+    }
+    if (state.currentAds) {
+      this.displayViewer.applyShowAds(state.currentAds);
+    } else if (!this.displayViewer.visibleAds().length && state.ads.length) {
       const count = Math.max(1, state.configuration.inlineAdCount ?? 1);
       this.displayViewer.visibleAds.set(state.ads.slice(0, count));
     }

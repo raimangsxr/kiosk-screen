@@ -30,10 +30,14 @@ from app.domain.rotation import resolve_effective_rotation
 from app.application.display_control.service import DisplayControlService
 from app.application.display_orchestrator.hooks import (
     bootstrap_display_orchestrator,
+    ensure_display_orchestrator,
     notify_operator_sessions_superseded,
     notify_remote_navigation,
     notify_remote_state_changed,
 )
+from app.application.display_orchestrator.registry import OrchestratorRegistry
+from app.application.display_orchestrator.runtime_state import build_current_ads_payload, build_current_top_payload
+from app.application.display_control.service import DisplayControlService
 from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.iframe import Iframe
 from app.shared.errors.application_errors import (
@@ -95,7 +99,21 @@ def to_remote_control_admin_schema(
     )
 
 
-def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
+def to_display_state_schema(
+    state: DisplayState,
+    session: Session | None = None,
+    organization_id: str | None = None,
+) -> DisplayStateSchema:
+    current_top = None
+    current_ads = None
+    if session is not None and organization_id is not None:
+        operator_session = DisplayControlService(session).latest_active_session(organization_id)
+        if operator_session is not None:
+            orchestrator = OrchestratorRegistry.get(organization_id, operator_session.id)
+            if orchestrator is not None:
+                current_top = build_current_top_payload(session, orchestrator, organization_id)
+                current_ads = build_current_ads_payload(session, orchestrator, organization_id)
+
     return DisplayStateSchema(
         configuration=to_configuration_schema(state.configuration),
         topContent=[
@@ -165,6 +183,8 @@ def to_display_state_schema(state: DisplayState) -> DisplayStateSchema:
             to_fixed_eligible_content_schema(item)
             for item in (state.fixed_eligible_contents or [])
         ],
+        currentTop=current_top,
+        currentAds=current_ads,
     )
 
 
@@ -188,7 +208,12 @@ def open_display_route(user: CurrentUser = Depends(get_current_user), session: S
 @router.get("/state", response_model=DisplayStateSchema, deprecated=True)
 def display_state_route(user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)) -> DisplayStateSchema:
     try:
-        return to_display_state_schema(get_display_state(session, user.organization_id))
+        ensure_display_orchestrator(session, user.organization_id)
+        return to_display_state_schema(
+            get_display_state(session, user.organization_id),
+            session,
+            user.organization_id,
+        )
     except ValueError as exc:
         raise ConflictApplicationError("display_state_unavailable", str(exc)) from exc
 

@@ -1,4 +1,5 @@
 import { DisplayContentItem, DisplayKioskConfiguration } from '../core/api/display.api';
+import type { ShowAdsPayload } from './display-stream.models';
 
 /**
  * Stable fingerprint comparison for `DisplayState`. Used by the polled
@@ -81,4 +82,46 @@ export function sameDisplayConfiguration(
     prev.iframePreventiveReloadSeconds === curr.iframePreventiveReloadSeconds &&
     prev.isEnabled === curr.isEnabled
   );
+}
+
+export function runtimeTopFingerprint(top: { commandId: string; content: { id: string } } | null | undefined): string {
+  if (!top) {
+    return '';
+  }
+  return `${top.commandId}:${top.content.id}`;
+}
+
+export function showAdsVisibleWindowFingerprint(payload: ShowAdsPayload): string {
+  const count = Math.max(1, payload.inlineAdCount ?? 1);
+  const items = payload.items;
+  const start = payload.startIndex ?? 0;
+  const visibleItems: Array<Record<string, unknown>> = [];
+  for (let index = 0; index < count; index += 1) {
+    const item = items[(start + index) % items.length];
+    if (item) {
+      visibleItems.push({
+        id: item.id,
+        mediaUrl: item.mediaFile?.mediaUrl ?? item.sourceReference,
+        animation: item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
+        animationDurationMs:
+          item.effectiveAnimationDurationMilliseconds
+          ?? item.animationDurationMilliseconds
+          ?? null,
+      });
+    }
+  }
+  return JSON.stringify({
+    startIndex: start,
+    inlineAdCount: count,
+    visibleItems,
+    border: payload.border,
+    transition: payload.transition,
+  });
+}
+
+export function runtimeAdsFingerprint(ads: ShowAdsPayload | null | undefined): string {
+  if (!ads) {
+    return '';
+  }
+  return showAdsVisibleWindowFingerprint(ads);
 }

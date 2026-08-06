@@ -247,7 +247,7 @@ def test_fixed_auto_fallback_to_loop(
     assert state["contentMode"] == "loop"
 
 
-def test_novelty_shown_before_regular_and_consumed(
+def test_novelty_deferred_until_ready_then_consumed(
     orchestrator_env: tuple[DisplayOrchestrator, Session, str, sessionmaker[Session]],
 ) -> None:
     orchestrator, session, org_id, _factory = orchestrator_env
@@ -256,6 +256,25 @@ def test_novelty_shown_before_regular_and_consumed(
     session.add(novelty)
     session.commit()
     orchestrator.bootstrap(session)
+    orchestrator.advance_top(session, reason="timer")
+    state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
+    assert state["currentTopContentId"] != str(novelty.id)
+    session.refresh(novelty)
+    assert novelty.is_novelty is True
+
+    hub = get_display_sse_hub()
+    registration = hub.register_kiosk(
+        organization_id=org_id,
+        operator_session_id="session-1",
+        client_instance_id="novelty-ready",
+        label="Ready kiosk",
+    )
+    hub.subscribe(registration)
+    orchestrator.handle_novelty_preload_ready(
+        session,
+        kiosk_id=registration.kiosk_id,
+        content_id=str(novelty.id),
+    )
     orchestrator.advance_top(session, reason="timer")
     state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
     assert state["currentTopContentId"] == str(novelty.id)
