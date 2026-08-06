@@ -30,8 +30,6 @@ interface LoginFormValue {
   rememberMe: boolean;
 }
 
-type LoginView = 'activation' | 'credentials';
-
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -50,7 +48,7 @@ type LoginView = 'activation' | 'credentials';
   template: `
     <main class="login-page" aria-label="Acceso de operador">
       <mat-card appearance="outlined" class="login-card">
-        <mat-card-header>
+        <mat-card-header class="login-card__header">
           <div class="login-card__brand" mat-card-avatar>
             <mat-icon aria-hidden="true">tv</mat-icon>
           </div>
@@ -58,146 +56,145 @@ type LoginView = 'activation' | 'credentials';
           <mat-card-subtitle>Kiosk Screen</mat-card-subtitle>
         </mat-card-header>
 
-        <div class="login-card__tabs" role="tablist" aria-label="Método de acceso">
-          <button
-            type="button"
-            role="tab"
-            class="login-card__tab"
-            [class.login-card__tab--active]="activeView() === 'activation'"
-            [attr.aria-selected]="activeView() === 'activation'"
-            (click)="switchView('activation')"
-          >
-            Código / QR
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="login-card__tab"
-            [class.login-card__tab--active]="activeView() === 'credentials'"
-            [attr.aria-selected]="activeView() === 'credentials'"
-            (click)="switchView('credentials')"
-          >
-            Correo y contraseña
-          </button>
-        </div>
+        <div class="login-card__layout">
+          <section class="login-panel login-panel--credentials" aria-label="Acceso con correo y contraseña">
+            <header class="login-panel__header">
+              <mat-icon aria-hidden="true">mail</mat-icon>
+              <h2 class="login-panel__title">Correo y contraseña</h2>
+            </header>
 
-        @if (activeView() === 'activation') {
-          <section class="activation-panel" aria-label="Activación desde móvil">
-            <p class="activation-panel__hint">Activa desde tu móvil</p>
-            <p class="activation-panel__status" aria-live="polite">
-              @if (activationLoading()) {
-                Generando código…
-              } @else if (userCode()) {
-                Escanea el QR o introduce este código en tu móvil.
-              } @else {
-                No se pudo generar el código. Inténtalo de nuevo.
-              }
-            </p>
+            @if (form) {
+              <form
+                [formGroup]="form"
+                (ngSubmit)="submit()"
+                class="login-form"
+                novalidate
+                aria-label="Formulario de acceso"
+              >
+                <div class="login-form__content">
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Correo electrónico</mat-label>
+                    <input
+                      matInput
+                      type="email"
+                      formControlName="email"
+                      required
+                      autocomplete="username"
+                      inputmode="email"
+                    />
+                    <mat-icon matIconPrefix aria-hidden="true">mail</mat-icon>
+                    @if (form.controls.email.hasError('required')) {
+                      <mat-error>El correo es obligatorio.</mat-error>
+                    }
+                    @if (form.controls.email.hasError('email')) {
+                      <mat-error>Introduce un correo válido.</mat-error>
+                    }
+                  </mat-form-field>
 
-            @if (userCode(); as code) {
-              <p class="activation-panel__code" aria-label="Código de activación">{{ code }}</p>
-            }
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>Contraseña</mat-label>
+                    <input
+                      matInput
+                      [type]="showPassword() ? 'text' : 'password'"
+                      formControlName="password"
+                      required
+                      autocomplete="current-password"
+                    />
+                    <mat-icon matIconPrefix aria-hidden="true">lock</mat-icon>
+                    <button
+                      matSuffix
+                      mat-icon-button
+                      type="button"
+                      (click)="togglePassword()"
+                      [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                    >
+                      <mat-icon aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                    </button>
+                    @if (form.controls.password.hasError('required')) {
+                      <mat-error>La contraseña es obligatoria.</mat-error>
+                    }
+                  </mat-form-field>
 
-            @if (qrDataUrl(); as qrUrl) {
-              <img class="activation-panel__qr" [src]="qrUrl" width="256" height="256" alt="Código QR para activar la pantalla" />
-            } @else if (activationLoading()) {
-              <mat-progress-spinner diameter="48" mode="indeterminate" aria-label="Cargando código QR" />
-            }
+                  <mat-checkbox formControlName="rememberMe" class="login-form__remember">
+                    Recordarme (mantener la sesión iniciada durante 30 días)
+                  </mat-checkbox>
 
-            @if (activationError(); as message) {
-              <p class="login-form__error" role="alert">
-                <mat-icon aria-hidden="true">error</mat-icon>
-                <span>{{ message }}</span>
-              </p>
+                  @if (errorMessage(); as message) {
+                    <p class="login-form__error" role="alert">
+                      <mat-icon aria-hidden="true">error</mat-icon>
+                      <span>{{ message }}</span>
+                    </p>
+                  }
+                </div>
+
+                <div class="login-form__actions">
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="submit"
+                    class="login-form__submit"
+                    [disabled]="form.invalid || submitting()"
+                  >
+                    @if (submitting()) {
+                      <span class="login-form__submit-content">
+                        <mat-progress-spinner diameter="18" mode="indeterminate" aria-label="Iniciando sesión" />
+                        <span>Iniciando sesión…</span>
+                      </span>
+                    } @else {
+                      <span class="login-form__submit-content">
+                        <mat-icon aria-hidden="true" class="login-form__submit-icon">login</mat-icon>
+                        <span>Iniciar sesión</span>
+                      </span>
+                    }
+                  </button>
+                </div>
+              </form>
             }
           </section>
-        } @else if (form) {
-          <form
-            [formGroup]="form"
-            (ngSubmit)="submit()"
-            class="login-form"
-            novalidate
-            aria-label="Formulario de acceso"
-          >
-            <mat-card-content class="login-form__content">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Correo electrónico</mat-label>
-                <input
-                  matInput
-                  type="email"
-                  formControlName="email"
-                  required
-                  autocomplete="username"
-                  inputmode="email"
+
+          <section class="login-panel login-panel--activation" aria-label="Acceso por QR">
+            <header class="login-panel__header">
+              <mat-icon aria-hidden="true">qr_code_2</mat-icon>
+              <h2 class="login-panel__title">Acceso por QR</h2>
+            </header>
+
+            <div class="activation-panel">
+              <p class="activation-panel__hint">Activa desde tu móvil</p>
+              <p class="activation-panel__status" aria-live="polite">
+                @if (activationLoading()) {
+                  Generando código…
+                } @else if (userCode()) {
+                  Escanea el QR o introduce este código en tu móvil.
+                } @else {
+                  No se pudo generar el código. Inténtalo de nuevo.
+                }
+              </p>
+
+              @if (userCode(); as code) {
+                <p class="activation-panel__code" aria-label="Código de activación">{{ code }}</p>
+              }
+
+              @if (qrDataUrl(); as qrUrl) {
+                <img
+                  class="activation-panel__qr"
+                  [src]="qrUrl"
+                  width="220"
+                  height="220"
+                  alt="Código QR para activar la pantalla"
                 />
-                <mat-icon matIconPrefix aria-hidden="true">mail</mat-icon>
-                @if (form.controls.email.hasError('required')) {
-                  <mat-error>El correo es obligatorio.</mat-error>
-                }
-                @if (form.controls.email.hasError('email')) {
-                  <mat-error>Introduce un correo válido.</mat-error>
-                }
-              </mat-form-field>
+              } @else if (activationLoading()) {
+                <mat-progress-spinner diameter="48" mode="indeterminate" aria-label="Cargando código QR" />
+              }
 
-              <mat-form-field appearance="outline" subscriptSizing="dynamic">
-                <mat-label>Contraseña</mat-label>
-                <input
-                  matInput
-                  [type]="showPassword() ? 'text' : 'password'"
-                  formControlName="password"
-                  required
-                  autocomplete="current-password"
-                />
-                <mat-icon matIconPrefix aria-hidden="true">lock</mat-icon>
-                <button
-                  matSuffix
-                  mat-icon-button
-                  type="button"
-                  (click)="togglePassword()"
-                  [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-                >
-                  <mat-icon aria-hidden="true">{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-                </button>
-                @if (form.controls.password.hasError('required')) {
-                  <mat-error>La contraseña es obligatoria.</mat-error>
-                }
-              </mat-form-field>
-
-              <mat-checkbox formControlName="rememberMe" class="login-form__remember">
-                Recordarme (mantener la sesión iniciada durante 30 días)
-              </mat-checkbox>
-
-              @if (errorMessage(); as message) {
+              @if (activationError(); as message) {
                 <p class="login-form__error" role="alert">
                   <mat-icon aria-hidden="true">error</mat-icon>
                   <span>{{ message }}</span>
                 </p>
               }
-            </mat-card-content>
-
-            <mat-card-actions align="end" class="login-form__actions">
-              <button
-                mat-flat-button
-                color="primary"
-                type="submit"
-                class="login-form__submit"
-                [disabled]="form.invalid || submitting()"
-              >
-                @if (submitting()) {
-                  <span class="login-form__submit-content">
-                    <mat-progress-spinner diameter="18" mode="indeterminate" aria-label="Iniciando sesión" />
-                    <span>Iniciando sesión…</span>
-                  </span>
-                } @else {
-                  <span class="login-form__submit-content">
-                    <mat-icon aria-hidden="true" class="login-form__submit-icon">login</mat-icon>
-                    <span>Iniciar sesión</span>
-                  </span>
-                }
-              </button>
-            </mat-card-actions>
-          </form>
-        }
+            </div>
+          </section>
+        </div>
 
         @if (showDevHint) {
           <p class="login-card__hint">
@@ -219,7 +216,7 @@ type LoginView = 'activation' | 'credentials';
         min-height: 100vh;
         display: grid;
         place-items: center;
-        padding: clamp(20px, 6vw, 48px);
+        padding: clamp(20px, 4vw, 48px);
         background:
           radial-gradient(
             120% 80% at 100% 0%,
@@ -236,13 +233,13 @@ type LoginView = 'activation' | 'credentials';
       .login-card {
         position: relative;
         z-index: 1;
-        width: min(100%, 420px);
+        width: min(100%, 920px);
         background: var(--mat-sys-surface);
         box-shadow: var(--mat-sys-level2);
         border: 1px solid var(--mat-sys-outline-variant);
       }
-      .login-card mat-card-header {
-        padding: 24px 24px 12px;
+      .login-card__header {
+        padding: 24px 28px 8px;
       }
       .login-card__brand {
         display: inline-flex;
@@ -251,41 +248,50 @@ type LoginView = 'activation' | 'credentials';
         background: var(--mat-sys-primary-container);
         color: var(--mat-sys-on-primary-container);
       }
-      .login-card__tabs {
+      .login-card__layout {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        padding: 0 24px 12px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 0;
+        min-height: 420px;
       }
-      .login-card__tab {
-        border: 1px solid var(--mat-sys-outline-variant);
-        background: var(--mat-sys-surface-container);
-        color: var(--mat-sys-on-surface);
-        border-radius: var(--mat-sys-corner-medium);
-        min-height: var(--app-touch-target);
-        cursor: pointer;
-        font: var(--mat-sys-label-large);
+      .login-panel {
+        display: flex;
+        flex-direction: column;
+        padding: 20px 28px 28px;
       }
-      .login-card__tab--active {
-        background: var(--mat-sys-primary-container);
-        color: var(--mat-sys-on-primary-container);
-        border-color: transparent;
+      .login-panel--credentials {
+        border-right: 1px solid var(--mat-sys-outline-variant);
       }
-      .activation-panel {
-        display: grid;
-        justify-items: center;
-        gap: 12px;
-        padding: 8px 24px 24px;
-        text-align: center;
+      .login-panel__header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        color: var(--mat-sys-on-surface-variant);
       }
-      .activation-panel__hint {
+      .login-panel__title {
         margin: 0;
         font: var(--mat-sys-title-medium);
         color: var(--mat-sys-on-surface);
       }
+      .activation-panel {
+        display: grid;
+        justify-items: center;
+        align-content: start;
+        gap: 12px;
+        flex: 1;
+        text-align: center;
+      }
+      .activation-panel__hint {
+        margin: 0;
+        font: var(--mat-sys-title-small);
+        color: var(--mat-sys-on-surface);
+      }
       .activation-panel__status {
         margin: 0;
+        max-width: 28ch;
         color: var(--mat-sys-on-surface-variant);
+        font: var(--mat-sys-body-medium);
       }
       .activation-panel__code {
         margin: 0;
@@ -298,12 +304,14 @@ type LoginView = 'activation' | 'credentials';
         background: white;
       }
       .login-form {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
       }
       .login-form__content {
         display: grid;
         gap: 14px;
-        padding: 16px 24px 8px;
+        flex: 1;
       }
       .login-form__error {
         display: flex;
@@ -324,8 +332,9 @@ type LoginView = 'activation' | 'credentials';
         color: var(--mat-sys-on-surface);
       }
       .login-form__actions {
-        padding: 8px 24px 16px;
-        gap: 8px;
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 8px;
       }
       .login-form__submit {
         min-width: 132px;
@@ -347,7 +356,7 @@ type LoginView = 'activation' | 'credentials';
       }
       .login-card__hint {
         margin: 0;
-        padding: 0 24px 24px;
+        padding: 0 28px 24px;
         font: var(--mat-sys-body-small);
         letter-spacing: var(--mat-sys-body-small-tracking);
         color: var(--mat-sys-on-surface-variant);
@@ -357,12 +366,17 @@ type LoginView = 'activation' | 'credentials';
         padding: 1px 6px;
         border-radius: var(--mat-sys-corner-extra-small);
       }
-      @media (max-width: 599.98px) {
-        .login-card mat-card-header,
-        .login-card__tabs,
-        .activation-panel,
-        .login-form__content,
-        .login-form__actions,
+      @media (max-width: 767.98px) {
+        .login-card__layout {
+          grid-template-columns: 1fr;
+          min-height: unset;
+        }
+        .login-panel--credentials {
+          border-right: none;
+          border-bottom: 1px solid var(--mat-sys-outline-variant);
+        }
+        .login-card__header,
+        .login-panel,
         .login-card__hint {
           padding-inline: 20px;
         }
@@ -378,7 +392,6 @@ export class LoginComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly showDevHint = environment.devMode;
-  protected readonly activeView = signal<LoginView>('activation');
   protected readonly submitting = signal(false);
   protected readonly showPassword = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -409,17 +422,6 @@ export class LoginComponent implements OnInit {
       this.beginActivation();
     }
     this.destroyRef.onDestroy(() => this.stopPolling());
-  }
-
-  protected switchView(view: LoginView): void {
-    this.activeView.set(view);
-    if (view === 'credentials') {
-      this.stopPolling();
-      return;
-    }
-    if (!this.auth.isAuthenticated()) {
-      this.beginActivation();
-    }
   }
 
   protected togglePassword(): void {
