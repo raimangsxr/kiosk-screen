@@ -53,6 +53,18 @@ class OrchestratorRegistry:
                     orchestrator.mark_content_mutated()
 
     @classmethod
+    def items(cls) -> list[tuple[tuple[str, str], DisplayOrchestrator]]:
+        with cls._lock:
+            return list(cls._instances.items())
+
+    @classmethod
+    def new_session(cls) -> Session:
+        """Open a session from the configured factory (shared with tests)."""
+        if cls._session_factory is None:
+            raise RuntimeError("OrchestratorRegistry is not configured")
+        return cls._session_factory()
+
+    @classmethod
     def instances_for_organization(cls, organization_id: str) -> list[DisplayOrchestrator]:
         with cls._lock:
             return [

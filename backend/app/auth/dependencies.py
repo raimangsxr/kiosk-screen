@@ -11,7 +11,7 @@ from app.repositories.api_keys import ApiKeyRepository
 from app.repositories.models.api_key import ApiKey
 from app.repositories.models.role_assignment import RoleAssignment
 from app.repositories.models.user import User
-from app.repositories.session import create_session_factory, get_session
+from app.repositories.session import get_session, stream_session_factory
 from app.services.api_key_service import ApiKeyService
 from app.shared.errors.application_errors import (
     AuthenticationApplicationError,
@@ -92,7 +92,7 @@ def get_stream_user(
     if cached is not None:
         return cached
 
-    with create_session_factory()() as session:
+    with stream_session_factory()() as session:
         session_user_id = resolve_authenticated_user_id(
             session,
             request.cookies.get(SESSION_COOKIE_NAME),

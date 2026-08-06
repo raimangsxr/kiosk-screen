@@ -14,7 +14,7 @@ from app.application.display_orchestrator.sse_hub import get_display_sse_hub, re
 from app.main import app
 from app.repositories.base import Base
 from app.repositories import models as repository_models  # noqa: F401
-from app.repositories.session import get_session
+from app.repositories.session import get_session, set_stream_session_factory_override
 from app.services.bootstrap_service import bootstrap_mvp_data
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -47,6 +47,7 @@ def stream_clients() -> Iterator[tuple[TestClient, TestClient]]:
     app.state.skip_bootstrap = True
     app.state.orchestrator_session_factory = factory
     OrchestratorRegistry.configure(factory)
+    set_stream_session_factory_override(factory)
     operator_client = TestClient(app)
     admin_client = TestClient(app)
     get_display_sse_hub().start()
@@ -57,6 +58,7 @@ def stream_clients() -> Iterator[tuple[TestClient, TestClient]]:
         admin_client.close()
         app.dependency_overrides.clear()
         app.state.skip_bootstrap = False
+        set_stream_session_factory_override(None)
         OrchestratorRegistry.reset()
         reset_display_sse_hub()
         redis_state.reset_redis_client(None)
@@ -664,6 +666,53 @@ def test_concurrent_kiosk_registrations(stream_clients: tuple[TestClient, TestCl
             json={"clientInstanceId": f"load-client-{index}", "label": f"Pantalla {index}"},
         )
         assert response.status_code == 201, response.text
+
+
+def test_reaper_removes_idle_orchestrator_after_grace(
+    stream_clients: tuple[TestClient, TestClient],
+) -> None:
+    from app.application.display_orchestrator.reaper import reap_idle_orchestrators
+
+    operator_client, _admin_client = stream_clients
+    _login_operator(operator_client)
+    _open_display(operator_client)
+
+    hub = get_display_sse_hub()
+    kiosk_id = _register_kiosk(operator_client, "reaper-idle-client")
+    registration = hub.get_kiosk(kiosk_id)
+    assert registration is not None
+    key = (registration.organization_id, registration.operator_session_id)
+    assert OrchestratorRegistry.get(*key) is not None
+
+    idle_since: dict = {}
+    # No open SSE subscriber: first pass marks it idle but does not remove.
+    reap_idle_orchestrators(idle_since, now=1_000.0, grace_seconds=120.0)
+    assert OrchestratorRegistry.get(*key) is not None
+    # After the grace window it is retired.
+    reap_idle_orchestrators(idle_since, now=1_000.0 + 200.0, grace_seconds=120.0)
+    assert OrchestratorRegistry.get(*key) is None
+
+
+def test_reaper_keeps_orchestrator_with_live_subscriber(
+    stream_clients: tuple[TestClient, TestClient],
+) -> None:
+    from app.application.display_orchestrator.reaper import reap_idle_orchestrators
+
+    operator_client, _admin_client = stream_clients
+    _login_operator(operator_client)
+    _open_display(operator_client)
+
+    hub = get_display_sse_hub()
+    kiosk_id = _register_kiosk(operator_client, "reaper-live-client")
+    registration = hub.get_kiosk(kiosk_id)
+    assert registration is not None
+    key = (registration.organization_id, registration.operator_session_id)
+    hub.subscribe(registration)
+
+    idle_since: dict = {}
+    reap_idle_orchestrators(idle_since, now=1_000.0, grace_seconds=1.0)
+    reap_idle_orchestrators(idle_since, now=2_000.0, grace_seconds=1.0)
+    assert OrchestratorRegistry.get(*key) is not None
 
 
 def test_display_stream_uses_sse_comment_ping_helper() -> None:

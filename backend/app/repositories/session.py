@@ -37,3 +37,21 @@ def create_session_factory(engine: Engine | None = None) -> sessionmaker[Session
 def get_session() -> Iterator[Session]:
     with create_session_factory()() as session:
         yield session
+
+
+# Ephemeral sessions used by long-lived SSE endpoints and the orchestrator
+# reaper. Exposed through a small indirection so tests can point them at the
+# in-memory test engine instead of the real pool (R8).
+_stream_session_factory_override: sessionmaker[Session] | None = None
+
+
+def stream_session_factory() -> sessionmaker[Session]:
+    if _stream_session_factory_override is not None:
+        return _stream_session_factory_override
+    return create_session_factory()
+
+
+def set_stream_session_factory_override(factory: sessionmaker[Session] | None) -> None:
+    """Test hook: force stream/reaper ephemeral sessions onto a given factory."""
+    global _stream_session_factory_override
+    _stream_session_factory_override = factory

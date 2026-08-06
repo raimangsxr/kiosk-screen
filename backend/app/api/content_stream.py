@@ -13,7 +13,7 @@ from fastapi.responses import StreamingResponse
 from app.application.admin_content.hooks import get_now_playing_for_org
 from app.application.admin_content.sse_hub import PING_INTERVAL_SECONDS, get_admin_content_sse_hub
 from app.auth.dependencies import CurrentUser, get_stream_user
-from app.repositories.session import create_session_factory
+from app.repositories.session import stream_session_factory
 
 router = APIRouter(prefix="/admin/content", tags=["Admin Content Stream"])
 
@@ -36,7 +36,7 @@ async def open_admin_content_stream(
 
     # Read the now-playing state in an ephemeral session closed before the
     # (long-lived) stream loop, so the connection is never pinned for hours.
-    with create_session_factory()() as open_session:
+    with stream_session_factory()() as open_session:
         content_id, title = get_now_playing_for_org(open_session, user.organization_id)
     replay = hub.build_now_playing_replay_envelope(content_id=content_id, title=title)
     subscriber.events.put(replay)

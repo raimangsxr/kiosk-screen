@@ -80,6 +80,7 @@ class DisplaySseHub:
         self._client_instance_index: dict[tuple[str, str], str] = {}
         self._sequences: dict[tuple[str, str], int] = {}
         self._conn_audit_at: dict[str, float] = {}
+        self._snapshot_cache: dict[tuple[str, str], dict[str, Any]] = {}
         self._pubsub_thread: threading.Thread | None = None
         self._pubsub_stop = threading.Event()
         self._replica_id = str(uuid4())
@@ -187,6 +188,7 @@ class DisplaySseHub:
             for connection_id in connection_ids:
                 self._subscribers.pop(connection_id, None)
             self._sequences.pop((organization_id, operator_session_id), None)
+            self._snapshot_cache.pop((organization_id, operator_session_id), None)
 
     def _should_record_conn_audit(self, kiosk_id: str) -> bool:
         """Debounce connect/disconnect audit rows per kiosk.
@@ -292,6 +294,27 @@ class DisplaySseHub:
             except queue.Full:
                 pass
         subscriber.signal()
+
+    def has_live_subscribers_for_session(self, organization_id: str, operator_session_id: str) -> bool:
+        """True when at least one open SSE stream belongs to this session (R2)."""
+        with self._lock:
+            return any(
+                subscriber.organization_id == organization_id
+                and subscriber.operator_session_id == operator_session_id
+                for subscriber in self._subscribers.values()
+            )
+
+    def get_cached_snapshot(
+        self, organization_id: str, operator_session_id: str
+    ) -> dict[str, Any] | None:
+        with self._lock:
+            return self._snapshot_cache.get((organization_id, operator_session_id))
+
+    def cache_snapshot(
+        self, organization_id: str, operator_session_id: str, payload: dict[str, Any]
+    ) -> None:
+        with self._lock:
+            self._snapshot_cache[(organization_id, operator_session_id)] = payload
 
     def get_kiosk(self, kiosk_id: str) -> KioskRegistration | None:
         with self._lock:
@@ -469,6 +492,9 @@ class DisplaySseHub:
 
     def _fanout_local(self, organization_id: str, operator_session_id: str, envelope: dict[str, Any]) -> None:
         with self._lock:
+            # Any delivered event (local or cross-replica) means the session
+            # state moved on, so the cached snapshot is stale (R3).
+            self._snapshot_cache.pop((organization_id, operator_session_id), None)
             subscribers = [
                 subscriber
                 for subscriber in self._subscribers.values()
@@ -506,39 +532,56 @@ class DisplaySseHub:
         redis_state.redis_delete(redis_state.sse_kiosk_key(kiosk_id))
 
     def _pubsub_listener(self) -> None:
-        try:
-            client = redis_state.get_redis_client()
-            pubsub = client.pubsub(ignore_subscribe_messages=True)
-            pubsub.psubscribe("pubsub:org:*:display")
-        except redis.RedisError:
-            logger.exception("Display SSE pub/sub listener failed to start")
-            return
+        # Reconnect with backoff instead of dying on the first Redis hiccup,
+        # which would silently stop cross-replica fan-out until restart (R5).
+        backoff = 1.0
         while not self._pubsub_stop.is_set():
             try:
-                message = pubsub.get_message(timeout=1.0)
+                client = redis_state.get_redis_client()
+                pubsub = client.pubsub(ignore_subscribe_messages=True)
+                pubsub.psubscribe("pubsub:org:*:display")
             except redis.RedisError:
-                logger.exception("Display SSE pub/sub listener error")
-                break
-            if not message or message.get("type") not in {"message", "pmessage"}:
+                logger.exception("Display SSE pub/sub subscribe failed; retrying in %.0fs", backoff)
+                if self._pubsub_stop.wait(backoff):
+                    return
+                backoff = min(backoff * 2, 30.0)
                 continue
-            data = message.get("data")
-            if not isinstance(data, str):
-                continue
+
+            backoff = 1.0
             try:
-                parsed = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(parsed, dict) and "envelope" in parsed:
-                if parsed.get("sourceReplicaId") == self._replica_id:
-                    continue
-                envelope = parsed["envelope"]
-            else:
-                envelope = parsed
-            self._fanout_local(envelope["organizationId"], envelope["operatorSessionId"], envelope)
-        try:
-            pubsub.close()
-        except redis.RedisError:
-            logger.exception("Failed to close display SSE pub/sub")
+                while not self._pubsub_stop.is_set():
+                    try:
+                        message = pubsub.get_message(timeout=1.0)
+                    except redis.RedisError:
+                        logger.exception("Display SSE pub/sub read error; reconnecting")
+                        break
+                    if not message or message.get("type") not in {"message", "pmessage"}:
+                        continue
+                    data = message.get("data")
+                    if not isinstance(data, str):
+                        continue
+                    try:
+                        parsed = json.loads(data)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(parsed, dict) and "envelope" in parsed:
+                        if parsed.get("sourceReplicaId") == self._replica_id:
+                            continue
+                        envelope = parsed["envelope"]
+                    else:
+                        envelope = parsed
+                    self._fanout_local(
+                        envelope["organizationId"], envelope["operatorSessionId"], envelope
+                    )
+            finally:
+                try:
+                    pubsub.close()
+                except redis.RedisError:
+                    logger.exception("Failed to close display SSE pub/sub")
+
+            if self._pubsub_stop.wait(backoff):
+                return
+            backoff = min(backoff * 2, 30.0)
 
 
 _hub: DisplaySseHub | None = None

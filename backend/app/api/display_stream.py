@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import queue
 import time
 from collections.abc import AsyncIterator
@@ -26,12 +27,24 @@ from app.services.display_device_service import DisplayDeviceService
 from app.services.iframe_service import IframeService
 from app.auth.dependencies import CurrentUser, get_current_user, get_stream_user, require_roles
 from app.domain.roles import OPERATIONS_READ_ROLES
-from app.repositories.session import create_session_factory, get_session
+from app.repositories.session import get_session, stream_session_factory
 
 router = APIRouter(prefix="/display", tags=["Display Stream"])
 admin_router = APIRouter(prefix="/admin/display", tags=["Display Admin"])
 
+logger = logging.getLogger(__name__)
+
 STREAM_QUEUE_POLL_SECONDS = 1.0
+
+
+def _record_kiosk_disconnected_sync(registration) -> None:
+    """Record the disconnect off the event loop (R7). Best-effort: a failure
+    here must not surface during stream teardown."""
+    try:
+        with stream_session_factory()() as session:
+            get_display_sse_hub().record_kiosk_disconnected(session, registration)
+    except Exception:  # pragma: no cover - defensive
+        logger.exception("Failed to record kiosk disconnect")
 
 
 class KioskRegisterRequest(CamelModel):
@@ -178,7 +191,7 @@ async def open_display_stream(
     # All open-time DB work runs in an ephemeral session that is closed before
     # the (multi-hour) stream loop begins, so a long-lived SSE connection never
     # pins a pooled connection / open transaction.
-    with create_session_factory()() as open_session:
+    with stream_session_factory()() as open_session:
         display_device_id: str | None = None
         if registration.label and registration.label.strip():
             device = DisplayDeviceService(open_session).upsert_on_register(
@@ -191,11 +204,25 @@ async def open_display_stream(
             registration.organization_id,
             registration.operator_session_id,
         )
-        snapshot_payload = build_snapshot_payload(
-            open_session,
-            user.organization_id,
-            orchestrator=orchestrator,
+        # Reuse a recently-built snapshot (R3): it is invalidated by any
+        # published event, so between events it is always current. Avoids
+        # rebuilding it on every (re)connect — notably a burst of kiosks
+        # connecting at event start.
+        snapshot_payload = hub.get_cached_snapshot(
+            registration.organization_id,
+            registration.operator_session_id,
         )
+        if snapshot_payload is None:
+            snapshot_payload = build_snapshot_payload(
+                open_session,
+                user.organization_id,
+                orchestrator=orchestrator,
+            )
+            hub.cache_snapshot(
+                registration.organization_id,
+                registration.operator_session_id,
+                snapshot_payload,
+            )
         initial_events = hub.replay_or_snapshot(
             organization_id=registration.organization_id,
             operator_session_id=registration.operator_session_id,
@@ -256,8 +283,14 @@ async def open_display_stream(
             with contextlib.suppress(asyncio.CancelledError):
                 await watcher
             hub.unsubscribe(subscriber.connection_id)
-            with create_session_factory()() as close_session:
-                hub.record_kiosk_disconnected(close_session, registration)
+            # Record the disconnect off the event loop so a mass simultaneous
+            # teardown (event end) cannot stall the loop with N sync commits.
+            try:
+                asyncio.get_running_loop().run_in_executor(
+                    None, _record_kiosk_disconnected_sync, registration
+                )
+            except RuntimeError:  # pragma: no cover - no running loop
+                _record_kiosk_disconnected_sync(registration)
 
     return StreamingResponse(
         event_generator(),

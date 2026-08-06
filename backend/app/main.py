@@ -1,3 +1,7 @@
+import asyncio
+import contextlib
+import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -15,6 +19,7 @@ from app.api.v1.error_handlers import (
 )
 from app.api.v1.public_content.routes import router as public_content_router
 from app.application.display_orchestrator.registry import OrchestratorRegistry
+from app.application.display_orchestrator.reaper import REAP_INTERVAL_SECONDS, reap_idle_orchestrators
 from app.application.admin_content.sse_hub import get_admin_content_sse_hub
 from app.application.display_orchestrator.sse_hub import get_display_sse_hub
 from app.config import get_settings, validate_production_settings
@@ -22,6 +27,24 @@ from app.observability.logging import configure_logging
 from app.repositories.session import create_session_factory
 from app.services.bootstrap_service import ensure_mvp_bootstrap_data
 from app.shared.errors.application_errors import ApplicationError
+
+
+logger = logging.getLogger(__name__)
+
+
+async def _run_orchestrator_reaper(stop: asyncio.Event) -> None:
+    """Periodically retire idle/expired orchestrators (R2)."""
+    idle_since: dict[tuple[str, str], float] = {}
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=REAP_INTERVAL_SECONDS)
+            return
+        except asyncio.TimeoutError:
+            pass
+        try:
+            await asyncio.to_thread(reap_idle_orchestrators, idle_since, now=time.monotonic())
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("Orchestrator reaper iteration failed")
 
 
 def bootstrap_default_data(app: FastAPI) -> None:
@@ -44,9 +67,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     OrchestratorRegistry.configure(session_factory if callable(session_factory) else session_factory)
     get_display_sse_hub().start()
     get_admin_content_sse_hub().start()
+    reaper_stop = asyncio.Event()
+    reaper_task = asyncio.create_task(_run_orchestrator_reaper(reaper_stop))
     try:
         yield
     finally:
+        reaper_stop.set()
+        reaper_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await reaper_task
         get_admin_content_sse_hub().stop()
         get_display_sse_hub().stop()
         OrchestratorRegistry.reset()

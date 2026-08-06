@@ -41,6 +41,7 @@ class OrchestratorScheduler:
         }
         self._cond = threading.Condition(threading.Lock())
         self._deadlines: dict[str, float] = {}
+        self._last_seconds: dict[str, float] = {}
         self._stopped = False
         self._thread = threading.Thread(
             target=self._run,
@@ -91,6 +92,7 @@ class OrchestratorScheduler:
         with self._cond:
             if self._stopped:
                 return
+            self._last_seconds[kind] = seconds
             self._deadlines[kind] = time.monotonic() + max(0.01, seconds)
             self._cond.notify()
 
@@ -123,6 +125,13 @@ class OrchestratorScheduler:
                         callback()
                     except Exception:  # pragma: no cover - defensive
                         logger.exception("Orchestrator scheduler callback %s failed", kind)
+                        # A throwing tick would otherwise stop that rotation for
+                        # good; re-arm with the last known cadence so a transient
+                        # failure self-heals (R6).
+                        if kind in ("top", "ad"):
+                            last = self._last_seconds.get(kind)
+                            if last is not None:
+                                self._arm(kind, last)
                 if kind == "availability":
                     # Availability ticks on a fixed cadence until cancelled.
                     self.arm_availability()
