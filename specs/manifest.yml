@@ -812,4 +812,14 @@ changes:
     consolidated_into: []
     read_by_default: true
 
+  - id: CHG-052
+    path: specs/changes/052-device-qr-login/spec.md
+    status: draft
+    modifies:
+      - AUTH.RBAC
+      - DISPLAY.CONFIG_SESSION
+    depends_on: []
+    consolidated_into: []
+    read_by_default: true
+
 archive: []

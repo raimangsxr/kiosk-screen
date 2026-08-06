@@ -3,13 +3,16 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { provideRouter, Router } from '@angular/router';
+import { of } from 'rxjs';
 
+import { DeviceActivationService } from '../core/auth/device-activation.service';
 import { LoginComponent } from './login.component';
 
 interface TestableLoginComponent {
   form: { setValue: (value: { email: string; password: string; rememberMe: boolean }) => void; invalid: boolean };
   submit: () => void;
   errorMessage: () => string | null;
+  switchView: (view: 'activation' | 'credentials') => void;
 }
 
 function asTestable(component: LoginComponent): TestableLoginComponent {
@@ -25,14 +28,27 @@ describe('LoginComponent', () => {
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [LoginComponent, NoopAnimationsModule],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);
     http = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
     spyOn(router, 'navigateByUrl').and.resolveTo(true);
+    spyOn(TestBed.inject(DeviceActivationService), 'buildQrDataUrl').and.returnValue(
+      of('data:image/png;base64,test'),
+    );
     fixture.detectChanges();
+    http.expectOne('/api/auth/device-activation/start').flush({
+      userCode: 'ABCDEF',
+      deviceCode: 'device-123',
+      expiresAt: '2026-08-06T10:00:00Z',
+      pollIntervalSeconds: 2,
+      activateUrl: '/activate?code=ABCDEF',
+    });
+    await fixture.whenStable();
+    const initialPolls = http.match('/api/auth/device-activation/poll');
+    initialPolls.forEach((request) => request.flush({ status: 'pending' }));
   });
 
   afterEach(() => {
@@ -40,8 +56,18 @@ describe('LoginComponent', () => {
     localStorage.clear();
   });
 
-  it('posts credentials and marks the browser session authenticated', () => {
+  it('shows activation waiting state with user code and mobile hint', () => {
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Activa desde tu móvil');
+    expect(text).toContain('ABCDEF');
+    expect(fixture.nativeElement.querySelector('[aria-live="polite"]')).not.toBeNull();
+  });
+
+  it('posts credentials and navigates to hall from credentials tab', () => {
     const component = asTestable(fixture.componentInstance);
+    component.switchView('credentials');
+    fixture.detectChanges();
     component.form.setValue({ email: 'operator@example.com', password: 'operator', rememberMe: false });
 
     component.submit();
@@ -55,8 +81,32 @@ describe('LoginComponent', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/hall');
   });
 
+  it('navigates to display when activation poll succeeds', async () => {
+    const component = fixture.componentInstance as unknown as {
+      startPolling: (deviceCode: string, intervalSeconds: number) => void;
+    };
+    component.startPolling('device-123', 2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const poll = http.expectOne('/api/auth/device-activation/poll');
+    poll.flush({
+      status: 'authorized',
+      user: {
+        id: 'user-1',
+        email: 'operator@example.com',
+        displayName: 'Operator',
+        roles: ['event_operator'],
+      },
+    });
+
+    expect(localStorage.getItem('kiosk_authenticated')).toBe('true');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/display');
+  });
+
   it('surfaces an error message when credentials are rejected', () => {
     const component = asTestable(fixture.componentInstance);
+    component.switchView('credentials');
+    fixture.detectChanges();
     component.form.setValue({ email: 'wrong@example.com', password: 'nope', rememberMe: false });
 
     component.submit();
@@ -64,14 +114,16 @@ describe('LoginComponent', () => {
     const request = http.expectOne('/api/auth/login');
     request.flush({ detail: 'Invalid credentials' }, { status: 401, statusText: 'Unauthorized' });
 
-    expect(component.errorMessage()).toBe('Invalid email or password.');
+    expect(component.errorMessage()).toBe('Correo o contraseña incorrectos.');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 
-  it('does not submit when the form is invalid', () => {
+  it('does not submit credentials when the form is invalid', () => {
     const component = asTestable(fixture.componentInstance);
+    component.switchView('credentials');
+    fixture.detectChanges();
     component.submit();
-    http.expectNone(() => true);
+    http.expectNone('/api/auth/login');
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });
 });

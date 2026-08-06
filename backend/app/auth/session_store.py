@@ -39,6 +39,8 @@ class LoginRateLimiter:
 
 
 login_rate_limiter = LoginRateLimiter()
+ActivationRateLimiter = LoginRateLimiter
+activation_rate_limiter = ActivationRateLimiter()
 
 
 def sign_session_cookie_value(session_id: str, session_secret: str) -> str:

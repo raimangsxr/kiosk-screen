@@ -57,6 +57,10 @@ export class AuthService {
    */
   readonly remembered = this.rememberState.asReadonly();
 
+  hydrateFromActivation(user: AuthenticatedUser, rememberMe: boolean): void {
+    this.persist(user, rememberMe);
+  }
+
   login(credentials: { email: string; password: string; rememberMe?: boolean }): Observable<AuthenticatedUser> {
     const rememberMe = credentials.rememberMe ?? false;
     return this.http

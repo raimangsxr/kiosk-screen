@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { LoginComponent } from './auth/login.component';
+import { ActivateComponent } from './auth/activate.component';
 import { authRootGuard, sessionGuard } from './auth/session.guard';
 import { DisplayScreenComponent } from './features/display/display-screen.component';
 import { HallComponent } from './features/hall/hall.component';
@@ -23,6 +24,7 @@ import { dirtyFormGuard } from './shared/dirty-form.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
+  { path: 'activate', component: ActivateComponent },
   { path: 'hall', component: HallComponent, canActivate: [sessionGuard] },
   { path: 'display', component: DisplayScreenComponent, canActivate: [sessionGuard] },
   { path: 'remote-control', pathMatch: 'full', redirectTo: 'admin/remote-control' },

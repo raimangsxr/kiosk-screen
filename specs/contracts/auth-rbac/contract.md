@@ -23,6 +23,7 @@ related_changes:
   - CHG-010
   - CHG-029
   - CHG-031
+  - CHG-052
 related_adrs:
   - ADR-0008
 ---
@@ -52,6 +53,7 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - Auth, display, and user-admin failures return the application error envelope (`code`, `message`, `category`, optional `details`, optional `correlationId` from `x-request-id`).
 - Invalid role strings stored for a user yield HTTP 403 with code `invalid_role` when RBAC is enforced (not an unhandled 500).
 - Duplicate user email within an organization returns HTTP 409 with code `duplicate_email`.
+- **Device activation (CHG-052)**: kiosk requests pairing via `POST /auth/device-activation/start` (anonymous); displays 6-letter `userCode` and QR to `/activate?code={userCode}`; polls `POST /auth/device-activation/poll` with opaque `deviceCode` every ~2 s. Authenticated users with `can_open_display` authorize via `POST /auth/device-activation/authorize`. Session cookie is issued on successful poll (same shape as login, including `rememberMe` from mobile). Codes are 6 uppercase letters A–Z, TTL 15 minutes, single-use, auto-rotated on kiosk when expired. Failed authorize attempts are rate-limited per client IP (10 failures / 15 min). `/login` defaults to activation (QR + code); email/password login remains via secondary toggle and still redirects to `/hall`. `/activate` is public; success shows static confirmation without redirect.
 
 ## Public interfaces
 
@@ -59,6 +61,9 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - `POST /auth/logout`
 - `GET /auth/me`
 - `POST /auth/change-password`
+- `POST /auth/device-activation/start`
+- `POST /auth/device-activation/authorize`
+- `POST /auth/device-activation/poll`
 - `/api/v1/auth/*`
 - `/api/v1/users/*`
 
@@ -92,3 +97,4 @@ This active contract is the current source of truth for `AUTH.RBAC`. Historical 
 - CHG-031
 - CHG-032
 - CHG-033
+- CHG-052

@@ -18,7 +18,7 @@ Kiosk Screen is a FastAPI + Angular web application for live event kiosk display
 ## Active SDD work
 
 - Recently implemented: CHG-051 (kiosk runtime performance), CHG-049 (display device admin), CHG-048 (content now playing & rotation logs), CHG-047 (admin content list SSE), CHG-046 (top content list UX), CHG-045 (per-display iframe scale), CHG-044 (iframe CSS scale), CHG-041 (display orchestration SSE), CHG-040 (admin operations dashboard), CHG-024 (event config sync), CHG-027 (novelty rotation), CHG-028 (blur-fill), CHG-035 (admin mobile), CHG-036 (sponsor strip), CHG-037 (hall version), CHG-038 (PWA), CHG-039 (independent recurring counters)
-- Active plan: none — CHG-051 implemented (`specs/changes/051-kiosk-runtime-performance/`)
+- Active plan: CHG-052 device QR login (`specs/changes/052-device-qr-login/`)
 - Recently consolidated: `023-event-branding-layout` → `EVENT.BRANDING` + `DISPLAY.RUNTIME`
 - Cancelled: `022-i18n-locale-switching` (multi-language UI dropped; frontend ships Spanish only); CHG-042/043 (embed density — superseded by CHG-044)
 
@@ -43,5 +43,5 @@ docker build -f frontend/Dockerfile frontend
 For local setup and troubleshooting, read `docs/dev/local-lab.md` instead of loading this file into every task.
 
 <!-- SPECKIT START -->
-**Active plan**: none — CHG-051 implemented (`specs/changes/051-kiosk-runtime-performance/`)
+**Active plan**: CHG-052 device QR login (`specs/changes/052-device-qr-login/plan.md`)
 <!-- SPECKIT END -->
