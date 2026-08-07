@@ -153,6 +153,10 @@ def test_orchestrator_novelty_fan_out_same_command_id(
     factory = getattr(app.state, "orchestrator_session_factory", None)
     assert factory is not None
     with factory() as session:
+        # CHG-056: the novelty is deferred until every connected kiosk reports its
+        # media ready; once all three do, the emit fans out with a single commandId.
+        for kiosk_id in kiosk_ids:
+            orchestrator.handle_novelty_preload_ready(session, kiosk_id=kiosk_id, content_id=content_id)
         orchestrator.advance_top(session, reason="test")
 
     command_ids: list[str] = []
