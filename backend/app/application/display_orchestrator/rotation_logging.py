@@ -32,6 +32,14 @@ def _snapshot_extra(
         ),
         "novelties": list(snapshot.novelties),
     }
+    if snapshot.rescheduled_regular is not None:
+        extra["rescheduledRegular"] = {
+            "id": snapshot.rescheduled_regular.id,
+            "title": snapshot.rescheduled_regular.title,
+        }
+    if snapshot.novelty_defer_counts:
+        extra["deferCounts"] = dict(snapshot.novelty_defer_counts)
+    return extra
 
 
 def log_rotation_plan(

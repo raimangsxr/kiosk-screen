@@ -3,7 +3,14 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, distinctUntilChanged, shareReplay, switchMap, timer } from 'rxjs';
 
 import { MediaFileReference, RotationAnimation } from '../../shared/media-upload.models';
-import { sameAdsState, sameDisplayConfiguration, sameTopContentState } from '../../display/display-fingerprint';
+import type { ShowAdsPayload, ShowContentPayload } from '../../display/display-stream.models';
+import {
+  runtimeAdsFingerprint,
+  runtimeTopFingerprint,
+  sameAdsState,
+  sameDisplayConfiguration,
+  sameTopContentState,
+} from '../../display/display-fingerprint';
 import { IframeItem } from './iframe.api';
 
 export interface DisplayKioskConfiguration {
@@ -24,6 +31,7 @@ export interface DisplayKioskConfiguration {
   remoteControlPollingSeconds?: number;
   videoEndDelaySeconds?: number;
   iframePreventiveReloadSeconds?: number;
+  noveltyMaxDeferTransitions?: number;
   isEnabled: boolean;
 }
 
@@ -90,6 +98,8 @@ export interface DisplayState {
   selectedIframe?: IframeItem | null;
   fallbackActive: boolean;
   fixedEligibleContents?: DisplayFixedEligibleContentItem[];
+  currentTop?: ShowContentPayload | null;
+  currentAds?: ShowAdsPayload | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -148,6 +158,8 @@ export function equalByDisplayFingerprint(prev: DisplayState | null, curr: Displ
     prev.remoteControl?.jumpToContentId === curr.remoteControl?.jumpToContentId &&
     prev.remoteControl?.contentMode === curr.remoteControl?.contentMode &&
     prev.selectedIframe?.id === curr.selectedIframe?.id &&
-    (prev.selectedIframe?.url ?? '') === (curr.selectedIframe?.url ?? '')
+    (prev.selectedIframe?.url ?? '') === (curr.selectedIframe?.url ?? '') &&
+    runtimeTopFingerprint(prev.currentTop) === runtimeTopFingerprint(curr.currentTop) &&
+    runtimeAdsFingerprint(prev.currentAds) === runtimeAdsFingerprint(curr.currentAds)
   );
 }

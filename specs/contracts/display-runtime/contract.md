@@ -37,6 +37,8 @@ related_changes:
   - CHG-050
   - CHG-051
   - CHG-053
+  - CHG-056
+  - CHG-057
 related_adrs:
   - ADR-0001
   - ADR-0002
@@ -82,19 +84,21 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - **SSE heartbeats (CHG-051)**: Display stream keep-alives are SSE **comments** (`: ping`), not application JSON events. They MUST NOT update viewer state, advance sequence, or appear in client `lastEvent`.
 - **Reconnect auth (CHG-051)**: On `EventSource` error, session verification is debounced (minimum 5 s between attempts) and single-flight.
 - **Change detection (CHG-051)**: `DisplayScreenComponent` uses `OnPush`; avoids full `detectChanges()` on every content tick.
-- **`show_ads` dedupe (CHG-051, CHG-053)**: Client ignores consecutive equivalent visible `show_ads` windows before state updates and media warm. Command identity alone is not part of visible equivalence; ordered items, start index, layout and transition style are. Server payload is unchanged.
+- **`show_ads` dedupe (CHG-051, CHG-053, CHG-057)**: Client ignores consecutive equivalent visible `show_ads` windows before **media warm** and **visible state writes**. Command identity alone is not part of visible equivalence; ordered items, start index, layout and transition style are. When configured animation ≠ `none`, sponsor rotation animation still runs on each server tick even if the visible window is unchanged. Animation `none` remains static.
 - **Reactive command isolation (CHG-053)**: Each SSE command effect tracks only its source command signal. Reads and mutations performed while applying a command do not become incidental dependencies that can replay it.
 - **Polling handoff (CHG-051, CHG-053)**: Display activation and fallback-polling state are reactive. When SSE reconnects after fallback polling, polling stops within one confirmation cycle; both channels MUST NOT run indefinitely.
 - **Display SSE queue (CHG-051)**: Each display subscriber has a FIFO queue max 64 events with drop-oldest on overflow.
 - `DisplayPollingService` provides degraded-fallback lifecycle when SSE is down: exponential backoff, fatal 401/403, `reconnecting` / `openError` signals, and a visible fallback banner after 60 seconds.
 - Transient SSE failures keep rendering the last known frame and show a non-intrusive reconnecting indicator.
 - Leaving `/display` closes the SSE stream and releases timers without subscription leaks.
-- `DisplayContentGateService` (CHG-050) holds pending `show_content` with latest-wins semantics and commits to `DisplayViewerController` only when `DisplayMediaCacheService` reports media ready (image decode / video `canplay`). Video probing MUST NOT wait for the heuristic `canplaythrough` event because the backing blob is already fully downloaded and browsers are not required to emit that estimate reliably. While pending, the last committed slide stays visible; remote media URLs are not rendered before ready (no black-frame fallback).
+- `DisplayContentGateService` (CHG-050) holds pending `show_content` with latest-wins semantics and commits to `DisplayViewerController` only when `DisplayMediaCacheService` reports media ready for **regular** loop content. **`reason: "novelty"` bypasses the gate** and commits immediately (CHG-056); server defers emission until all connected kiosks report ready via `novelty_preload_ready`.
 - Gate, novelty preload warm, and novelty queue indicator are inactive when `contentMode` is fixed or iframe, or when loop is paused.
 - On preload/gate failure or `GATE_TIMEOUT_MS` (30 s default in `display-content-gate.service.ts`), kiosk posts `media_error`; committed content remains until the next `show_content`.
 - `DisplayMediaCacheService` downloads media FIFO with max 3 concurrent fetches; dedupes cached and in-flight URLs.
 - **Novelty queue indicator** (CHG-050): discrete always-visible overlay (bottom-right, reduced opacity) with one icon per pending novelty (image/video glyph). Check when ready; error overlay on failed download; max 5 icons + `+N` overflow; hidden when queue empty or gate inactive. Icons removed on gate commit (real visibility), skip, or tracker resync from latest preload/snapshot.
-- `NoveltyQueueTrackerService` syncs from the latest `preload` payload (authoritative ordered ids) and `snapshot.pendingNovelties`; subscribes to gate `onCommitted(contentId)`.
+- `NoveltyQueueTrackerService` syncs from the latest `preload` payload (authoritative ordered ids) and `snapshot.pendingNovelties` (includes `deferCount`, `maxDefer`, `downloadReady`); subscribes to gate `onCommitted(contentId)`. Icons removed on commit, server discard (id absent from pending set), or tracker resync.
+- `NoveltyPreloadReadyService` posts `novelty_preload_ready` when local cache ready for each pending novelty (inactive in pause/fixed/iframe).
+- **Fallback runtime sync (CHG-057)**: Polled `DisplayState` includes optional `currentTop` / `currentAds`; `equalByDisplayFingerprint` compares runtime position so fallback polling advances sponsors and loop top content. `seedViewerFromState` applies runtime fields when present. Recovery is silent (no new kiosk banners).
 
 ## Public interfaces
 
@@ -131,6 +135,7 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - `frontend/src/app/display/iframe-scale.service.ts`
 - `frontend/src/app/display/display-media-cache.service.ts`
 - `frontend/src/app/display/display-content-gate.service.ts`
+- `frontend/src/app/display/novelty-preload-ready.service.ts`
 - `frontend/src/app/display/novelty-queue-tracker.service.ts`
 - `frontend/src/app/display/novelty-queue-indicator.component.ts`
 - `frontend/src/app/display/display-stream.models.ts`
@@ -164,4 +169,5 @@ This active contract is the current source of truth for `DISPLAY.RUNTIME`. Histo
 - CHG-050 — novelty media preload, display content gate, novelty queue indicator overlay.
 - CHG-051 — bounded media retention, single-video backdrop, SSE comment pings, auth debounce, OnPush, `show_ads` dedupe, display SSE queue cap; ephemeral stream DB sessions + pool tuning, async SSE fan-out, idle-orchestrator reaper, snapshot cache, pub/sub reconnect, admin-configurable iframe preventive reload.
 - CHG-053 — single-original photo/video backdrop artifacts, one-candidate preload enforcement including late completion cleanup, visible-window sponsor dedupe, isolated SSE command effects, reactive fallback lifecycle, and reduced-motion sponsor/content animation suppression.
+- CHG-056 — novelty defer rotation: server-side defer, gate bypass for novelties, `novelty_preload_ready`, enriched snapshot pendingNovelties.
 - CHG-029 (recurring-content rotation refresh without full page reload, pre-formal spec)

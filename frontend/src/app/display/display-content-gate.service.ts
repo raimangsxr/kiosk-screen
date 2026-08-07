@@ -26,7 +26,7 @@ export class DisplayContentGateService {
   readonly onCommitted = this.committedSubject.asObservable();
 
   enqueueShowContent(payload: ShowContentPayload): void {
-    if (!this.isGateActive()) {
+    if (payload.reason === 'novelty' || !this.isGateActive()) {
       this.commitImmediately(payload);
       return;
     }

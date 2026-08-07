@@ -41,6 +41,7 @@ def apply_remote_state(
 ) -> None:
     state = orchestrator._load_state()  # noqa: SLF001
     previous_mode = state.get("contentMode", "loop")
+    previous_ads_visible = state.get("adsVisible", True)
     new_mode = remote.content_mode
     is_paused = remote.navigation_command == "pause"
 
@@ -65,6 +66,12 @@ def apply_remote_state(
         patch["loopCursorBeforeFixed"] = None
 
     orchestrator._update_state(patch)  # noqa: SLF001
+
+    if previous_ads_visible and not remote.ads_visible:
+        orchestrator._scheduler.cancel_ad()  # noqa: SLF001
+    elif not previous_ads_visible and remote.ads_visible:
+        orchestrator.ensure_ad_rotation(session)
+
     publish_mode_changed(
         orchestrator,
         content_mode=new_mode,

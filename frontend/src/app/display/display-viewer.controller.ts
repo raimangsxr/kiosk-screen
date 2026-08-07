@@ -12,6 +12,7 @@ import type {
   SnapshotIframe,
   SnapshotPayload,
 } from './display-stream.models';
+import { showAdsVisibleWindowFingerprint } from './display-fingerprint';
 
 @Injectable()
 export class DisplayViewerController {
@@ -108,59 +109,57 @@ export class DisplayViewerController {
   }
 
   applyShowAds(payload: ShowAdsPayload): void {
-    const fingerprint = this.showAdsFingerprint(payload);
-    if (fingerprint === this.lastShowAdsFingerprint) {
-      return;
-    }
-    this.lastShowAdsFingerprint = fingerprint;
+    const fingerprint = showAdsVisibleWindowFingerprint(payload);
+    const fingerprintChanged = fingerprint !== this.lastShowAdsFingerprint;
+    const shouldAnimate = this.effectiveAdAnimation(payload) !== 'none';
 
-    const count = Math.max(1, payload.inlineAdCount ?? 1);
-    const items = payload.items;
-    const start = payload.startIndex ?? 0;
-    const visible: DisplayAdItem[] = [];
-    for (let index = 0; index < count; index += 1) {
-      const item = items[(start + index) % items.length];
-      if (item) {
-        visible.push(item);
+    if (fingerprintChanged) {
+      this.lastShowAdsFingerprint = fingerprint;
+
+      const count = Math.max(1, payload.inlineAdCount ?? 1);
+      const items = payload.items;
+      const start = payload.startIndex ?? 0;
+      const visible: DisplayAdItem[] = [];
+      for (let index = 0; index < count; index += 1) {
+        const item = items[(start + index) % items.length];
+        if (item) {
+          visible.push(item);
+        }
       }
+      this.visibleAds.set(visible);
+      this.inlineAdCount.set(count);
+      this.adBorderStyle.set({
+        borderRadius: `${payload.border.radiusPx}px`,
+        borderWidth: `${payload.border.widthPx}px`,
+        borderColor: payload.border.color,
+        borderStyle: 'solid',
+      });
     }
-    this.visibleAds.set(visible);
-    this.inlineAdCount.set(count);
-    this.adBorderStyle.set({
-      borderRadius: `${payload.border.radiusPx}px`,
-      borderWidth: `${payload.border.widthPx}px`,
-      borderColor: payload.border.color,
-      borderStyle: 'solid',
-    });
-    this.adAnimationRun.update((value) => value + 1);
+
+    if (shouldAnimate) {
+      this.adAnimationRun.update((value) => value + 1);
+    }
   }
 
   showAdsFingerprint(payload: ShowAdsPayload): string {
+    return showAdsVisibleWindowFingerprint(payload);
+  }
+
+  private effectiveAdAnimation(payload: ShowAdsPayload): string {
+    if (payload.transition?.animation && payload.transition.animation !== 'none') {
+      return payload.transition.animation;
+    }
     const count = Math.max(1, payload.inlineAdCount ?? 1);
     const items = payload.items;
     const start = payload.startIndex ?? 0;
-    const visibleItems: Array<Record<string, unknown>> = [];
     for (let index = 0; index < count; index += 1) {
       const item = items[(start + index) % items.length];
-      if (item) {
-        visibleItems.push({
-          id: item.id,
-          mediaUrl: item.mediaFile?.mediaUrl ?? item.sourceReference,
-          animation: item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
-          animationDurationMs:
-            item.effectiveAnimationDurationMilliseconds
-            ?? item.animationDurationMilliseconds
-            ?? null,
-        });
+      const animation = item?.effectiveRotationAnimation ?? item?.rotationAnimation ?? 'none';
+      if (animation !== 'none') {
+        return animation;
       }
     }
-    return JSON.stringify({
-      startIndex: start,
-      inlineAdCount: count,
-      visibleItems,
-      border: payload.border,
-      transition: payload.transition,
-    });
+    return 'none';
   }
 
   onVideoEnded(content: DisplayContentItem): void {

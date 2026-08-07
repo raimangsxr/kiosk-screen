@@ -55,6 +55,7 @@ def to_configuration_schema(configuration: KioskDisplayConfiguration) -> KioskCo
         remoteControlPollingSeconds=configuration.remote_control_polling_seconds,
         videoEndDelaySeconds=configuration.video_end_delay_seconds,
         iframePreventiveReloadSeconds=configuration.iframe_preventive_reload_seconds,
+        noveltyMaxDeferTransitions=configuration.novelty_max_defer_transitions,
         isEnabled=configuration.is_enabled,
     )
 

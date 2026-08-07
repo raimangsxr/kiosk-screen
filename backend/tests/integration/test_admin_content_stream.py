@@ -1,5 +1,6 @@
 """Integration tests for admin content inventory SSE (CHG-047)."""
 import queue
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -33,6 +34,18 @@ def _organization_id(api_client: TestClient) -> str:
 def _drain_subscriber(subscriber) -> None:
     while not subscriber.events.empty():
         subscriber.events.get_nowait()
+
+
+def _wait_for_event(subscriber, event_type: str, *, timeout: float = 2.0):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            event = subscriber.events.get(timeout=0.2)
+        except queue.Empty:
+            continue
+        if event["type"] == event_type:
+            return event
+    return None
 
 
 def test_unauthenticated_stream_returns_401(api_client: TestClient) -> None:
@@ -131,6 +144,7 @@ def test_novelty_consume_publishes_novelty_consumed(
     display_hub.start()
     registration = display_hub.get_kiosk(kiosk_id)
     assert registration is not None
+    display_hub.subscribe(registration)
     orchestrator = OrchestratorRegistry.get(registration.organization_id, registration.operator_session_id)
     assert orchestrator is not None
 
@@ -141,8 +155,11 @@ def test_novelty_consume_publishes_novelty_consumed(
 
     factory = api_client.app.state.orchestrator_session_factory
     with factory() as session:
+        # CHG-056: the orchestrator defers the novelty until every connected kiosk
+        # reports its media ready, so emission (and consumption) needs readiness first.
+        orchestrator.handle_novelty_preload_ready(session, kiosk_id=kiosk_id, content_id=content_id)
         orchestrator.advance_top(session, reason="test")
 
-    event = subscriber.events.get(timeout=2)
-    assert event["type"] == "content_inventory_changed"
+    event = _wait_for_event(subscriber, "content_inventory_changed")
+    assert event is not None
     assert event["reason"] == "novelty_consumed"

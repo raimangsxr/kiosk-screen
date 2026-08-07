@@ -45,6 +45,7 @@ interface DisplayConfigFormValue {
   remoteControlPollingSeconds: number;
   videoEndDelaySeconds: number;
   iframePreventiveReloadSeconds: number;
+  noveltyMaxDeferTransitions: number;
   isEnabled: boolean;
 }
 
@@ -274,6 +275,18 @@ interface DisplayConfigFormValue {
             </mat-form-field>
 
             <mat-form-field appearance="outline" subscriptSizing="dynamic">
+              <mat-label>Máximo de aplazamientos de novedad</mat-label>
+              <input matInput type="number" formControlName="noveltyMaxDeferTransitions" min="1" max="10" required />
+              @if (form.controls.noveltyMaxDeferTransitions.hasError('min') || form.controls.noveltyMaxDeferTransitions.hasError('max')) {
+                <mat-error>
+                  Debe estar entre 1 y 10.
+                </mat-error>
+              } @else {
+                <mat-hint>Transiciones de rotación que una novedad puede esperar sin descargarse antes de descartarse.</mat-hint>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
               <mat-label>Recarga preventiva del iframe (s, 0 = desactivada)</mat-label>
               <input matInput type="number" formControlName="iframePreventiveReloadSeconds" min="0" max="86400" required />
               @if (form.controls.iframePreventiveReloadSeconds.hasError('min') || form.controls.iframePreventiveReloadSeconds.hasError('max')) {
@@ -383,6 +396,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
     remoteControlPollingSeconds: FormControl<number>;
     videoEndDelaySeconds: FormControl<number>;
     iframePreventiveReloadSeconds: FormControl<number>;
+    noveltyMaxDeferTransitions: FormControl<number>;
     isEnabled: FormControl<boolean>;
   }> | null = null;
 
@@ -440,6 +454,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       remoteControlPollingSeconds: value.remoteControlPollingSeconds,
       videoEndDelaySeconds: value.videoEndDelaySeconds,
       iframePreventiveReloadSeconds: value.iframePreventiveReloadSeconds,
+      noveltyMaxDeferTransitions: value.noveltyMaxDeferTransitions,
       isEnabled: value.isEnabled
     };
     this.saveError.set(null);
@@ -505,6 +520,9 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       iframePreventiveReloadSeconds: this.fb.nonNullable.control(0, {
         validators: [Validators.required, Validators.min(0), Validators.max(86400)]
       }),
+      noveltyMaxDeferTransitions: this.fb.nonNullable.control(3, {
+        validators: [Validators.required, Validators.min(1), Validators.max(10)]
+      }),
       isEnabled: this.fb.nonNullable.control(true)
     });
   }
@@ -530,6 +548,7 @@ export class DisplayConfigComponent implements OnInit, OnDestroy, DirtyFormAware
       remoteControlPollingSeconds: config.remoteControlPollingSeconds,
       videoEndDelaySeconds: config.videoEndDelaySeconds ?? 2,
       iframePreventiveReloadSeconds: config.iframePreventiveReloadSeconds ?? 0,
+      noveltyMaxDeferTransitions: config.noveltyMaxDeferTransitions ?? 3,
       isEnabled: config.isEnabled
     });
     this.markPristine();

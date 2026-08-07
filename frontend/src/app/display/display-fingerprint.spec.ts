@@ -1,8 +1,11 @@
 import { DisplayAdItem, DisplayContentItem, DisplayKioskConfiguration } from '../core/api/display.api';
 import {
+  runtimeAdsFingerprint,
+  runtimeTopFingerprint,
   sameAdsState,
   sameDisplayConfiguration,
-  sameTopContentState
+  sameTopContentState,
+  showAdsVisibleWindowFingerprint,
 } from './display-fingerprint';
 
 function makeContent(id: string, displayOrder: number, overrides: Partial<DisplayContentItem> = {}): DisplayContentItem {
@@ -158,5 +161,30 @@ describe('sameDisplayConfiguration', () => {
     expect(
       sameDisplayConfiguration(makeConfig({ inlineAdItemBorderColor: '#ffffff' }), makeConfig({ inlineAdItemBorderColor: '#102832' })),
     ).toBeFalse();
+  });
+});
+
+describe('runtime rotation fingerprints', () => {
+  it('detects currentTop command changes', () => {
+    expect(runtimeTopFingerprint({ commandId: 'a', content: { id: '1' } as never })).not.toBe(
+      runtimeTopFingerprint({ commandId: 'b', content: { id: '1' } as never }),
+    );
+  });
+
+  it('detects currentAds window changes', () => {
+    const base = {
+      commandId: 'cmd-1',
+      items: [makeAd('a', 1)],
+      startIndex: 0,
+      inlineAdCount: 1,
+      border: { radiusPx: 5, widthPx: 0, color: '#fff' },
+      transition: { animation: 'slide' as const, durationMs: 300 },
+      durationSeconds: 8,
+      reason: 'bootstrap' as const,
+    };
+    expect(runtimeAdsFingerprint(base)).not.toBe(
+      runtimeAdsFingerprint({ ...base, startIndex: 1 }),
+    );
+    expect(showAdsVisibleWindowFingerprint(base)).toBe(runtimeAdsFingerprint(base));
   });
 });

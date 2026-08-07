@@ -3,8 +3,8 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.api.mappers import to_configuration_schema, to_iframe_schema
-from app.application.display_orchestrator.command_builder import build_show_ads_payload, build_show_content_payload
-from app.services.display_service import eligible_ads, eligible_top_content, get_display_state
+from app.application.display_orchestrator.runtime_state import build_current_ads_payload, build_current_top_payload
+from app.services.display_service import get_display_state
 
 
 def build_snapshot_payload(
@@ -27,35 +27,8 @@ def build_snapshot_payload(
     current_top = None
     current_ads = None
     if orchestrator is not None:
-        extras = orchestrator.current_snapshot_extras()
-        command_id = extras.get("currentTopCommandId")
-        content_id = extras.get("currentTopContentId")
-        if command_id and content_id:
-            item = next(
-                (row for row in eligible_top_content(session, organization_id) if str(row.id) == content_id),
-                None,
-            )
-            if item is not None:
-                playback_mode = "video" if item.content_type == "video" else "timer"
-                current_top = build_show_content_payload(
-                    item=item,
-                    configuration=state.configuration,
-                    command_id=str(command_id),
-                    reason="snapshot",
-                    playback_mode=playback_mode,
-                )
-        ad_command_id = extras.get("currentAdCommandId")
-        start_index = extras.get("currentAdStartIndex")
-        if ad_command_id is not None and start_index is not None:
-            ads = eligible_ads(session, organization_id)
-            if ads:
-                current_ads = build_show_ads_payload(
-                    ads=ads,
-                    configuration=state.configuration,
-                    command_id=ad_command_id,
-                    start_index=max(0, int(start_index) - (state.configuration.inline_ad_count or 1)),
-                    reason="snapshot",
-                )
+        current_top = build_current_top_payload(session, orchestrator, organization_id)
+        current_ads = build_current_ads_payload(session, orchestrator, organization_id)
     payload = {
         "configuration": configuration,
         "contentMode": content_mode,

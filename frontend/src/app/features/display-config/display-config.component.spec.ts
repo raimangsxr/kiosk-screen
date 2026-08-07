@@ -26,6 +26,7 @@ const configuration: KioskConfiguration = {
   inlineAdItemBorderColor: '#ffffff',
   remoteControlPollingSeconds: 3,
   videoEndDelaySeconds: 2,
+  noveltyMaxDeferTransitions: 3,
   isEnabled: true
 };
 
@@ -195,5 +196,29 @@ describe('DisplayConfigComponent (Reactive Forms + Material)', () => {
     fixture.detectChanges();
     const text = (fixture.nativeElement.textContent as string).toLowerCase();
     expect(text).not.toContain('readiness');
+  });
+
+  it('loads noveltyMaxDeferTransitions from configuration', () => {
+    const form = fixture.componentInstance['form']!;
+    expect(form.controls.noveltyMaxDeferTransitions.value).toBe(3);
+  });
+
+  it('rejects noveltyMaxDeferTransitions outside [1, 10]', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.noveltyMaxDeferTransitions.setValue(0);
+    expect(form.controls.noveltyMaxDeferTransitions.hasError('min')).toBeTrue();
+    form.controls.noveltyMaxDeferTransitions.setValue(11);
+    expect(form.controls.noveltyMaxDeferTransitions.hasError('max')).toBeTrue();
+    fixture.componentInstance.submit();
+    httpController.expectNone((req) => req.method === 'PUT');
+  });
+
+  it('sends noveltyMaxDeferTransitions in the PUT payload', () => {
+    const form = fixture.componentInstance['form']!;
+    form.controls.noveltyMaxDeferTransitions.setValue(5);
+    fixture.componentInstance.submit();
+    const put = httpController.expectOne('/api/display/configuration');
+    expect(put.request.body).toEqual(jasmine.objectContaining({ noveltyMaxDeferTransitions: 5 }));
+    put.flush(buildConfig({ noveltyMaxDeferTransitions: 5 }));
   });
 });

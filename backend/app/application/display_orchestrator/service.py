@@ -49,6 +49,9 @@ def _default_state() -> dict[str, Any]:
         "fillerCursorId": None,
         "recurringCounters": {},
         "noveltyBurstActive": False,
+        "noveltyDeferCounts": {},
+        "noveltyReadyKiosks": {},
+        "rescheduledRegularContentId": None,
     }
 
 
@@ -174,6 +177,28 @@ class DisplayOrchestrator:
             patch["pendingInlineAdCount"] = after_values.get("inlineAdCount")
         if patch:
             self._update_state(patch)
+        if "noveltyMaxDeferTransitions" in changed_fields:
+            from app.application.display_orchestrator.novelty_defer import trim_defer_counts
+
+            trim_defer_counts(self, int(after_values.get("noveltyMaxDeferTransitions") or 3))
+
+    def handle_novelty_preload_ready(
+        self,
+        session: Session,
+        *,
+        kiosk_id: str,
+        content_id: str,
+    ) -> None:
+        from app.application.display_orchestrator.hooks import _maybe_log_rotation_replan
+        from app.application.display_orchestrator.novelty_defer import record_novelty_ready
+
+        record_novelty_ready(self, kiosk_id, content_id)
+        _maybe_log_rotation_replan(self, session, reason="novelty_preload_ready")
+
+    def on_kiosk_disconnected(self, kiosk_id: str) -> None:
+        from app.application.display_orchestrator.novelty_defer import remove_kiosk_from_ready_sets
+
+        remove_kiosk_from_ready_sets(self, kiosk_id)
 
     def handle_video_ended(self, session: Session, *, command_id: str) -> bool:
         state = self._load_state()
@@ -236,6 +261,7 @@ class DisplayOrchestrator:
     def advance_ad(self, session: Session, *, reason: str = "ad_rotation") -> None:
         state = self._load_state()
         if not state.get("adsVisible", True):
+            self._scheduler.cancel_ad()
             return
 
         configuration = self._configuration(session)
@@ -297,6 +323,7 @@ class DisplayOrchestrator:
 
         ads = eligible_ads(session, self.organization_id)
         if not ads:
+            self._scheduler.cancel_ad()
             return
 
         visible_count = configuration.inline_ad_count or 1

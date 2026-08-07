@@ -175,4 +175,27 @@ describe('equalByDisplayFingerprint', () => {
     });
     expect(equalByDisplayFingerprint(prev, next)).toBeFalse();
   });
+
+  it('detects currentAds rotation window changes', () => {
+    const prev = buildBaseState({
+      currentAds: {
+        commandId: 'cmd-1',
+        items: [{ id: 'a-1', sourceReference: 'https://example.com/a.jpg', isActive: true, displayOrder: 1, effectiveDurationSeconds: 10, effectiveRotationAnimation: 'slide' }],
+        startIndex: 0,
+        inlineAdCount: 1,
+        border: { radiusPx: 5, widthPx: 0, color: '#fff' },
+        transition: { animation: 'slide', durationMs: 300 },
+        durationSeconds: 10,
+        reason: 'snapshot',
+      },
+    });
+    const next = buildBaseState({
+      currentAds: {
+        ...prev.currentAds!,
+        startIndex: 1,
+        commandId: 'cmd-2',
+      },
+    });
+    expect(equalByDisplayFingerprint(prev, next)).toBeFalse();
+  });
 });

@@ -118,4 +118,25 @@ describe('DisplayContentGateService', () => {
     }));
     expect(viewer.currentContent()).toBeNull();
   }));
+
+  it('commits novelty immediately without waiting for media cache', fakeAsync(() => {
+    ensureReady.and.returnValue(new Promise(() => undefined));
+    const noveltyPayload: ShowContentPayload = {
+      ...payload('cmd-novelty'),
+      reason: 'novelty',
+    };
+    gate.enqueueShowContent(noveltyPayload);
+    tick();
+
+    expect(viewer.currentContent()?.id).toBe('content-1');
+    http.expectNone('/api/display/kiosk/events');
+  }));
+
+  it('still holds regular content until media is ready', async () => {
+    ensureReady.and.returnValue(new Promise(() => undefined));
+    viewer.currentContent.set(content);
+    gate.enqueueShowContent(payload('cmd-regular', 'content-2'));
+    await Promise.resolve();
+    expect(viewer.currentContent()?.id).toBe('content-1');
+  });
 });
