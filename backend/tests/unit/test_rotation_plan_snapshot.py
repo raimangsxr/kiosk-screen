@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.application.display_orchestrator import redis_state
 from app.application.display_orchestrator.registry import OrchestratorRegistry
 from app.application.display_orchestrator.rotation_plan import compute_rotation_plan_snapshot
-from app.application.display_orchestrator.sse_hub import reset_display_sse_hub
+from app.application.display_orchestrator.sse_hub import get_display_sse_hub, reset_display_sse_hub
 from app.repositories.models.content import TopContentItem
 from app.services.bootstrap_service import bootstrap_mvp_data
 
@@ -122,6 +122,40 @@ def test_snapshot_multiple_novelties_in_display_order(orchestrator_env) -> None:
 
     snapshot = compute_rotation_plan_snapshot(orchestrator, session)
     assert snapshot.novelties == (str(novelty_b.id), str(novelty_a.id))
+
+
+def test_snapshot_ready_novelty_precedes_rescheduled_regular(orchestrator_env) -> None:
+    orchestrator, session, org_id = orchestrator_env
+    regular_a = _content(org_id, display_order=1, title="Item 1")
+    regular_b = _content(org_id, display_order=2, title="Item 2")
+    novelty = _content(org_id, display_order=6, title="Novelty 6", is_novelty=True)
+    session.add_all([regular_a, regular_b, novelty])
+    session.commit()
+    hub = get_display_sse_hub()
+    registration = hub.register_kiosk(
+        organization_id=org_id,
+        operator_session_id=orchestrator.operator_session_id,
+        client_instance_id="ready-planner",
+        label="Planner kiosk",
+    )
+    hub.subscribe(registration)
+    orchestrator._update_state(  # noqa: SLF001
+        {
+            "contentMode": "loop",
+            "isPaused": False,
+            "currentTopContentId": str(regular_a.id),
+            "regularCursorId": str(regular_a.id),
+            "rescheduledRegularContentId": str(regular_b.id),
+            "noveltyReadyKiosks": {str(novelty.id): [registration.kiosk_id]},
+        }
+    )
+
+    snapshot = compute_rotation_plan_snapshot(orchestrator, session)
+
+    assert snapshot.next is not None
+    assert snapshot.next.id == str(novelty.id)
+    assert snapshot.rescheduled_regular is not None
+    assert snapshot.rescheduled_regular.id == str(regular_b.id)
 
 
 def test_snapshot_paused_returns_null_showing(orchestrator_env) -> None:

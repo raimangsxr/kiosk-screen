@@ -6,7 +6,6 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.application.admin_content.hooks import (
-    get_now_playing_for_org,
     notify_admin_content_inventory_changed,
     notify_now_playing_changed,
 )
@@ -121,6 +120,46 @@ def advance_loop_top(
     )
     from app.application.display_orchestrator.service import _pick_next_regular, _regular_queue
 
+    pending_novelties = novelty_queue(eligible)
+    if pending_novelties:
+        head = pending_novelties[0]
+        head_id = str(head.id)
+        connected_ids = get_connected_kiosk_ids(orchestrator)
+        max_defer = configuration.novelty_max_defer_transitions
+        defer_count = get_defer_count(state, head_id)
+        state = orchestrator._load_state()  # noqa: SLF001
+
+        if is_novelty_ready(state, head_id, connected_ids):
+            rescheduled_id = state.get("rescheduledRegularContentId")
+            if not rescheduled_id:
+                regular = _regular_queue(eligible)
+                rescheduled = _pick_next_regular(regular, state.get("regularCursorId"))
+                rescheduled_id = str(rescheduled.id) if rescheduled is not None else None
+            consume_novelty(session, orchestrator.organization_id, head_id)
+            emit_top_content(
+                orchestrator,
+                session,
+                head,
+                configuration,
+                reason="novelty",
+                update_regular_cursor=False,
+                counters=counters,
+            )
+            orchestrator._update_state(  # noqa: SLF001
+                {
+                    "rescheduledRegularContentId": rescheduled_id,
+                }
+            )
+            prune_novelty_state(orchestrator, head_id)
+            return True
+
+        if defer_count >= max_defer:
+            consume_novelty(session, orchestrator.organization_id, head_id)
+            prune_novelty_state(orchestrator, head_id)
+        else:
+            increment_defer_count(orchestrator, head_id)
+
+    state = orchestrator._load_state()  # noqa: SLF001
     rescheduled_id = state.get("rescheduledRegularContentId")
     if rescheduled_id:
         rescheduled_item = _lookup_eligible_item(session, orchestrator.organization_id, str(rescheduled_id))
@@ -138,44 +177,6 @@ def advance_loop_top(
             orchestrator._update_state({"rescheduledRegularContentId": None})  # noqa: SLF001
             return True
         orchestrator._update_state({"rescheduledRegularContentId": None})  # noqa: SLF001
-
-    pending_novelties = novelty_queue(eligible)
-    if pending_novelties:
-        head = pending_novelties[0]
-        head_id = str(head.id)
-        connected_ids = get_connected_kiosk_ids(orchestrator)
-        max_defer = configuration.novelty_max_defer_transitions
-        defer_count = get_defer_count(state, head_id)
-        state = orchestrator._load_state()  # noqa: SLF001
-
-        if is_novelty_ready(state, head_id, connected_ids):
-            regular = _regular_queue(eligible)
-            rescheduled = _pick_next_regular(regular, state.get("regularCursorId"))
-            consume_novelty(session, orchestrator.organization_id, head_id)
-            emit_top_content(
-                orchestrator,
-                session,
-                head,
-                configuration,
-                reason="novelty",
-                update_regular_cursor=False,
-                counters=counters,
-            )
-            orchestrator._update_state(  # noqa: SLF001
-                {
-                    "rescheduledRegularContentId": str(rescheduled.id) if rescheduled is not None else None,
-                }
-            )
-            prune_novelty_state(orchestrator, head_id)
-            return True
-
-        if defer_count >= max_defer:
-            consume_novelty(session, orchestrator.organization_id, head_id)
-            prune_novelty_state(orchestrator, head_id)
-        else:
-            increment_defer_count(orchestrator, head_id)
-
-    state = orchestrator._load_state()  # noqa: SLF001
 
     due = pick_due_recurring(recurring_items, counters)
     if due is not None:

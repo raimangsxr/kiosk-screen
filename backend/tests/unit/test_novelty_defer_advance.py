@@ -92,14 +92,30 @@ def _mark_novelty_ready(
     org_id: str,
     content_id: str,
 ) -> None:
+    _mark_novelties_ready(
+        orchestrator,
+        session,
+        org_id=org_id,
+        content_ids=[content_id],
+    )
+
+
+def _mark_novelties_ready(
+    orchestrator: DisplayOrchestrator,
+    session: Session,
+    *,
+    org_id: str,
+    content_ids: list[str],
+) -> None:
     hub = get_display_sse_hub()
     kiosk_id = _connect_kiosk(
         hub,
         org_id=org_id,
         session_id=orchestrator.operator_session_id,
-        client_instance_id=f"ready-{content_id[:8]}",
+        client_instance_id=f"ready-{'-'.join(item[:4] for item in content_ids)}",
     )
-    orchestrator.handle_novelty_preload_ready(session, kiosk_id=kiosk_id, content_id=content_id)
+    for content_id in content_ids:
+        orchestrator.handle_novelty_preload_ready(session, kiosk_id=kiosk_id, content_id=content_id)
 
 
 def _set_max_defer(session: Session, org_id: str, value: int) -> None:
@@ -172,6 +188,87 @@ def test_emit_novelty_when_ready_and_reschedule_regular(
     state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
     assert state["currentTopContentId"] == ids[3]
     assert state.get("rescheduledRegularContentId") is None
+
+
+def test_ready_novelties_emit_as_burst_before_regular_rotation(
+    orchestrator_env: tuple[DisplayOrchestrator, Session, str],
+) -> None:
+    orchestrator, session, org_id = orchestrator_env
+    _clear_content(session, org_id)
+    regular_ids = [str(uuid4()) for _ in range(5)]
+    novelty_ids = [str(uuid4()) for _ in range(3)]
+    session.add_all(
+        [
+            *[
+                _content(org_id, content_id, display_order=index, title=f"Item {index}")
+                for index, content_id in enumerate(regular_ids, start=1)
+            ],
+            *[
+                _content(
+                    org_id,
+                    content_id,
+                    display_order=index,
+                    is_novelty=True,
+                    title=f"Novelty {index}",
+                )
+                for index, content_id in enumerate(novelty_ids, start=6)
+            ],
+        ]
+    )
+    session.commit()
+    orchestrator.bootstrap(session)
+    _mark_novelties_ready(
+        orchestrator,
+        session,
+        org_id=org_id,
+        content_ids=novelty_ids,
+    )
+
+    emitted: list[str] = []
+    for _ in range(5):
+        orchestrator.advance_top(session, reason="timer")
+        state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
+        emitted.append(state["currentTopContentId"])
+
+    assert emitted == [*novelty_ids, regular_ids[1], regular_ids[2]]
+    assert state["regularCursorId"] == regular_ids[2]
+    assert state.get("rescheduledRegularContentId") is None
+
+
+def test_ready_follower_does_not_overtake_not_ready_fifo_head(
+    orchestrator_env: tuple[DisplayOrchestrator, Session, str],
+) -> None:
+    orchestrator, session, org_id = orchestrator_env
+    _clear_content(session, org_id)
+    regular_ids = [str(uuid4()) for _ in range(3)]
+    novelty_head = str(uuid4())
+    novelty_follower = str(uuid4())
+    session.add_all(
+        [
+            *[
+                _content(org_id, content_id, display_order=index, title=f"Item {index}")
+                for index, content_id in enumerate(regular_ids, start=1)
+            ],
+            _content(org_id, novelty_head, display_order=6, is_novelty=True, title="Novelty 6"),
+            _content(org_id, novelty_follower, display_order=7, is_novelty=True, title="Novelty 7"),
+        ]
+    )
+    session.commit()
+    orchestrator.bootstrap(session)
+    _mark_novelties_ready(
+        orchestrator,
+        session,
+        org_id=org_id,
+        content_ids=[novelty_follower],
+    )
+
+    orchestrator.advance_top(session, reason="timer")
+
+    state = redis_state.redis_get_json(redis_state.orchestrator_key(org_id, "session-1"))
+    assert state["currentTopContentId"] == regular_ids[1]
+    assert get_defer_count(state, novelty_head) == 1
+    assert session.get(TopContentItem, novelty_head).is_novelty is True  # type: ignore[union-attr]
+    assert session.get(TopContentItem, novelty_follower).is_novelty is True  # type: ignore[union-attr]
 
 
 def test_priority_emit_over_discard_at_max_minus_one(
