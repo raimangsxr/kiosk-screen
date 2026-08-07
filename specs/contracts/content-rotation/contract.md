@@ -25,6 +25,7 @@ related_changes:
   - CHG-050
   - CHG-056
   - CHG-057
+  - CHG-058
 related_adrs:
   []
 ---
@@ -45,7 +46,8 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - Fixed content can be pinned and loop cursor state is restored when leaving fixed mode.
 - Recurring content cadence rules (CHG-039) run in the orchestrator with per-item counters in Redis. Only **regular** (non-recurring) content transitions increment those counters; showing due or filler recurring content does not increment them.
 - Empty content queues are debounced on the server; `orchestrator_empty_queue` audit events replace client `content_rotation_empty` posts.
-- Public API uploads mark content with `isNovelty`; the orchestrator queues novelties with **defer-first emission** (CHG-056): at each loop boundary, if the head novelty is not ready on all connected kiosks, the orchestrator emits the next regular/recurring item and increments a per-novelty defer counter (max from `noveltyMaxDeferTransitions` configuration). When ready, the novelty emits in place of the next regular slot and the displaced regular is **rescheduled** for the following boundary. Max-defer discard calls `consume_novelty` without `show_content`. Kiosks report readiness via `novelty_preload_ready` on `POST /api/display/kiosk/events`.
+- Public API uploads mark content with `isNovelty`; the orchestrator queues novelties with **defer-first emission** (CHG-056): at each loop boundary, if the head novelty is not ready on all connected kiosks, the orchestrator emits the next regular/recurring item and increments a per-novelty defer counter (max from `noveltyMaxDeferTransitions` configuration). When ready, the novelty emits in place of the next regular slot and the displaced regular is **rescheduled**. Max-defer discard calls `consume_novelty` without `show_content`. Kiosks report readiness via `novelty_preload_ready` on `POST /api/display/kiosk/events`.
+- **Ready novelty priority (CHG-058)**: after emitting a ready novelty, every following loop boundary evaluates the next FIFO novelty before the rescheduled regular slot. Consecutive ready novelties therefore emit as a burst; for regular items `1–5`, if ready novelties `6–8` arrive while showing `1`, the observable sequence is `1, 6, 7, 8, 2, 3`. The regular cursor and displaced regular remain preserved until the burst ends. If the FIFO head is not ready, it keeps the CHG-056 defer/discard behavior and regular rotation resumes; later ready novelties never overtake it.
 - Admin content and ad write paths trigger orchestrator `content_mutated` refresh; playlist changes apply at the next content boundary.
 - Fixed, iframe, and paused loop modes do not intercept novelties.
 
@@ -98,3 +100,6 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-041
 - CHG-048
 - CHG-050
+- CHG-056
+- CHG-057
+- CHG-058

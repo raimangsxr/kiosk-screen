@@ -150,6 +150,7 @@ contracts:
       - CHG-050
       - CHG-056
       - CHG-057
+      - CHG-058
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -870,6 +871,17 @@ changes:
       - CHG-041
       - CHG-051
       - CHG-053
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-058
+    path: specs/changes/058-prioritize-ready-novelties/spec.md
+    status: implemented
+    modifies:
+      - CONTENT.ROTATION
+    depends_on:
+      - CHG-041
+      - CHG-056
     consolidated_into: []
     read_by_default: true
 

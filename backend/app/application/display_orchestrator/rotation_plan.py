@@ -58,12 +58,6 @@ def _pick_planned_next(
     orchestrator: DisplayOrchestrator | None = None,
     session: Session | None = None,
 ) -> TopContentItem | None:
-    rescheduled_id = state.get("rescheduledRegularContentId")
-    if rescheduled_id and session is not None and orchestrator is not None:
-        rescheduled = _lookup_content(session, orchestrator.organization_id, str(rescheduled_id))
-        if rescheduled is not None:
-            return rescheduled
-
     pending_novelties = novelty_queue(eligible)
     if pending_novelties:
         head = pending_novelties[0]
@@ -79,6 +73,12 @@ def _pick_planned_next(
                 return head
         else:
             return head
+
+    rescheduled_id = state.get("rescheduledRegularContentId")
+    if rescheduled_id and session is not None and orchestrator is not None:
+        rescheduled = _lookup_content(session, orchestrator.organization_id, str(rescheduled_id))
+        if rescheduled is not None:
+            return rescheduled
 
     counters = dict(state.get("recurringCounters") or {})
     recurring_items = recurring_queue(eligible)
