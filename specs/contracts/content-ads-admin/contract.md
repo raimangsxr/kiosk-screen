@@ -38,6 +38,7 @@ This active contract is the current source of truth for `CONTENT.ADS.ADMIN`. His
 ## Current behavior
 
 - Administrators can create, edit, delete, activate/deactivate, and reorder top content and ads.
+- Deleting content atomically clears any remote-control reference to that item: a pending `jump_to` command is cancelled, and fixed mode falls back to loop before the item is removed.
 - Content supports photos, videos, approved iframe/domain references where applicable, fixed eligibility, and recurring cadence.
 - Ads support upload-backed images, advertiser labels, ordering, and active state.
 - Admin lists show thumbnails or visual identification where media is present.

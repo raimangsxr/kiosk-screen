@@ -38,6 +38,7 @@ This active contract is the current source of truth for `DISPLAY.CONTROL`. Histo
 
 - Remote control supports content modes loop, iframe, and fixed.
 - Navigation commands are next, previous, pause, resume, and jump_to; jump_to is valid only in loop mode and requires an active non-fixed target.
+- Deleting the target of a pending jump_to cancels that command atomically; deleting the selected fixed content returns the affected control state to loop mode before removing the content.
 - The fixed-mode selector lists fixed-eligible content with a visual preview when a thumbnail or media URL is available, falling back to a content-type icon when no preview asset is present.
 - Remote control mutations fan out to all registered displays for the organization via SSE within one second (ADR-0009).
 - Ads visibility and fullscreen request changes are propagated through orchestrator SSE commands and audited.

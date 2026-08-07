@@ -10,6 +10,7 @@ from app.domain.media import UnsupportedExtensionError, detect_media_type_from_e
 from app.repositories.content import ContentRepository
 from app.repositories.events import DisplayEventRepository
 from app.repositories.models.content import TopContentItem
+from app.repositories.models.display_control_state import DisplayControlState
 from app.repositories.models.media import MediaFileReference
 from app.services.api_key_service import ApiKeyService
 from app.services.display_order import assign_ordered_display_orders, next_display_order
@@ -448,12 +449,69 @@ class ContentService:
         if item is None:
             raise LookupError("Content item not found.")
         media_id = item.media_file_id
+        self._clear_display_control_references(organization_id, user_id, content_id)
         self.repository.delete(item)
         self._record_change(organization_id, user_id, "content_changed", "Content removed", content_id)
         self.session.flush()
         if media_id:
             MediaStorageService(self.session).delete_if_unreferenced(media_id, organization_id)
         self.session.commit()
+
+    def _clear_display_control_references(
+        self,
+        organization_id: str,
+        user_id: str,
+        content_id: str,
+    ) -> None:
+        states = list(
+            self.session.scalars(
+                select(DisplayControlState).where(
+                    DisplayControlState.organization_id == organization_id,
+                    (
+                        (DisplayControlState.selected_fixed_content_id == content_id)
+                        | (DisplayControlState.jump_to_content_id == content_id)
+                    ),
+                )
+            )
+        )
+        for state in states:
+            changed = False
+            if state.selected_fixed_content_id == content_id:
+                previous_mode = state.content_mode
+                state.content_mode = "loop"
+                state.selected_fixed_content_id = None
+                state.selected_iframe_id = None
+                changed = True
+                self._record_change(
+                    organization_id,
+                    user_id,
+                    "display_control_fixed_changed",
+                    "Fixed content deleted; display returned to rotation.",
+                    content_id,
+                    metadata={
+                        "displaySessionId": state.display_session_id,
+                        "previousContentMode": previous_mode,
+                        "newContentMode": "loop",
+                        "previousSelectedFixedContentId": content_id,
+                        "newSelectedFixedContentId": None,
+                    },
+                )
+            if state.jump_to_content_id == content_id:
+                state.jump_to_content_id = None
+                if state.navigation_command == "jump_to":
+                    state.navigation_command = None
+                    state.navigation_command_id = None
+                changed = True
+                self._record_change(
+                    organization_id,
+                    user_id,
+                    "remote_control_jump_to_cancelled",
+                    "Jump-to target deleted; navigation command cancelled.",
+                    content_id,
+                    metadata={"displaySessionId": state.display_session_id},
+                )
+            if changed:
+                state.updated_by_user_id = user_id
 
     def reorder(self, organization_id: str, user_id: str, ordered_ids: list[str]) -> None:
         from app.shared.errors.application_errors import ReorderIdsMismatchError
