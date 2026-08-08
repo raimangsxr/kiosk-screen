@@ -145,8 +145,10 @@ type DisplayRenderableItem = Pick<
                     autoplay
                     playsinline
                     [loop]="isFixedMode"
+                    [attr.data-command-id]="currentContentCommandId()"
                     (loadeddata)="onVideoBackdropCapture(currentItem, fixedVideo)"
                     (ended)="onVideoEnded(currentItem)"
+                    (error)="onVideoError(currentItem, fixedVideo)"
                     class="display-content-media"
                     data-testid="display-content"
                   ></video>
@@ -563,6 +565,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
   protected readonly noveltyIndicatorVisible = computed(
     () => this.isPreloadAllowed() && this.noveltyTracker.hasEntries(),
   );
+  protected readonly currentContentCommandId = this.displayViewer.currentCommandId;
 
   private isPreloadAllowed(): boolean {
     return this.displayViewer.contentMode() === 'loop'
@@ -1004,6 +1007,13 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
     this.displayViewer.onVideoEnded(item);
   }
 
+  onVideoError(item: DisplayContentItem, video: HTMLVideoElement): void {
+    const commandId = video.dataset['commandId'];
+    if (commandId) {
+      this.displayViewer.onVideoPlaybackError(item, commandId);
+    }
+  }
+
   readonly trackContent = (_index: number, item: DisplayContentItem): string => this.contentRenderKey(item);
 
   readonly trackAdByRotation = (_index: number, ad: DisplayAdItem): string => ad.id;
@@ -1149,6 +1159,7 @@ export class DisplayScreenComponent implements OnInit, OnDestroy {
       item.effectiveRotationAnimation ?? item.rotationAnimation ?? 'none',
       item.effectiveAnimationDurationMilliseconds ?? item.animationDurationMilliseconds ?? 'default',
       item.contentType,
+      this.displayViewer.currentCommandId() ?? 'bootstrap',
     ].join('|');
   }
 }

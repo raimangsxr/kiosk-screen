@@ -26,6 +26,7 @@ related_changes:
   - CHG-056
   - CHG-057
   - CHG-058
+  - CHG-059
 related_adrs:
   []
 ---
@@ -59,7 +60,7 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - On novelty queue change in active loop, server emits SSE `preload` with all pending novelty items (`isNovelty: true`) plus the next regular item when applicable. No `preload` while loop is paused, in fixed content mode, or iframe mode.
 - After each top-content emit in loop, server emits `preload` for the next regular item at the start of that item's period.
 - SSE `snapshot` includes `pendingNovelties` for reconnect backfill with `deferCount`, `maxDefer`, `downloadReady` per item. Preload items require `isNovelty: boolean`.
-- First `media_error` per `commandId` advances orchestrator top rotation for all displays (deduped via `processedKioskEvents`); novelty gate timeout path removed (CHG-056).
+- First `media_error` per `commandId` advances orchestrator top rotation for all displays (deduped via `processedKioskEvents`); novelty gate timeout path removed (CHG-056). Kiosks may report this event either while preparing a commanded medium or from an error on the visible video element; stale-element reports MUST retain their original command identity and are ignored when it no longer matches the orchestrator command (CHG-059).
 - Orchestrator Redis state tracks `noveltyDeferCounts`, `noveltyReadyKiosks`, and `rescheduledRegularContentId`.
 - **Rotation recovery (CHG-057)**: `GET /api/display/stream` open and `GET /api/display/state` call `ensure_display_orchestrator` when the engine is inactive (idempotent). Remote `adsVisible` false→true re-arms ad rotation via `ensure_ad_rotation`; hidden ads cancel the ad timer. Polled `GET /api/display/state` may include `currentTop` and `currentAds` (same shapes as SSE snapshot) reflecting live orchestrator position.
 
@@ -103,3 +104,4 @@ This active contract is the current source of truth for `CONTENT.ROTATION`. Hist
 - CHG-056
 - CHG-057
 - CHG-058
+- CHG-059

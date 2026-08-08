@@ -151,6 +151,7 @@ contracts:
       - CHG-056
       - CHG-057
       - CHG-058
+      - CHG-059
 
   - id: EVENT.BRANDING
     path: specs/contracts/event-branding/contract.md
@@ -302,6 +303,7 @@ contracts:
       - CHG-057
       - CHG-051
       - CHG-053
+      - CHG-059
 
   - id: OPS.PLATFORM
     path: specs/contracts/ops-platform/contract.md
@@ -881,6 +883,20 @@ changes:
       - CONTENT.ROTATION
     depends_on:
       - CHG-041
+      - CHG-056
+    consolidated_into: []
+    read_by_default: true
+
+  - id: CHG-059
+    path: specs/changes/059-fix-video-burst/spec.md
+    status: implemented
+    modifies:
+      - DISPLAY.RUNTIME
+      - CONTENT.ROTATION
+    depends_on:
+      - CHG-050
+      - CHG-051
+      - CHG-053
       - CHG-056
     consolidated_into: []
     read_by_default: true

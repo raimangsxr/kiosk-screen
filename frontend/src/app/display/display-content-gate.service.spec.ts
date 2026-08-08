@@ -14,6 +14,7 @@ describe('DisplayContentGateService', () => {
   let viewer: DisplayViewerController;
   let http: HttpTestingController;
   let ensureReady: jasmine.Spy<DisplayMediaCacheService['ensureReady']>;
+  let getReadyState: jasmine.Spy<DisplayMediaCacheService['getReadyState']>;
 
   const content: DisplayContentItem = {
     id: 'content-1',
@@ -37,6 +38,7 @@ describe('DisplayContentGateService', () => {
 
   beforeEach(() => {
     ensureReady = jasmine.createSpy('ensureReady').and.returnValue(Promise.resolve('blob:cached'));
+    getReadyState = jasmine.createSpy('getReadyState').and.returnValue('idle');
     TestBed.configureTestingModule({
       providers: [
         DisplayContentGateService,
@@ -45,7 +47,7 @@ describe('DisplayContentGateService', () => {
           provide: DisplayMediaCacheService,
           useValue: {
             revision: () => 0,
-            getReadyState: () => 'idle',
+            getReadyState,
             ensureReady,
           },
         },
@@ -105,6 +107,17 @@ describe('DisplayContentGateService', () => {
     expect(elapsed).toBeLessThan(500);
   }));
 
+  it('delegates an earlier failed state to the cache retry policy', fakeAsync(() => {
+    getReadyState.and.returnValue('failed');
+
+    gate.enqueueShowContent(payload('cmd-retry'));
+    tick();
+
+    expect(ensureReady).toHaveBeenCalledWith('/api/media/slide.jpg', 'photo');
+    expect(viewer.currentContent()?.id).toBe('content-1');
+    http.expectNone('/api/display/kiosk/events');
+  }));
+
   it('posts media_error on gate timeout without committing failed content', fakeAsync(() => {
     ensureReady.and.returnValue(new Promise(() => undefined));
     gate.enqueueShowContent(payload('cmd-timeout'));
@@ -119,13 +132,19 @@ describe('DisplayContentGateService', () => {
     expect(viewer.currentContent()).toBeNull();
   }));
 
-  it('commits novelty immediately without waiting for media cache', fakeAsync(() => {
-    ensureReady.and.returnValue(new Promise(() => undefined));
+  it('holds a server-ready novelty until it has a retained presentation source', fakeAsync(() => {
+    let resolveReady!: (url: string) => void;
+    ensureReady.and.returnValue(new Promise((resolve) => { resolveReady = resolve; }));
     const noveltyPayload: ShowContentPayload = {
       ...payload('cmd-novelty'),
       reason: 'novelty',
     };
     gate.enqueueShowContent(noveltyPayload);
+    tick();
+
+    expect(viewer.currentContent()).toBeNull();
+
+    resolveReady('blob:novelty');
     tick();
 
     expect(viewer.currentContent()?.id).toBe('content-1');

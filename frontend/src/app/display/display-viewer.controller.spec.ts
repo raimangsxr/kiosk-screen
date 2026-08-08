@@ -112,6 +112,36 @@ describe('DisplayViewerController', () => {
     request.flush(null);
   });
 
+  it('posts a visible video playback error once for the originating active command', () => {
+    controller.applyShowContent(showContentPayload);
+
+    controller.onVideoPlaybackError(content, showContentPayload.commandId);
+    controller.onVideoPlaybackError(content, showContentPayload.commandId);
+
+    const requests = http.match('/api/display/kiosk/events');
+    expect(requests.length).toBe(1);
+    expect(requests[0].request.body).toEqual(jasmine.objectContaining({
+      type: 'media_error',
+      commandId: showContentPayload.commandId,
+      contentId: content.id,
+      metadata: { source: 'visible_video', code: 'playback_error' },
+    }));
+    requests[0].flush(null);
+  });
+
+  it('ignores a playback error from a video element replaced by a newer command', () => {
+    controller.applyShowContent(showContentPayload);
+    controller.applyShowContent({
+      ...showContentPayload,
+      commandId: 'cmd-20260708-000099',
+      content: { ...content, id: 'content-2' },
+    });
+
+    controller.onVideoPlaybackError(content, showContentPayload.commandId);
+
+    expect(http.match('/api/display/kiosk/events').length).toBe(0);
+  });
+
   it('applies show_ads to visible sponsor strip items', () => {
     controller.applyShowAds(showAdsPayload);
     expect(controller.visibleAds().length).toBe(1);

@@ -36,6 +36,7 @@ describe('DisplayMediaCacheService', () => {
     const url = '/api/media/file-1';
     expect(service.getDisplayUrl(url)).toBe('');
 
+    service.retainTop([url]);
     const pending = service.ensure(url);
     const req = http.expectOne(url);
     expect(req.request.responseType).toBe('blob');
@@ -49,7 +50,7 @@ describe('DisplayMediaCacheService', () => {
   });
 
   it('warm prefetches multiple urls once each', async () => {
-    service.warm(['/api/media/a', '/api/media/b']);
+    service.retainTop(['/api/media/a', '/api/media/b']);
     const a = http.expectOne('/api/media/a');
     const b = http.expectOne('/api/media/b');
     a.flush(new Blob(['a']));
@@ -67,6 +68,40 @@ describe('DisplayMediaCacheService', () => {
     const pending = http.match(() => true);
     expect(pending.length).toBe(3);
     pending.forEach((req) => req.flush(new Blob(['x'])));
+  });
+
+  it('limits direct ensureReady callers to three active preparations globally', async () => {
+    const urls = Array.from({ length: 10 }, (_, index) => `/api/media/burst-${index}`);
+    const preparations = urls.map((url) => service.ensureReady(url, indexToType(url)));
+
+    for (let completed = 0; completed < urls.length; completed += 3) {
+      const active = http.match((request) => request.url.startsWith('/api/media/burst-'));
+      expect(active.length).toBe(Math.min(3, urls.length - completed));
+      active.forEach((request) => request.flush(new Blob([request.request.url])));
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
+    await Promise.all(preparations);
+
+    function indexToType(url: string): 'photo' | 'video' {
+      const index = Number(url.split('-').pop());
+      return index % 2 === 0 ? 'photo' : 'video';
+    }
+  });
+
+  it('marks non-retained preparation ready without retaining its presentation blob', async () => {
+    const url = '/api/media/non-retained-novelty';
+    const blobUrl = 'blob:non-retained-novelty';
+    spyOn(URL, 'createObjectURL').and.returnValue(blobUrl);
+
+    const pending = service.ensureReady(url, 'video');
+    http.expectOne(url).flush(new Blob(['video']));
+    await pending;
+
+    expect(service.getReadyState(url)).toBe('ready');
+    expect(service.getDisplayUrl(url)).toBe('');
+    expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
   });
 
   it('warms only the first announced top preload candidate', () => {
@@ -130,11 +165,11 @@ describe('DisplayMediaCacheService', () => {
 
     service.clearTopRetention();
     request.flush(new Blob(['late']));
-    const blobUrl = await pending;
+    await pending;
 
-    expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
+    expect(revokeSpy).toHaveBeenCalled();
     expect(service.getDisplayUrl(url)).toBe('');
-    expect(service.getReadyState(url)).toBe('idle');
+    expect(service.getReadyState(url)).toBe('ready');
   });
 
   it('does not restore a completion from a released cache lifecycle', async () => {
@@ -145,9 +180,9 @@ describe('DisplayMediaCacheService', () => {
 
     service.releaseAll();
     request.flush(new Blob(['late']));
-    const blobUrl = await pending;
+    await pending;
 
-    expect(revokeSpy).toHaveBeenCalledWith(blobUrl);
+    expect(revokeSpy).toHaveBeenCalled();
     expect(service.getDisplayUrl(url)).toBe('');
     expect(service.getReadyState(url)).toBe('idle');
   });
@@ -166,11 +201,11 @@ describe('DisplayMediaCacheService', () => {
     const newBlobUrl = await newPending;
 
     oldRequest.flush(new Blob(['old']));
-    const oldBlobUrl = await oldPending;
+    await oldPending;
 
     expect(service.getDisplayUrl(url)).toBe(newBlobUrl);
     expect(service.getReadyState(url)).toBe('ready');
-    expect(revokeSpy).toHaveBeenCalledWith(oldBlobUrl);
+    expect(revokeSpy).toHaveBeenCalled();
   });
 
   it('revokes a temporary object URL when presentation probing fails', async () => {
@@ -190,6 +225,24 @@ describe('DisplayMediaCacheService', () => {
     expect(service.getDisplayUrl(url)).toBe('');
   });
 
+  it('retries a transient failure after cooldown instead of failing for the component lifetime', async () => {
+    const url = '/api/media/transient-video';
+    let now = 10_000;
+    spyOn(Date, 'now').and.callFake(() => now);
+
+    const first = service.ensureReady(url, 'video');
+    http.expectOne(url).flush(new Blob(['temporary']), { status: 503, statusText: 'Unavailable' });
+    await expectAsync(first).toBeRejected();
+    await expectAsync(service.ensureReady(url, 'video')).toBeRejected();
+    http.expectNone(url);
+
+    now += 60_000;
+    const retry = service.ensureReady(url, 'video');
+    http.expectOne(url).flush(new Blob(['video']));
+    await expectAsync(retry).toBeResolved();
+    expect(service.getReadyState(url)).toBe('ready');
+  });
+
   it('marks a fully downloaded video ready when it can start without canplaythrough', fakeAsync(() => {
     const url = '/api/media/rotation-video';
     const blobUrl = 'blob:rotation-video';
@@ -202,6 +255,8 @@ describe('DisplayMediaCacheService', () => {
 
     let resolved = false;
     let rejected = false;
+    service.warmItems([{ mediaUrl: url, contentType: 'video' }]);
+    service.retainTop([url]);
     void service.ensure(url, 'video')
       .then(() => { resolved = true; })
       .catch(() => { rejected = true; });

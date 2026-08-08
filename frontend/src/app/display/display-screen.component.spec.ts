@@ -1960,6 +1960,54 @@ describe('DisplayScreenComponent', () => {
       expect(enqueueSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('uses command identity in the render key so repeated videos remount', () => {
+      const video: DisplayContentItem = {
+        ...readyState.topContent[0],
+        contentType: 'video',
+        sourceReference: 'https://example.com/repeated.mp4',
+      };
+      const fixture = createComponent({ ...readyState, topContent: [video] });
+      const viewer = viewerFor(fixture);
+      const component = fixture.componentInstance as unknown as {
+        trackContent: (index: number, item: DisplayContentItem) => string;
+      };
+
+      viewer.applyShowContent({
+        commandId: 'cmd-video-1',
+        content: video,
+        playback: { mode: 'video', durationSeconds: 10, videoEndDelaySeconds: 2, loopVideo: false },
+        transition: { animation: 'none', durationMs: 0 },
+        reason: 'rotation',
+      });
+      const firstKey = component.trackContent(0, video);
+      viewer.applyShowContent({
+        commandId: 'cmd-video-2',
+        content: video,
+        playback: { mode: 'video', durationSeconds: 10, videoEndDelaySeconds: 2, loopVideo: false },
+        transition: { animation: 'none', durationMs: 0 },
+        reason: 'rotation',
+      });
+
+      expect(component.trackContent(0, video)).not.toBe(firstKey);
+      fixture.destroy();
+    });
+
+    it('forwards a visible video error with the command stored on that element', () => {
+      const fixture = createComponent(readyState);
+      const viewer = viewerFor(fixture);
+      const errorSpy = spyOn(viewer, 'onVideoPlaybackError');
+      const component = fixture.componentInstance as unknown as {
+        onVideoError: (item: DisplayContentItem, video: HTMLVideoElement) => void;
+      };
+      const video = document.createElement('video');
+      video.dataset['commandId'] = 'cmd-origin';
+
+      component.onVideoError(readyState.topContent[0], video);
+
+      expect(errorSpy).toHaveBeenCalledOnceWith(readyState.topContent[0], 'cmd-origin');
+      fixture.destroy();
+    });
+
     xit('shows a reconnecting indicator after transient SSE failures', () => {
       const streamReconnecting = signal(true);
       TestBed.configureTestingModule({

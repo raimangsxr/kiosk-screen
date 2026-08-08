@@ -4,27 +4,37 @@ import { firstValueFrom } from 'rxjs';
 
 /** Max top-region blobs: visible + one preload (FR-001). */
 const MAX_TOP_RETENTION = 2;
+const MAX_CONCURRENT_DOWNLOADS = 3;
+const PROBE_TIMEOUT_MS = 10_000;
+const RETRY_COOLDOWN_MS = 15_000;
 
 export type MediaCacheReadyState = 'idle' | 'downloading' | 'ready' | 'failed';
 
-const MAX_CONCURRENT_DOWNLOADS = 3;
-const PROBE_TIMEOUT_MS = 10_000;
+interface PreparationRequest {
+  readonly url: string;
+  readonly contentType: string;
+  readonly generation: number;
+  required: boolean;
+  active: boolean;
+  readonly promise: Promise<string>;
+  readonly resolve: (blobUrl: string) => void;
+  readonly reject: (error: unknown) => void;
+}
 
 @Injectable()
 export class DisplayMediaCacheService {
   private readonly http = inject(HttpClient);
   private readonly blobByUrl = new Map<string, string>();
-  private readonly inflight = new Map<string, Promise<string>>();
-  private readonly failedUrls = new Set<string>();
+  private readonly pendingByUrl = new Map<string, PreparationRequest>();
+  private readonly failureAtByUrl = new Map<string, number>();
   private topRetained = new Set<string>();
   private adRetained = new Set<string>();
   private readonly readyStateByUrl = new Map<string, MediaCacheReadyState>();
-  private readonly warmQueue: Array<{ url: string; contentType: string }> = [];
-  private readonly evictedWhileInflight = new Set<string>();
+  private readonly preparationQueue: PreparationRequest[] = [];
   private activeDownloads = 0;
   private lifecycleGeneration = 0;
 
-  /** Bumped when a blob URL becomes available so templates re-bind [src]. */
+  /** Bumped when a presentation Blob URL changes so templates re-bind [src]. */
   readonly revision = signal(0);
 
   getReadyState(url: string | null | undefined): MediaCacheReadyState {
@@ -35,14 +45,10 @@ export class DisplayMediaCacheService {
   }
 
   getDisplayUrl(url: string | null | undefined): string {
-    if (!url) {
+    if (!url || this.readyStateByUrl.get(url) !== 'ready') {
       return '';
     }
-    const state = this.readyStateByUrl.get(url);
-    if (state === 'ready') {
-      return this.blobByUrl.get(url) ?? '';
-    }
-    return '';
+    return this.blobByUrl.get(url) ?? '';
   }
 
   /** Retain at most visible + one preload for the top region. */
@@ -51,7 +57,7 @@ export class DisplayMediaCacheService {
     const next = new Set(unique.slice(0, MAX_TOP_RETENTION));
     this.evictRetainedUrls(this.topRetained, next);
     this.topRetained = next;
-    this.pruneWarmQueue();
+    this.pruneUnneededQueuedPreparations();
     this.warm([...next]);
   }
 
@@ -60,7 +66,7 @@ export class DisplayMediaCacheService {
     const next = new Set(urls.filter((url): url is string => Boolean(url)));
     this.evictRetainedUrls(this.adRetained, next);
     this.adRetained = next;
-    this.pruneWarmQueue();
+    this.pruneUnneededQueuedPreparations();
     this.warm([...next]);
   }
 
@@ -71,32 +77,22 @@ export class DisplayMediaCacheService {
     for (const url of releasing) {
       this.revokeIfUnreferenced(url);
     }
-    this.pruneWarmQueue();
+    this.pruneUnneededQueuedPreparations();
   }
 
   warm(urls: readonly (string | null | undefined)[]): void {
     const unique = [...new Set(urls.filter((url): url is string => Boolean(url)))];
     for (const url of unique) {
-      this.enqueueWarm(url, 'photo');
+      void this.queuePreparation(url, 'photo', false).catch(() => undefined);
     }
-    this.drainWarmQueue();
   }
 
   warmItems(items: ReadonlyArray<{ mediaUrl: string; contentType?: string }>): void {
     for (const item of items.slice(0, 1)) {
       if (item.mediaUrl) {
-        this.enqueueWarm(item.mediaUrl, item.contentType ?? 'photo');
+        void this.queuePreparation(item.mediaUrl, item.contentType ?? 'photo', false)
+          .catch(() => undefined);
       }
-    }
-    this.drainWarmQueue();
-  }
-
-  private enqueueWarm(url: string, contentType: string): void {
-    if (this.failedUrls.has(url) || this.readyStateByUrl.get(url) === 'ready') {
-      return;
-    }
-    if (!this.warmQueue.some((entry) => entry.url === url) && !this.inflight.has(url)) {
-      this.warmQueue.push({ url, contentType });
     }
   }
 
@@ -104,98 +100,132 @@ export class DisplayMediaCacheService {
     return this.ensureReady(url, contentType);
   }
 
+  /**
+   * Ensure the medium has been downloaded and presentation-probed. All direct
+   * callers cross the same FIFO scheduler; none can bypass the global limit.
+   * A non-retained request may resolve with an empty string after verification:
+   * logical readiness does not grant ownership of a presentation Blob URL.
+   */
   ensureReady(url: string, contentType = 'photo'): Promise<string> {
-    if (this.failedUrls.has(url)) {
-      return Promise.reject(new Error('media_fetch_failed'));
-    }
-    const state = this.readyStateByUrl.get(url);
-    if (state === 'ready') {
-      const cached = this.blobByUrl.get(url);
-      if (cached) {
-        return Promise.resolve(cached);
-      }
-    }
-    const pending = this.inflight.get(url);
-    if (pending) {
-      return pending;
-    }
-
-    this.readyStateByUrl.set(url, 'downloading');
-    const generation = this.lifecycleGeneration;
-    let promise!: Promise<string>;
-    promise = this.fetchAndProbe(url, contentType)
-      .then((blobUrl) => {
-        const ownsInflightEntry = this.inflight.get(url) === promise;
-        if (ownsInflightEntry) {
-          this.inflight.delete(url);
-        }
-        const evicted = generation === this.lifecycleGeneration
-          ? this.evictedWhileInflight.delete(url)
-          : false;
-        if (generation !== this.lifecycleGeneration || (evicted && !this.isRetained(url))) {
-          URL.revokeObjectURL(blobUrl);
-          if (ownsInflightEntry || (!this.inflight.has(url) && !this.blobByUrl.has(url))) {
-            this.readyStateByUrl.delete(url);
-          }
-          this.revision.update((value) => value + 1);
-          return blobUrl;
-        }
-        this.blobByUrl.set(url, blobUrl);
-        this.readyStateByUrl.set(url, 'ready');
-        this.revision.update((value) => value + 1);
-        return blobUrl;
-      })
-      .catch((error: unknown) => {
-        const ownsInflightEntry = this.inflight.get(url) === promise;
-        if (ownsInflightEntry) {
-          this.inflight.delete(url);
-        }
-        if (generation !== this.lifecycleGeneration) {
-          if (ownsInflightEntry || (!this.inflight.has(url) && !this.blobByUrl.has(url))) {
-            this.readyStateByUrl.delete(url);
-          }
-          throw error;
-        }
-        this.failedUrls.add(url);
-        this.readyStateByUrl.set(url, 'failed');
-        this.revision.update((value) => value + 1);
-        if (error instanceof HttpErrorResponse) {
-          console.warn(`Display media cache: failed to fetch ${url} (${error.status})`);
-        }
-        throw error;
-      });
-
-    this.inflight.set(url, promise);
-    return promise;
+    return this.queuePreparation(url, contentType, true);
   }
 
   release(url: string): void {
     this.topRetained.delete(url);
     this.adRetained.delete(url);
-    this.pruneWarmQueue();
+    this.pruneUnneededQueuedPreparations();
     this.revokeIfUnreferenced(url);
   }
 
-  private drainWarmQueue(): void {
-    while (this.activeDownloads < MAX_CONCURRENT_DOWNLOADS && this.warmQueue.length > 0) {
-      const entry = this.warmQueue.shift();
-      if (!entry || this.failedUrls.has(entry.url) || this.readyStateByUrl.get(entry.url) === 'ready') {
+  private queuePreparation(url: string, contentType: string, required: boolean): Promise<string> {
+    const cached = this.blobByUrl.get(url);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+
+    const failedAt = this.failureAtByUrl.get(url);
+    if (failedAt !== undefined) {
+      if (Date.now() - failedAt < RETRY_COOLDOWN_MS) {
+        return Promise.reject(new Error('media_retry_cooldown'));
+      }
+      this.failureAtByUrl.delete(url);
+      this.readyStateByUrl.delete(url);
+    }
+
+    const existing = this.pendingByUrl.get(url);
+    if (existing) {
+      existing.required ||= required;
+      return existing.promise;
+    }
+
+    if (this.readyStateByUrl.get(url) === 'ready' && !this.isRetained(url)) {
+      return Promise.resolve('');
+    }
+
+    let resolve!: (blobUrl: string) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<string>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    });
+    const request: PreparationRequest = {
+      url,
+      contentType,
+      generation: this.lifecycleGeneration,
+      required,
+      active: false,
+      promise,
+      resolve,
+      reject,
+    };
+    this.pendingByUrl.set(url, request);
+    this.readyStateByUrl.set(url, 'downloading');
+    this.preparationQueue.push(request);
+    this.drainPreparationQueue();
+    return promise;
+  }
+
+  private drainPreparationQueue(): void {
+    while (this.activeDownloads < MAX_CONCURRENT_DOWNLOADS && this.preparationQueue.length > 0) {
+      const request = this.preparationQueue.shift();
+      if (!request || this.pendingByUrl.get(request.url) !== request) {
         continue;
       }
-      if (this.inflight.has(entry.url)) {
-        continue;
-      }
+      request.active = true;
       this.activeDownloads += 1;
-      const generation = this.lifecycleGeneration;
-      void this.ensureReady(entry.url, entry.contentType)
-        .catch(() => undefined)
-        .finally(() => {
-          if (generation !== this.lifecycleGeneration) {
-            return;
-          }
-          this.activeDownloads -= 1;
-          this.drainWarmQueue();
-        });
+      void this.runPreparation(request);
+    }
+  }
+
+  private async runPreparation(request: PreparationRequest): Promise<void> {
+    try {
+      const blobUrl = await this.fetchAndProbe(request.url, request.contentType);
+      if (request.generation !== this.lifecycleGeneration) {
+        URL.revokeObjectURL(blobUrl);
+        request.resolve('');
+        return;
+      }
+
+      this.failureAtByUrl.delete(request.url);
+      if (this.isRetained(request.url)) {
+        const previous = this.blobByUrl.get(request.url);
+        if (previous && previous !== blobUrl) {
+          URL.revokeObjectURL(previous);
+        }
+        this.blobByUrl.set(request.url, blobUrl);
+        this.readyStateByUrl.set(request.url, 'ready');
+        request.resolve(blobUrl);
+      } else {
+        URL.revokeObjectURL(blobUrl);
+        if (request.required) {
+          this.readyStateByUrl.set(request.url, 'ready');
+        } else {
+          this.readyStateByUrl.delete(request.url);
+        }
+        request.resolve('');
+      }
+      this.revision.update((value) => value + 1);
+    } catch (error: unknown) {
+      if (request.generation !== this.lifecycleGeneration) {
+        request.reject(error);
+        return;
+      }
+      this.failureAtByUrl.set(request.url, Date.now());
+      this.readyStateByUrl.set(request.url, 'failed');
+      this.revision.update((value) => value + 1);
+      if (error instanceof HttpErrorResponse) {
+        console.warn(`Display media cache: failed to fetch ${request.url} (${error.status})`);
+      }
+      request.reject(error);
+    } finally {
+      if (request.generation !== this.lifecycleGeneration) {
+        return;
+      }
+      if (this.pendingByUrl.get(request.url) === request) {
+        this.pendingByUrl.delete(request.url);
+      }
+      this.activeDownloads -= 1;
+      this.drainPreparationQueue();
     }
   }
 
@@ -263,10 +293,6 @@ export class DisplayMediaCacheService {
         video.removeAttribute('src');
         video.load();
       };
-      // The Blob is fully downloaded before this probe starts. `canplay` is
-      // therefore sufficient to prove that the browser can decode and begin
-      // playback; `canplaythrough` is only a buffering estimate and may never
-      // fire, which previously caused valid rotation videos to be skipped.
       video.oncanplay = () => {
         cleanup();
         resolve();
@@ -282,17 +308,22 @@ export class DisplayMediaCacheService {
 
   releaseAll(): void {
     this.lifecycleGeneration += 1;
+    const released = new Error('media_cache_released');
+    for (const request of this.pendingByUrl.values()) {
+      if (!request.active) {
+        request.reject(released);
+      }
+    }
     for (const blobUrl of this.blobByUrl.values()) {
       URL.revokeObjectURL(blobUrl);
     }
     this.blobByUrl.clear();
-    this.inflight.clear();
-    this.failedUrls.clear();
+    this.pendingByUrl.clear();
+    this.failureAtByUrl.clear();
     this.topRetained.clear();
     this.adRetained.clear();
-    this.evictedWhileInflight.clear();
     this.readyStateByUrl.clear();
-    this.warmQueue.length = 0;
+    this.preparationQueue.length = 0;
     this.activeDownloads = 0;
     this.revision.update((value) => value + 1);
   }
@@ -307,11 +338,8 @@ export class DisplayMediaCacheService {
   }
 
   private revokeIfUnreferenced(url: string): void {
-    if (this.topRetained.has(url) || this.adRetained.has(url)) {
+    if (this.isRetained(url)) {
       return;
-    }
-    if (this.inflight.has(url)) {
-      this.evictedWhileInflight.add(url);
     }
     const blobUrl = this.blobByUrl.get(url);
     if (!blobUrl) {
@@ -319,18 +347,24 @@ export class DisplayMediaCacheService {
     }
     URL.revokeObjectURL(blobUrl);
     this.blobByUrl.delete(url);
-    this.inflight.delete(url);
-    // Also drop the ready-state (CHG-050) so an evicted-then-re-needed URL is
-    // re-downloaded instead of being treated as still 'ready' with no blob.
-    this.readyStateByUrl.delete(url);
+    // Preserve logical readiness. If this URL becomes visible again,
+    // queuePreparation sees there is no Blob and prepares a fresh source.
+    this.readyStateByUrl.set(url, 'ready');
     this.revision.update((value) => value + 1);
   }
 
-  private pruneWarmQueue(): void {
-    for (let index = this.warmQueue.length - 1; index >= 0; index -= 1) {
-      if (!this.isRetained(this.warmQueue[index].url)) {
-        this.warmQueue.splice(index, 1);
+  private pruneUnneededQueuedPreparations(): void {
+    for (let index = this.preparationQueue.length - 1; index >= 0; index -= 1) {
+      const request = this.preparationQueue[index];
+      if (request.required || this.isRetained(request.url)) {
+        continue;
       }
+      this.preparationQueue.splice(index, 1);
+      if (this.pendingByUrl.get(request.url) === request) {
+        this.pendingByUrl.delete(request.url);
+      }
+      this.readyStateByUrl.delete(request.url);
+      request.reject(new Error('media_preparation_pruned'));
     }
   }
 

@@ -33,6 +33,7 @@ export class DisplayViewerController {
   readonly preloadUrls = signal<string[]>([]);
 
   private lastShowAdsFingerprint: string | null = null;
+  private reportedVideoErrorCommandId: string | null = null;
 
   readonly isFixedMode = computed(() => this.contentMode() === 'fixed');
   readonly iframeActive = computed(() => this.contentMode() === 'iframe' && this.currentIframe() !== null);
@@ -178,6 +179,23 @@ export class DisplayViewerController {
       contentId: content.id,
       at: new Date().toISOString(),
     });
+  }
+
+  onVideoPlaybackError(content: DisplayContentItem, commandId: string): void {
+    if (
+      !commandId
+      || commandId !== this.currentCommandId()
+      || content.id !== this.currentContent()?.id
+      || this.reportedVideoErrorCommandId === commandId
+    ) {
+      return;
+    }
+    this.reportedVideoErrorCommandId = commandId;
+    this.reportMediaError(
+      content.id,
+      { source: 'visible_video', code: 'playback_error' },
+      commandId,
+    );
   }
 
   reportMediaError(

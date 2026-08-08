@@ -26,7 +26,7 @@ export class DisplayContentGateService {
   readonly onCommitted = this.committedSubject.asObservable();
 
   enqueueShowContent(payload: ShowContentPayload): void {
-    if (payload.reason === 'novelty' || !this.isGateActive()) {
+    if (!this.isGateActive()) {
       this.commitImmediately(payload);
       return;
     }
@@ -72,12 +72,6 @@ export class DisplayContentGateService {
     const mediaUrl = this.rawMediaUrl(payload.content);
     if (!mediaUrl) {
       this.commitPayload(payload);
-      return;
-    }
-
-    const readyState = this.mediaCache.getReadyState(mediaUrl);
-    if (readyState === 'failed') {
-      this.handleFailure(payload);
       return;
     }
 
